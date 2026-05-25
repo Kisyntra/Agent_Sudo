@@ -1,5 +1,7 @@
 # agent-sudo
 
+Current release: `v0.2.0-beta` (`0.2.0b0` for Python packaging).
+
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
 It protects local tool execution with policy checks, approvals, scoped delegation, provenance, and audit logs.
@@ -137,6 +139,10 @@ agent-sudo codex-check examples/codex_tool_call.json
 agent-sudo generic-check examples/generic_tool_call.json
 agent-sudo generic-run examples/generic_tool_call.json --dry-run
 ```
+
+For the first enforceable dispatch prototype, see [docs/MCP_GATEWAY.md](docs/MCP_GATEWAY.md). It routes MCP-style JSON tool calls through `PermissionGateway.evaluate()` before running the small local demo tool set.
+
+For the stdio MCP server, see [docs/MCP_SERVER_SETUP.md](docs/MCP_SERVER_SETUP.md). It exposes `read_file`, `write_file`, and `run_shell_command` as MCP tools through `agent-sudo-mcp`.
 
 Run with approvals and audit logging:
 
@@ -279,10 +285,10 @@ SENSITIVE actions require yes/no approval:
 - `create_cron`
 - `send_message`
 - `browser_click`
-- `run_shell_command`
 
 CRITICAL actions require passphrase confirmation:
 
+- `run_shell_command`
 - `send_email`
 - `delete_file`
 - `money_transfer`

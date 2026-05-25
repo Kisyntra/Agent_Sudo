@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+from agent_sudo import __version_label__
 from agent_sudo.approvals import ApprovalProvider, init_approval_config
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.classifier import ActionClassifier
@@ -152,6 +153,7 @@ def load_requests(path: Path) -> list[ActionRequest]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agent-sudo")
+    parser.add_argument("--version", action="version", version=f"agent-sudo {__version_label__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     check_parser = subparsers.add_parser("check", help="Classify requests and show policy decisions")

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-sudo"
-version = "0.1.0"
+version = "0.2.0b0"
 description = "Local permission gateway for AI agent tool execution"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,7 @@ dependencies = []
 
 [project.scripts]
 agent-sudo = "agent_sudo.gateway:main"
+agent-sudo-mcp = "agent_sudo.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_sudo*"]

@@ -11,9 +11,9 @@ sensitive:
   - create_cron
   - send_message
   - browser_click
-  - run_shell_command
 
 critical:
+  - run_shell_command
   - send_email
   - delete_file
   - money_transfer

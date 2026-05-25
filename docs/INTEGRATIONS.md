@@ -45,6 +45,8 @@ The integration pattern is the same for every runtime:
 }
 ```
 
+Shell requests normalize to `run_shell_command`, which is `CRITICAL` under the default policy.
+
 ## Claude Desktop
 
 ```json

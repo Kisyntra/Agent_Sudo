@@ -42,6 +42,31 @@ class ApprovalHardeningTests(unittest.TestCase):
         path.write_text(json.dumps(hash_passphrase(passphrase, salt=b"0" * 16)), encoding="utf-8")
         return path
 
+    def test_critical_approval_lockout_after_failed_attempts(self) -> None:
+        now = 1000.0
+        with tempfile.TemporaryDirectory() as tmpdir:
+            provider = ApprovalProvider(
+                config_path=self._config_path(tmpdir),
+                lockout_path=Path(tmpdir) / "approval_state.json",
+                getpass_func=lambda prompt: "wrong-passphrase",
+                stdin_is_tty=lambda: True,
+                now_func=lambda: now,
+                lockout_seconds=60,
+            )
+            gateway = PermissionGateway(self.policy, approvals=provider)
+
+            first = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
+            second = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
+            third = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
+            locked = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
+
+        self.assertEqual(first.decision, Decision.DENY)
+        self.assertEqual(second.decision, Decision.DENY)
+        self.assertEqual(third.decision, Decision.DENY)
+        self.assertEqual(locked.decision, Decision.DENY)
+        self.assertIn("locked", third.reason)
+        self.assertIn("locked", locked.reason)
+
     def test_critical_action_denied_without_tty_by_not_executing(self) -> None:
         provider = ApprovalProvider(stdin_is_tty=lambda: False)
         gateway = PermissionGateway(self.policy, approvals=provider)

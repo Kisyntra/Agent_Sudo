@@ -95,12 +95,12 @@ class DelegationTests(unittest.TestCase):
             store.create(
                 actor="codex",
                 allowed_actions=["edit_file"],
-                allowed_paths=["/home/user/agent-sudo/README.md"],
+                allowed_paths=["README.md"],
                 max_uses=5,
                 reason="readme only",
             )
             result = PermissionGateway(self.policy, delegation_store=store).evaluate(
-                AgentActionRequest.file_edit("/home/user/agent-sudo/agent_sudo/gateway.py", actor="codex")
+                AgentActionRequest.file_edit("docs/other.md", actor="codex")
             )
 
         self.assertEqual(result.decision, Decision.DENY)

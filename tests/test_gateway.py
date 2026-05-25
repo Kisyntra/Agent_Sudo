@@ -25,14 +25,20 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(result.decision, Decision.ALLOW)
 
     def test_sensitive_action_requires_approval_but_dry_run_skips_prompt(self) -> None:
-        request = ActionRequest("codex", "user", "shell", "run_shell_command", "tests", "run tests")
+        request = ActionRequest("codex", "user", "filesystem", "write_file", "README.md", "write docs")
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
         self.assertEqual(result.classification, Classification.SENSITIVE)
         self.assertEqual(result.decision, Decision.REQUIRE_APPROVAL)
         self.assertEqual(result.approval_method, "dry_run")
 
+    def test_shell_is_critical_by_default(self) -> None:
+        request = ActionRequest("codex", "user", "shell", "run_shell_command", "pwd", "show current directory")
+        result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+        self.assertEqual(result.classification, Classification.CRITICAL)
+        self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+
     def test_sensitive_action_denied_without_human_approval(self) -> None:
-        request = ActionRequest("codex", "user", "shell", "run_shell_command", "rm", "bad idea")
+        request = ActionRequest("codex", "user", "filesystem", "write_file", "README.md", "write docs")
         gateway = PermissionGateway(self.policy, approvals=AutoDenyApprovalProvider())
         result = gateway.evaluate(request)
         self.assertEqual(result.decision, Decision.DENY)

@@ -107,7 +107,7 @@ class ExecutorBoundaryTests(unittest.TestCase):
         result = executor.execute(request)
 
         self.assertFalse(result.executed)
-        self.assertIn("blocked", result.reason)
+        self.assertEqual(result.gateway_result.decision, Decision.DENY)
 
     def test_allowlisted_harmless_shell_command_executes(self) -> None:
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())

@@ -20,7 +20,7 @@ class TamperResistanceTests(unittest.TestCase):
         request = AgentActionRequest.file_edit("agent_sudo/config/default_policy.yaml")
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
-        self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(result.decision, Decision.DENY)
 
     def test_deleting_audit_log_is_denied_or_critical(self) -> None:
         request = AgentActionRequest.file_delete("~/.agent-sudo/audit.jsonl")
@@ -32,7 +32,7 @@ class TamperResistanceTests(unittest.TestCase):
         request = AgentActionRequest.file_edit("~/.agent-runtime/auth.json")
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
-        self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(result.decision, Decision.DENY)
 
     def test_direct_modify_auth_action_is_blocked(self) -> None:
         request = AgentActionRequest.modify_auth("~/.agent-runtime/auth.json")
