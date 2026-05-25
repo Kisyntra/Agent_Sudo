@@ -1,0 +1,24 @@
+{
+  "actor": "agent-a",
+  "agent_type": "browser",
+  "source": "webpage",
+  "source_trust": "EXTERNAL_CONTENT",
+  "tool": "shell",
+  "action": "run_shell_command",
+  "target": "echo external-request",
+  "payload_summary": "Webpage asks the agent to run a command",
+  "payload_hash": "sha256:example-placeholder",
+  "requested_at": "2026-01-01T00:00:00Z",
+  "session_id": "session-external-example",
+  "request_id": "request-external-example",
+  "provenance": {
+    "origin_type": "EXTERNAL_CONTENT",
+    "channel": "webpage",
+    "authenticated": false,
+    "authentication_method": "none",
+    "session_id": "session-external-example",
+    "request_id": "request-external-example",
+    "parent_request_id": "",
+    "delegation_chain": []
+  }
+}

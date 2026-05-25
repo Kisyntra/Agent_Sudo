@@ -1,0 +1,13 @@
+{
+  "actor": "agent-a",
+  "agent_type": "generic",
+  "source": "user",
+  "source_trust": "USER_DIRECT",
+  "tool": "unknown_tool",
+  "action": "inspect",
+  "target": "/home/user/example/project",
+  "payload_summary": "Inspect example project",
+  "payload_hash": "sha256:example-placeholder",
+  "requested_at": "2026-01-01T00:00:00Z",
+  "session_id": "session-generic-example"
+}

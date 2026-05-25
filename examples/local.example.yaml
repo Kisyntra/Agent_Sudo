@@ -1,0 +1,18 @@
+actors:
+  - name: agent-a
+    purpose: "Read example project files"
+    allowed_paths:
+      - "~/example/project-files"
+  - name: agent-b
+    purpose: "Edit documentation"
+    allowed_paths:
+      - "/home/user/agent-sudo/README.md"
+
+audit:
+  path: "~/.agent-sudo/audit.jsonl"
+
+delegations:
+  path: "~/.agent-sudo/delegations.json"
+
+approval:
+  config: "~/.agent-sudo/config.json"

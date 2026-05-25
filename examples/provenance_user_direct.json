@@ -1,0 +1,24 @@
+{
+  "actor": "agent-a",
+  "agent_type": "generic",
+  "source": "user",
+  "source_trust": "USER_DIRECT",
+  "tool": "filesystem",
+  "action": "edit_file",
+  "target": "/home/user/example/project/README.md",
+  "payload_summary": "Edit example project README",
+  "payload_hash": "sha256:example-placeholder",
+  "requested_at": "2026-01-01T00:00:00Z",
+  "session_id": "session-user-direct-example",
+  "request_id": "request-user-direct-example",
+  "provenance": {
+    "origin_type": "USER_DIRECT",
+    "channel": "cli",
+    "authenticated": true,
+    "authentication_method": "local_session",
+    "session_id": "session-user-direct-example",
+    "request_id": "request-user-direct-example",
+    "parent_request_id": "",
+    "delegation_chain": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "claude-desktop",
+  "agent_type": "claude_desktop",
+  "source": "user",
+  "source_trust": "USER_DIRECT",
+  "tool": "filesystem",
+  "action": "edit_file",
+  "target": "/home/user/example/project/notes.md",
+  "payload_summary": "Edit example notes",
+  "payload_hash": "sha256:example-placeholder",
+  "requested_at": "2026-01-01T00:00:00Z",
+  "session_id": "session-claude-example"
+}

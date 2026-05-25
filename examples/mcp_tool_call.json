@@ -1,0 +1,13 @@
+{
+  "actor": "mcp-client",
+  "agent_type": "mcp",
+  "source": "user",
+  "source_trust": "USER_DIRECT",
+  "tool": "browser",
+  "action": "browser_click",
+  "target": "button-1",
+  "payload_summary": "Click example browser element",
+  "payload_hash": "sha256:example-placeholder",
+  "requested_at": "2026-01-01T00:00:00Z",
+  "session_id": "session-mcp-example"
+}

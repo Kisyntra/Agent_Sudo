@@ -1,0 +1,27 @@
+# Local agent-sudo state
+.agent-sudo/
+~/.agent-sudo/
+
+# Logs and audit trails
+*.log
+*.jsonl
+
+# Local credentials and secrets
+auth.json
+credentials*
+secrets*
+.env
+
+# OS/editor noise
+.DS_Store
+__pycache__/
+*.py[cod]
+
+__pycache__/
+
+*.pyc
+
+__pycache__/
+*.pyc
+__pycache__/
+*.pyc

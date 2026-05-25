@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-sudo"
+version = "0.1.0"
+description = "Local permission gateway for AI agent tool execution"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "agent-sudo contributors"}]
+dependencies = []
+
+[project.scripts]
+agent-sudo = "agent_sudo.gateway:main"
+
+[tool.setuptools.packages.find]
+include = ["agent_sudo*"]
+
+[tool.setuptools.package-data]
+agent_sudo = ["config/*.yaml", "examples/*.json"]

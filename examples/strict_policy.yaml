@@ -1,0 +1,34 @@
+safe:
+  - read_file
+  - search_files
+  - summarize
+  - draft
+  - analyze
+
+sensitive:
+  - write_file
+  - edit_file
+  - browser_click
+
+critical:
+  - run_shell_command
+  - create_cron
+  - send_message
+  - send_email
+  - delete_file
+  - money_transfer
+  - legal_or_employment_message
+  - credential_access
+  - external_post
+
+blocked:
+  - exfiltrate_secrets
+  - disable_audit
+  - bypass_policy
+  - send_tokens
+  - destructive_recursive_delete
+  - modify_policy_without_approval
+  - delete_audit_log
+  - edit_agent_sudo_source
+  - modify_auth
+  - prompt_injection_attempt

@@ -1,0 +1,9 @@
+{
+  "actor": "codex",
+  "source": "user",
+  "recipient_name": "functions.apply_patch",
+  "parameters": {
+    "path": "README.md"
+  },
+  "summary": "Apply a local file patch"
+}

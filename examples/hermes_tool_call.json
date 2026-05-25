@@ -1,0 +1,10 @@
+{
+  "actor": "hermes",
+  "source": "user",
+  "tool_name": "terminal",
+  "operation": "run",
+  "arguments": {
+    "command": "echo hello-from-hermes"
+  },
+  "summary": "Run a harmless local shell command"
+}
