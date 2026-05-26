@@ -161,33 +161,22 @@ def serve(
 
 
 def read_message(stream: BinaryIO) -> dict[str, Any] | None:
-    headers: dict[str, str] = {}
     while True:
         line = stream.readline()
         if line == b"":
             return None
-        if line in {b"\r\n", b"\n"}:
-            break
-        text = line.decode("ascii").strip()
-        if ":" in text:
-            key, value = text.split(":", 1)
-            headers[key.lower()] = value.strip()
-    length = int(headers.get("content-length", "0"))
-    if length <= 0:
-        return None
-    body = stream.read(length)
-    if not body:
-        return None
-    parsed = json.loads(body.decode("utf-8"))
-    if not isinstance(parsed, dict):
-        raise ValueError("MCP message must be a JSON object")
-    return parsed
+        decoded = line.decode("utf-8").strip()
+        if not decoded:
+            continue
+        parsed = json.loads(decoded)
+        if not isinstance(parsed, dict):
+            raise ValueError("MCP message must be a JSON object")
+        return parsed
 
 
 def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
     body = json.dumps(message, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    stream.write(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii"))
-    stream.write(body)
+    stream.write(body + b"\n")
     stream.flush()
 
 

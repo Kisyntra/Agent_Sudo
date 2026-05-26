@@ -74,7 +74,7 @@ class MCPServerSubprocessTests(unittest.TestCase):
                     process.stderr.close()
 
         self.assertEqual(initialize["result"]["serverInfo"]["name"], "agent-sudo-mcp")
-        self.assertEqual(initialize["result"]["serverInfo"]["version"], "v0.2.0-beta")
+        self.assertEqual(initialize["result"]["serverInfo"]["version"], "v0.3.2-beta")
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertEqual(tool_names, {"read_file", "write_file", "run_shell_command"})
 
@@ -95,6 +95,34 @@ class MCPServerSubprocessTests(unittest.TestCase):
         self.assertEqual(audit_entries[0]["request"]["action"], "read_file")
         self.assertEqual(audit_entries[1]["request"]["action"], "run_shell_command")
 
+    def test_read_message_newline_delimited(self) -> None:
+        import io
+        from agent_sudo.mcp_server import read_message, write_message
+
+        input_data = (
+            b'{"jsonrpc":"2.0","id":1,"method":"foo"}\n'
+            b'\n'
+            b'{"jsonrpc":"2.0","id":2,"method":"bar"}\n'
+        )
+        stream = io.BytesIO(input_data)
+        msg1 = read_message(stream)
+        msg2 = read_message(stream)
+        msg3 = read_message(stream)
+
+        self.assertIsNotNone(msg1)
+        self.assertEqual(msg1["id"], 1)
+        self.assertEqual(msg1["method"], "foo")
+
+        self.assertIsNotNone(msg2)
+        self.assertEqual(msg2["id"], 2)
+        self.assertEqual(msg2["method"], "bar")
+
+        self.assertIsNone(msg3)
+
+        out_stream = io.BytesIO()
+        write_message(out_stream, {"jsonrpc": "2.0", "id": 3, "result": "ok"})
+        self.assertEqual(out_stream.getvalue(), b'{"id":3,"jsonrpc":"2.0","result":"ok"}\n')
+
 
 def _request(process: subprocess.Popen[bytes], message: dict[str, object]) -> dict[str, object]:
     if process.stdin is None or process.stdout is None:
@@ -109,25 +137,15 @@ def _request(process: subprocess.Popen[bytes], message: dict[str, object]) -> di
 
 def _write_message(stream: object, message: dict[str, object]) -> None:
     body = json.dumps(message, separators=(",", ":")).encode("utf-8")
-    stream.write(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii"))
-    stream.write(body)
+    stream.write(body + b"\n")
     stream.flush()
 
 
 def _read_message(stream: object) -> dict[str, object] | None:
-    headers: dict[str, str] = {}
-    while True:
-        line = stream.readline()
-        if line == b"":
-            return None
-        if line in {b"\r\n", b"\n"}:
-            break
-        text = line.decode("ascii").strip()
-        if ":" in text:
-            key, value = text.split(":", 1)
-            headers[key.lower()] = value.strip()
-    length = int(headers["content-length"])
-    return json.loads(stream.read(length).decode("utf-8"))
+    line = stream.readline()
+    if not line:
+        return None
+    return json.loads(line.decode("utf-8"))
 
 
 if __name__ == "__main__":

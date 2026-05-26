@@ -111,16 +111,10 @@ process = subprocess.Popen(
 
 def request(message):
     body = json.dumps(message, separators=(",", ":")).encode("utf-8")
-    process.stdin.write(b"Content-Length: " + str(len(body)).encode("ascii") + b"\r\n\r\n" + body)
+    process.stdin.write(body + b"\n")
     process.stdin.flush()
-    headers = {}
-    while True:
-        line = process.stdout.readline()
-        if line in {b"\r\n", b"\n"}:
-            break
-        key, value = line.decode("ascii").strip().split(":", 1)
-        headers[key.lower()] = value.strip()
-    return json.loads(process.stdout.read(int(headers["content-length"])).decode("utf-8"))
+    line = process.stdout.readline()
+    return json.loads(line.decode("utf-8"))
 
 request({
     "jsonrpc": "2.0",
@@ -236,16 +230,10 @@ process = subprocess.Popen(
 
 def request(message):
     body = json.dumps(message, separators=(",", ":")).encode("utf-8")
-    process.stdin.write(b"Content-Length: " + str(len(body)).encode("ascii") + b"\r\n\r\n" + body)
+    process.stdin.write(body + b"\n")
     process.stdin.flush()
-    headers = {}
-    while True:
-        line = process.stdout.readline()
-        if line in {b"\r\n", b"\n"}:
-            break
-        key, value = line.decode("ascii").strip().split(":", 1)
-        headers[key.lower()] = value.strip()
-    return json.loads(process.stdout.read(int(headers["content-length"])).decode("utf-8"))
+    line = process.stdout.readline()
+    return json.loads(line.decode("utf-8"))
 
 request({
     "jsonrpc": "2.0",

@@ -2,11 +2,13 @@
 
 Release: `v0.3.1-beta`.
 
-agent-sudo includes a stdio MCP server entrypoint:
+agent-sudo includes a standard stdio MCP server entrypoint:
 
 ```bash
 agent-sudo-mcp
 ```
+
+The server implements standard MCP stdio transport using newline-delimited JSON-RPC messages (one JSON object per line, ended by a single newline character `\n`, with no headers). This allows it to work out-of-the-box with standard MCP clients such as Claude Desktop and Cursor.
 
 The server exposes three tools:
 
