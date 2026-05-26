@@ -56,7 +56,7 @@ class DelegationTests(unittest.TestCase):
     def test_expired_token_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            store.create(
+            token = store.create(
                 actor="agent-a",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
@@ -69,7 +69,8 @@ class DelegationTests(unittest.TestCase):
             )
 
         self.assertEqual(result.decision, Decision.DENY)
-        self.assertEqual(result.reason, "delegation token is expired")
+        self.assertIn("token expired", result.reason)
+        self.assertIn(token.token_id, result.reason)
 
     def test_revoked_token_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -87,12 +88,13 @@ class DelegationTests(unittest.TestCase):
             )
 
         self.assertEqual(result.decision, Decision.DENY)
-        self.assertEqual(result.reason, "delegation token is revoked")
+        self.assertIn("token revoked", result.reason)
+        self.assertIn(token.token_id, result.reason)
 
     def test_path_mismatch_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            store.create(
+            token = store.create(
                 actor="codex",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
@@ -104,12 +106,15 @@ class DelegationTests(unittest.TestCase):
             )
 
         self.assertEqual(result.decision, Decision.DENY)
-        self.assertEqual(result.reason, "delegation scope mismatch")
+        self.assertIn("path mismatch", result.reason)
+        self.assertIn("expected path scope in ['README.md']", result.reason)
+        self.assertIn("actual target 'docs/other.md'", result.reason)
+        self.assertIn(token.token_id, result.reason)
 
     def test_actor_mismatch_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            store.create(
+            token = store.create(
                 actor="hermes",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
@@ -121,12 +126,15 @@ class DelegationTests(unittest.TestCase):
             )
 
         self.assertEqual(result.decision, Decision.DENY)
-        self.assertEqual(result.reason, "delegation scope mismatch")
+        self.assertIn("actor mismatch", result.reason)
+        self.assertIn("expected actor 'hermes'", result.reason)
+        self.assertIn("actual actor 'codex'", result.reason)
+        self.assertIn(token.token_id, result.reason)
 
     def test_max_uses_enforced(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            store.create(
+            token = store.create(
                 actor="codex",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
@@ -139,7 +147,49 @@ class DelegationTests(unittest.TestCase):
 
         self.assertEqual(first.decision, Decision.ALLOW)
         self.assertEqual(second.decision, Decision.DENY)
-        self.assertEqual(second.reason, "delegation token is exhausted")
+        self.assertIn("token exhausted", second.reason)
+        self.assertIn(token.token_id, second.reason)
+
+    def test_action_mismatch_explains_action_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            token = store.create(
+                actor="hermes",
+                allowed_actions=["read_file"],
+                allowed_paths=["README.md"],
+                max_uses=5,
+                reason="read only",
+            )
+            result = PermissionGateway(self.policy, delegation_store=store).evaluate(
+                AgentActionRequest.file_edit("README.md", actor="hermes")
+            )
+
+        self.assertEqual(result.decision, Decision.DENY)
+        self.assertIn("action mismatch", result.reason)
+        self.assertIn("expected action in ['read_file']", result.reason)
+        self.assertIn("actual action 'edit_file'", result.reason)
+        self.assertIn(token.token_id, result.reason)
+
+    def test_critical_flag_missing_explains_critical_flag_issue(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            token = store.create(
+                actor="codex",
+                allowed_actions=["send_email"],
+                allowed_paths=["recipient@example.invalid"],
+                max_uses=5,
+                reason="not critical",
+                critical=False,
+            )
+            result = PermissionGateway(
+                self.policy,
+                approvals=NoTtyApprovalProvider(),
+                delegation_store=store,
+            ).evaluate(AgentActionRequest.send_email("recipient@example.invalid", actor="codex"))
+
+        self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertIn("critical flag missing", result.reason)
+        self.assertIn(token.token_id, result.reason)
 
     def test_critical_actions_require_strong_approval_unless_delegated_critical_true(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

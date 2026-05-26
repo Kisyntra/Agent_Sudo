@@ -276,7 +276,7 @@ Expected output:
 
 ```text
 pwd-2 ALLOW DELEGATION True executed
-pwd-3 DENY DELEGATION False delegation token is exhausted
+pwd-3 DENY DELEGATION False delegation token <token_id> mismatched: token exhausted
 ```
 
 ## 9. Verify Final Audit Log

@@ -86,6 +86,8 @@ class PermissionGateway:
                         decision,
                         approval_attempts,
                     )
+                if delegation_method == "DELEGATION":
+                    reason = f"{delegation_reason}; {reason}"
         elif decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL} and self.pending_approval_store:
             pending_decision = self._evaluate_pending_approval(request)
             if pending_decision is not None:

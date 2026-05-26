@@ -84,60 +84,74 @@ class DelegationStore:
         consume: bool = True,
     ) -> tuple[bool | None, str, str]:
         tokens = self.list()
-        candidates = [
-            token
-            for token in tokens
-            if request.action in token.allowed_actions or request.action in token.denied_actions
-        ]
-        if not candidates:
+        if not tokens:
             return None, "no delegation applies", "none"
 
-        matching_scope = [
-            token
-            for token in candidates
-            if token.actor == request.actor and _path_matches(request.target, token.allowed_paths)
-        ]
+        now = datetime.now(timezone.utc)
+        evaluated = []
+        for token in tokens:
+            mismatches = []
 
-        if not matching_scope:
-            return False, "delegation scope mismatch", "DELEGATION"
+            # 1. token revoked
+            if token.revoked:
+                mismatches.append("token revoked")
 
-        for token in matching_scope:
-            allowed, reason = _token_allows(token, request, classification)
-            if allowed is None:
+            # 2. token expired
+            if _parse_datetime(token.expires_at) <= now:
+                mismatches.append("token expired")
+
+            # 3. token exhausted
+            if token.uses >= token.max_uses:
+                mismatches.append("token exhausted")
+
+            # 4. denied action
+            if request.action in token.denied_actions:
+                mismatches.append(f"denied action: '{request.action}'")
+
+            # 5. actor mismatch
+            if token.actor != request.actor:
+                mismatches.append(f"actor mismatch: expected actor '{token.actor}', actual actor '{request.actor}'")
+
+            # 6. action mismatch
+            if request.action not in token.allowed_actions and request.action not in token.denied_actions:
+                mismatches.append(f"action mismatch: expected action in {token.allowed_actions}, actual action '{request.action}'")
+
+            # 7. path mismatch
+            if not _path_matches(request.target, token.allowed_paths):
+                mismatches.append(f"path mismatch: expected path scope in {token.allowed_paths}, actual target '{request.target}'")
+
+            # 8. critical flag missing
+            if classification == Classification.CRITICAL and not token.critical:
+                mismatches.append("critical flag missing")
+
+            evaluated.append((token, mismatches))
+
+        # Check if any token has 0 mismatches
+        for token, mismatches in evaluated:
+            if not mismatches:
+                if consume:
+                    self._increment_usage(token.token_id)
+                return True, f"delegated by {token.token_id}: {token.reason}", "DELEGATION"
+
+        # Check if any token has only "critical flag missing" as mismatch
+        for token, mismatches in evaluated:
+            if mismatches == ["critical flag missing"]:
+                reason = f"delegation token {token.token_id} mismatched: critical flag missing"
                 return None, reason, "DELEGATION"
-            if not allowed:
-                return False, reason, "DELEGATION"
-            if consume:
-                self._increment_usage(token.token_id)
-            return True, f"delegated by {token.token_id}: {token.reason}", "DELEGATION"
 
-        return False, "delegation denied", "DELEGATION"
+        # Build detailed diagnostics for all tokens
+        diagnostics = []
+        for token, mismatches in evaluated:
+            mismatches_str = ", ".join(mismatches)
+            diagnostics.append(f"delegation token {token.token_id} mismatched: {mismatches_str}")
+
+        reason = "; ".join(diagnostics)
+        return False, reason, "DELEGATION"
 
     def _increment_usage(self, token_id: str) -> None:
         tokens = self.list()
         updated = [replace(token, uses=token.uses + 1) if token.token_id == token_id else token for token in tokens]
         self.save(updated)
-
-
-def _token_allows(
-    token: DelegationToken,
-    request: ActionRequest,
-    classification: Classification,
-) -> tuple[bool | None, str]:
-    now = datetime.now(timezone.utc)
-    if token.revoked:
-        return False, "delegation token is revoked"
-    if _parse_datetime(token.expires_at) <= now:
-        return False, "delegation token is expired"
-    if token.uses >= token.max_uses:
-        return False, "delegation token is exhausted"
-    if request.action in token.denied_actions:
-        return False, "delegation token denies this action"
-    if request.action not in token.allowed_actions:
-        return False, "delegation token does not allow this action"
-    if classification == Classification.CRITICAL and not token.critical:
-        return None, "critical action requires strong approval unless delegation is critical=true"
-    return True, "delegation matched"
 
 
 def _path_matches(target: str, allowed_paths: list[str]) -> bool:

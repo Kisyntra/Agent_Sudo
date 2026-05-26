@@ -62,7 +62,7 @@ class EndToEndDelegationFlowTests(unittest.TestCase):
         self.assertFalse(exhausted.executed)
         self.assertEqual(exhausted.gateway_result.classification.value, "CRITICAL")
         self.assertEqual(exhausted.gateway_result.decision, Decision.DENY)
-        self.assertEqual(exhausted.reason, "delegation token is exhausted")
+        self.assertIn("token exhausted", exhausted.reason)
 
         self.assertEqual(len(audit_entries), 3)
         self.assertEqual(
@@ -70,7 +70,7 @@ class EndToEndDelegationFlowTests(unittest.TestCase):
             ["REQUIRE_STRONG_APPROVAL", "ALLOW", "DENY"],
         )
         self.assertEqual(audit_entries[1]["approval_method"], "DELEGATION")
-        self.assertEqual(audit_entries[2]["reason"], "delegation token is exhausted")
+        self.assertIn("token exhausted", audit_entries[2]["reason"])
 
 
 if __name__ == "__main__":

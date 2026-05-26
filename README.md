@@ -1,6 +1,6 @@
 # agent-sudo
 
-Current public release: `v0.3.3-beta`.
+Current public release: `v0.3.4-beta`.
 
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
@@ -546,6 +546,18 @@ agent-sudo delegate create \
   --max-uses 1 \
   --reason "One explicitly approved email"
 ```
+
+### Delegation Troubleshooting
+
+If a request fails to match any delegation, `agent-sudo` returns a detailed diagnostic reason instead of a generic mismatch. This details:
+- **actor mismatch**: includes expected vs actual actor.
+- **action mismatch**: includes expected vs actual allowed actions.
+- **path mismatch**: includes expected path scope vs actual target path.
+- **critical flag missing**: if the request is critical but the token lacks the critical flag.
+- **expired, revoked, or exhausted**: if the token's lifetime or uses have been exceeded, or it has been explicitly revoked.
+
+> [!NOTE]
+> Standard MCP clients (such as Claude Desktop or Cursor) connect using the default actor `mcp-client`. Ensure your delegation tokens match `mcp-client` as the `--actor` argument, or match the exact actor name specified in the incoming `ActionRequest`.
 
 ## Tamper Resistance
 

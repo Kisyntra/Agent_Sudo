@@ -95,3 +95,10 @@ agent-sudo approve APPROVAL_ID \
 ```
 
 Then retry the same MCP tool call. The approved request is consumed once and later retries are blocked.
+
+## Delegation Mismatch Troubleshooting
+
+When evaluating delegation tokens, agent-sudo checks all active tokens. If a token exists but does not match the request, agent-sudo returns detailed diagnostics explaining which field(s) mismatched (e.g. actor mismatch, action mismatch, path mismatch, critical flag missing, token expired, revoked, or exhausted) along with expected vs. actual values.
+
+> [!IMPORTANT]
+> By default, standard MCP clients (like Claude Desktop or Cursor) connect as the actor `mcp-client`. When creating delegations for MCP tools, ensure the `--actor` argument matches `mcp-client` (or the specific actor name passed in the `ActionRequest`), otherwise requests will fail with an actor mismatch diagnostic.
