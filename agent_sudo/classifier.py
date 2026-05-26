@@ -25,6 +25,7 @@ PROTECTED_WRITE_ACTIONS = {
 }
 
 PATH_WRITE_ACTIONS = {"write_file", "edit_file", "delete_file"}
+FILE_WRITE_ACTIONS = {"write_file", "edit_file"}
 
 DEMO_ALLOWED_ABSOLUTE_PREFIXES = {
     "/tmp",
@@ -64,6 +65,12 @@ class ActionClassifier:
         if request.action == "run_shell_command" and is_blocked_shell_target(request.target):
             return Classification.BLOCKED
         action_classification = self.policy.classification_for_action(request.action)
+        if request.action in PATH_WRITE_ACTIONS and is_blocked_write_target(request.target):
+            return Classification.BLOCKED
+        if request.action in FILE_WRITE_ACTIONS and is_critical_write_target(request.target):
+            if action_classification == Classification.BLOCKED:
+                return Classification.BLOCKED
+            return Classification.CRITICAL
         if request.action in PATH_WRITE_ACTIONS and is_forbidden_path_target(request.target):
             return Classification.BLOCKED
         if request.action in {"write_file", "edit_file"} and not is_write_target_allowed(request.target):
@@ -122,9 +129,19 @@ def is_forbidden_path_target(target: str) -> bool:
     lowered = normalized.lower()
     home = str(Path.home()).replace("\\", "/")
 
-    if normalized.startswith(f"{home}/.ssh/") or normalized == f"{home}/.ssh":
+    if is_blocked_write_target(target):
         return True
     if normalized.startswith(f"{home}/.config/") or normalized == f"{home}/.config":
+        return True
+    return False
+
+
+def is_blocked_write_target(target: str) -> bool:
+    normalized = _normalized_target(target)
+    lowered = normalized.lower()
+    home = str(Path.home()).replace("\\", "/")
+
+    if normalized.startswith(f"{home}/.ssh/") or normalized == f"{home}/.ssh":
         return True
     if is_protected_target(target) and _looks_like_tamper_target(lowered):
         return True
@@ -140,6 +157,28 @@ def is_write_target_allowed(target: str) -> bool:
         normalized == prefix or normalized.startswith(prefix.rstrip("/") + "/")
         for prefix in DEMO_ALLOWED_ABSOLUTE_PREFIXES
     )
+
+
+def is_critical_write_target(target: str) -> bool:
+    normalized = _normalized_target(target)
+    lowered = normalized.lower()
+    name = Path(normalized).name.lower()
+
+    if name.endswith((".sh", ".bash", ".zsh", ".py", ".js", ".ts", ".rb", ".pl")):
+        return True
+    if name in {".zshrc", ".bashrc"}:
+        return True
+    if _looks_like_launchd_plist(lowered):
+        return True
+    if _looks_like_cron_path(lowered):
+        return True
+    if _looks_like_systemd_unit(lowered):
+        return True
+    if _looks_like_mcp_config(lowered, name):
+        return True
+    if _looks_like_runtime_config(lowered, name):
+        return True
+    return is_protected_target(target)
 
 
 def _normalized_target(target: str) -> str:
@@ -165,6 +204,71 @@ def _looks_like_credential_path(lowered: str) -> bool:
     if path_parts & sensitive_names:
         return True
     return any(marker in lowered for marker in {"/auth/", "/credential/", "/credentials/", "/secret/", "/secrets/"})
+
+
+def _looks_like_launchd_plist(lowered: str) -> bool:
+    return lowered.endswith(".plist") and any(
+        marker in lowered
+        for marker in {
+            "/library/launchagents/",
+            "/library/launchdaemons/",
+            "/system/library/launchagents/",
+            "/system/library/launchdaemons/",
+        }
+    )
+
+
+def _looks_like_cron_path(lowered: str) -> bool:
+    return any(
+        marker in lowered
+        for marker in {
+            "/etc/crontab",
+            "/etc/cron.d/",
+            "/etc/cron.daily/",
+            "/etc/cron.hourly/",
+            "/etc/cron.monthly/",
+            "/etc/cron.weekly/",
+            "/var/spool/cron/",
+            "/var/cron/",
+        }
+    ) or lowered.endswith("/crontab")
+
+
+def _looks_like_systemd_unit(lowered: str) -> bool:
+    return "/systemd/" in lowered and lowered.endswith(
+        (".service", ".timer", ".socket", ".mount", ".path", ".target")
+    )
+
+
+def _looks_like_mcp_config(lowered: str, name: str) -> bool:
+    config_suffixes = (".json", ".jsonc", ".toml", ".yaml", ".yml")
+    if name in {".mcp.json", "mcp.json", "mcp_config.json", "mcp-config.json"}:
+        return True
+    if "mcp" not in lowered or not name.endswith(config_suffixes):
+        return False
+    return any(marker in lowered for marker in {"/mcp/", "mcp_config", "mcp-config", "mcp.settings", "mcp_settings"})
+
+
+def _looks_like_runtime_config(lowered: str, name: str) -> bool:
+    config_names = {
+        "pyproject.toml",
+        "package.json",
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "requirements.txt",
+        "uv.lock",
+        "poetry.lock",
+        "config.toml",
+        "config.yaml",
+        "config.yml",
+        "settings.json",
+    }
+    if "/.agent-runtime/" in lowered or lowered.endswith("/.agent-runtime"):
+        return True
+    if name in config_names and any(marker in lowered for marker in {"runtime", "agent-runtime", ".codex", ".agent"}):
+        return True
+    return False
 
 
 def is_blocked_shell_target(command: str) -> bool:

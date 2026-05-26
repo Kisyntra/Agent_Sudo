@@ -6,6 +6,7 @@ Current release: `v0.2.0-beta` (`0.2.0b0` for Python packaging).
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
 It protects local tool execution with policy checks, approvals, scoped delegation, provenance, and audit logs.
 It cannot protect tools an agent can still access directly.
+`agent-sudo` is not a sandbox.
 Quickstart: install, run `agent-sudo init-approval`, then run `agent-sudo run examples/demo_requests.json --dry-run`.
 
 ## Why agent-sudo exists
@@ -44,6 +45,8 @@ Primary risks addressed:
 - attempts to exfiltrate secrets or bypass policy
 
 `agent-sudo` does not prove intent or identity. It reduces blast radius by making the requested action explicit, classifying risk, applying least-privilege policy, and preserving an audit trail.
+
+The security boundary is provenance + policy + mandatory routing through the gateway. Keyword or phrase detection is not the boundary; it is only a convenience catch for obvious malicious instructions before the policy path runs.
 
 ## Install
 
@@ -342,6 +345,8 @@ SENSITIVE actions require yes/no approval:
 - `send_message`
 - `browser_click`
 
+`write_file` and `edit_file` stay `SENSITIVE` for ordinary documents. They are upgraded to `CRITICAL` when the target is executable code, shell startup files, launchd plists, cron files, systemd units, MCP configs, or runtime configs.
+
 CRITICAL actions require passphrase confirmation:
 
 - `run_shell_command`
@@ -515,6 +520,10 @@ Protected targets include:
 - policy YAML files
 - `pyproject.toml`
 - `agent_sudo/**/*.py`
+- executable scripts such as `*.sh`, `*.bash`, `*.zsh`, `*.py`, `*.js`, `*.ts`, `*.rb`, and `*.pl`
+- shell startup files such as `.zshrc` and `.bashrc`
+- launchd plists, cron files, and systemd units
+- MCP and runtime configuration files
 
 Specific tamper actions are blocked by default:
 
@@ -537,7 +546,7 @@ sha256(previous_hash + canonical_json(entry_without_entry_hash))
 
 This does not make local files impossible to delete or replace. It makes after-the-fact tampering detectable when a verifier has access to the log file.
 
-## Prompt Injection Defense
+## Prompt Injection Handling
 
 External content is treated as untrusted data, never as instructions.
 Every `ActionRequest` carries a `source_trust` value:
@@ -553,9 +562,9 @@ For `EXTERNAL_CONTENT` and `UNKNOWN`:
 - sensitive actions still require approval
 - critical actions still require strong approval
 - blocked actions remain denied
-- instruction-override phrases are denied before execution
+- obvious instruction-override phrases are denied before execution
 
-The prompt-injection detector blocks phrases such as:
+The phrase detector catches obvious malicious instructions such as:
 
 - `ignore previous instructions`
 - `reveal secrets`
@@ -567,8 +576,18 @@ The prompt-injection detector blocks phrases such as:
 - `system prompt`
 - `developer message`
 
-Detected prompt injection is classified as `prompt_injection_attempt` behavior and results in `BLOCKED`.
-This is a primitive phrase detector, not a full content-security system. It is designed to catch obvious attempts and force ambiguous external content through human review instead of auto-execution.
+Detected phrases are classified as `prompt_injection_attempt` behavior and result in `BLOCKED`.
+This detector is not a security boundary, not a parser, and not a complete content-security system. It is a convenience catch for obvious malicious instructions.
+
+The security boundary is:
+
+- provenance attached to the `ActionRequest`
+- policy classification and decision logic
+- mandatory routing of native tool calls through `PermissionGateway.evaluate()`
+
+If an agent can bypass `agent-sudo` and call tools directly, phrase detection cannot protect those calls.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full execution path.
 
 ## Adapter Stubs
 
