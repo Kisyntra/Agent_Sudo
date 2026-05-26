@@ -26,19 +26,32 @@ When a request requires approval and no TTY is available, the MCP result include
 
 ```json
 {
+  "status": "approval_required",
   "executed": false,
-  "approval_request_id": "00000000-0000-4000-8000-000000000000",
+  "approval_id": "00000000-0000-4000-8000-000000000000",
+  "expires_at": "2026-05-26T20:00:00Z",
+  "expires_in_seconds": 120,
+  "action_summary": "run_shell_command by mcp-client on pwd",
+  "risk": "CRITICAL",
   "approval_command": "agent-sudo approve 00000000-0000-4000-8000-000000000000"
 }
 ```
 
 The original tool call is not executed.
 
+Pending approvals default to 120 seconds. The TTL is clamped between 30 and 600 seconds and can be configured with either:
+
+```bash
+AGENT_SUDO_APPROVAL_TTL_SECONDS=240 agent-sudo-mcp
+agent-sudo-mcp --approval-ttl-seconds 240
+```
+
 ## CLI Workflow
 
 List pending approvals:
 
 ```bash
+agent-sudo pending
 agent-sudo approvals list
 ```
 
@@ -46,6 +59,7 @@ Approve one request:
 
 ```bash
 agent-sudo approve APPROVAL_ID
+agent-sudo approve 1
 ```
 
 Deny one request:

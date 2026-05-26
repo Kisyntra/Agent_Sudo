@@ -1,6 +1,6 @@
 # agent-sudo
 
-Current public release: `v0.4.0-rc1`.
+Current public release: `v0.4.0-rc2`.
 
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
@@ -204,7 +204,7 @@ For the first enforceable dispatch prototype, see [docs/MCP_GATEWAY.md](docs/MCP
 
 For the stdio MCP server, see [docs/MCP_SERVER_SETUP.md](docs/MCP_SERVER_SETUP.md). It exposes `read_file`, `write_file`, and `run_shell_command` as MCP tools through `agent-sudo-mcp`.
 
-For non-interactive MCP clients, approval-required requests create local pending approvals instead of executing. Review them with `agent-sudo approvals list`, approve with `agent-sudo approve APPROVAL_ID`, then retry the same MCP tool call once. See [docs/PENDING_APPROVALS.md](docs/PENDING_APPROVALS.md).
+For non-interactive MCP clients, approval-required requests create local pending approvals instead of executing. Review them with `agent-sudo pending`, approve with `agent-sudo approve APPROVAL_ID` or `agent-sudo approve 1`, then retry the same MCP tool call once. Pending approvals default to 120 seconds and can be configured with `AGENT_SUDO_APPROVAL_TTL_SECONDS` or `agent-sudo-mcp --approval-ttl-seconds`. See [docs/PENDING_APPROVALS.md](docs/PENDING_APPROVALS.md).
 
 ## Real MCP Example
 

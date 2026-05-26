@@ -12,7 +12,7 @@ from agent_sudo.delegations import DelegationStore
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.mcp_gateway import MCPGateway
 from agent_sudo.mcp_validation import tool_call_from_jsonrpc
-from agent_sudo.models import Decision
+from agent_sudo.models import ActionRequest, Decision
 from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore
 from agent_sudo.policy import load_default_policy, load_policy
 
@@ -90,14 +90,24 @@ class AgentSudoMCPServer:
     def _call_tool(self, message: dict[str, Any]) -> dict[str, Any]:
         tool_call = tool_call_from_jsonrpc(message)
         execution = self.mcp_gateway.dispatch(tool_call)
+        approval_required = execution.gateway_result.decision in {
+            Decision.REQUIRE_APPROVAL,
+            Decision.REQUIRE_STRONG_APPROVAL,
+        }
         transcript = {
+            "status": "approval_required" if approval_required else ("executed" if execution.executed else "blocked"),
             "incoming_mcp_request": message,
             "normalized_action_request": execution.request.to_dict(),
             "classification": execution.gateway_result.classification.value,
+            "risk": execution.gateway_result.classification.value,
             "approval_decision": execution.gateway_result.decision.value,
             "approval_method": execution.gateway_result.approval_method,
             "approval_request_id": execution.gateway_result.approval_request_id,
+            "approval_id": execution.gateway_result.approval_request_id,
             "approval_command": execution.gateway_result.approval_command,
+            "expires_at": execution.gateway_result.approval_expires_at,
+            "expires_in_seconds": execution.gateway_result.approval_expires_in_seconds,
+            "action_summary": _action_summary(execution.request),
             "execution_result": {
                 "executed": execution.executed,
                 "exit_code": execution.exit_code,
@@ -125,6 +135,7 @@ def build_server(
     audit_log: Path | None = None,
     delegations_file: Path | None = None,
     pending_approvals_file: Path | None = None,
+    approval_ttl_seconds: int | None = None,
 ) -> AgentSudoMCPServer:
     policy = load_policy(policy_path) if policy_path else load_default_policy()
     audit_logger = AuditLogger(audit_log or Path(".agent-sudo/mcp-audit.jsonl"))
@@ -132,6 +143,7 @@ def build_server(
     pending_store = PendingApprovalStore(
         pending_approvals_file or PENDING_APPROVALS_PATH,
         audit_logger=audit_logger,
+        ttl_seconds=approval_ttl_seconds,
     )
     gateway = PermissionGateway(
         policy,
@@ -187,6 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/mcp-audit.jsonl"))
     parser.add_argument("--delegations-file", type=Path)
     parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    parser.add_argument("--approval-ttl-seconds", type=int, help="Pending approval TTL, clamped to 30-600 seconds")
     return parser
 
 
@@ -197,6 +210,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         audit_log=args.audit_log,
         delegations_file=args.delegations_file,
         pending_approvals_file=args.pending_approvals_file,
+        approval_ttl_seconds=args.approval_ttl_seconds,
     )
     return serve(server=server)
 
@@ -215,6 +229,10 @@ def _tool_text(executed: bool, stdout: str, stderr: str, reason: str) -> str:
     if stderr:
         return f"{reason}: {stderr}"
     return reason
+
+
+def _action_summary(request: ActionRequest) -> str:
+    return f"{request.action} by {request.actor} on {request.target}"
 
 
 if __name__ == "__main__":

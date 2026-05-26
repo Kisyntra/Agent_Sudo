@@ -5,14 +5,23 @@ import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_sudo.approvals import ApprovalProvider, hash_passphrase
 from agent_sudo.audit import AuditLogger
 from agent_sudo.gateway import PermissionGateway, main
+from agent_sudo.mcp_server import build_server
 from agent_sudo.mcp_gateway import dispatch_mcp_tool_call
-from agent_sudo.models import ApprovalStatus, Decision
-from agent_sudo.pending_approvals import PendingApprovalStore
+from agent_sudo.models import ActionRequest, ApprovalStatus, Classification, Decision
+from agent_sudo.pending_approvals import (
+    DEFAULT_APPROVAL_TTL_SECONDS,
+    MAX_APPROVAL_TTL_SECONDS,
+    MIN_APPROVAL_TTL_SECONDS,
+    PendingApprovalStore,
+    resolve_approval_ttl_seconds,
+)
 from agent_sudo.policy import load_default_policy
 
 
@@ -53,8 +62,11 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
         self.assertEqual(len(approvals), 1)
         self.assertEqual(approvals[0].status, ApprovalStatus.PENDING)
+        self.assertEqual(store.ttl_seconds, DEFAULT_APPROVAL_TTL_SECONDS)
         self.assertEqual(result.gateway_result.approval_request_id, approvals[0].approval_request_id)
         self.assertIn("agent-sudo approve", result.gateway_result.approval_command)
+        self.assertEqual(result.gateway_result.approval_expires_at, approvals[0].expires_at)
+        self.assertIsNotNone(result.gateway_result.approval_expires_in_seconds)
 
     def test_approval_list_shows_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,6 +86,26 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("run_shell_command", output.getvalue())
         self.assertIn("PENDING", output.getvalue())
+
+    def test_pending_lists_active_requests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            store = PendingApprovalStore(pending_path)
+            gateway = PermissionGateway(
+                self.policy,
+                approvals=ApprovalProvider(stdin_is_tty=lambda: False),
+                pending_approval_store=store,
+            )
+            dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                code = main(["pending", "--pending-approvals-file", str(pending_path)])
+
+        self.assertEqual(code, 0)
+        self.assertIn("approval_id", output.getvalue())
+        self.assertIn("run_shell_command", output.getvalue())
+        self.assertIn("CRITICAL", output.getvalue())
 
     def test_approve_with_passphrase_marks_approved_retry_executes_once_then_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -114,6 +146,108 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertIn("approval_approved", audit_events)
         self.assertIn("approval_used", audit_events)
         self.assertEqual(audit_events.count("gateway_decision"), 3)
+
+    def test_approve_by_short_index_marks_request_approved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            config_path = self._config_path(tmpdir)
+            store = PendingApprovalStore(pending_path)
+            store.create(
+                action_request=ActionRequest(
+                    actor="mcp-client",
+                    source="user",
+                    tool="filesystem",
+                    action="write_file",
+                    target="/tmp/agent-sudo-demo/test.txt",
+                    payload_summary="write demo file",
+                ),
+                classification=Classification.SENSITIVE,
+                decision=Decision.REQUIRE_APPROVAL,
+                required_approval_method="CLI_CONFIRM",
+                reason="SENSITIVE actions require CLI approval",
+            )
+
+            with redirect_stdout(io.StringIO()):
+                code = main(
+                    [
+                        "approve",
+                        "1",
+                        "--pending-approvals-file",
+                        str(pending_path),
+                        "--approval-config",
+                        str(config_path),
+                    ]
+                )
+            approved = PendingApprovalStore(pending_path).list()[0]
+
+        self.assertEqual(code, 0)
+        self.assertEqual(approved.status, ApprovalStatus.APPROVED)
+
+    def test_short_index_approval_consumes_expected_request_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            config_path = self._config_path(tmpdir)
+            store = PendingApprovalStore(pending_path)
+            first = store.create(
+                action_request=ActionRequest(
+                    actor="mcp-client",
+                    source="user",
+                    tool="filesystem",
+                    action="write_file",
+                    target="/tmp/agent-sudo-demo/first.txt",
+                    payload_summary="write first demo file",
+                ),
+                classification=Classification.SENSITIVE,
+                decision=Decision.REQUIRE_APPROVAL,
+                required_approval_method="CLI_CONFIRM",
+                reason="SENSITIVE actions require CLI approval",
+            )
+            second = store.create(
+                action_request=ActionRequest(
+                    actor="mcp-client",
+                    source="user",
+                    tool="filesystem",
+                    action="write_file",
+                    target="/tmp/agent-sudo-demo/second.txt",
+                    payload_summary="write second demo file",
+                ),
+                classification=Classification.SENSITIVE,
+                decision=Decision.REQUIRE_APPROVAL,
+                required_approval_method="CLI_CONFIRM",
+                reason="SENSITIVE actions require CLI approval",
+            )
+
+            with redirect_stdout(io.StringIO()):
+                code = main(
+                    [
+                        "approve",
+                        "2",
+                        "--pending-approvals-file",
+                        str(pending_path),
+                        "--approval-config",
+                        str(config_path),
+                    ]
+                )
+            gateway = PermissionGateway(
+                self.policy,
+                approvals=ApprovalProvider(stdin_is_tty=lambda: False),
+                pending_approval_store=PendingApprovalStore(pending_path),
+            )
+            second_retry = gateway.evaluate(second.action_request)
+            first_after_second_retry = PendingApprovalStore(pending_path).list()[0]
+            second_after_second_retry = PendingApprovalStore(pending_path).list()[1]
+            first_retry = gateway.evaluate(first.action_request)
+            final_approvals = PendingApprovalStore(pending_path).list()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(second_retry.decision, Decision.ALLOW)
+        self.assertEqual(second_retry.approval_request_id, second.approval_request_id)
+        self.assertEqual(first_after_second_retry.status, ApprovalStatus.PENDING)
+        self.assertEqual(second_after_second_retry.status, ApprovalStatus.USED)
+        self.assertEqual(first_retry.decision, Decision.REQUIRE_APPROVAL)
+        self.assertEqual(first_retry.approval_request_id, first.approval_request_id)
+        self.assertEqual(final_approvals[0].status, ApprovalStatus.PENDING)
+        self.assertEqual(final_approvals[1].status, ApprovalStatus.USED)
 
     def test_retry_with_new_request_id_uses_approved_request_once(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -163,13 +297,15 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
     def test_expiration_blocks_retry(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             pending_path = Path(tmpdir) / "pending.json"
-            store = PendingApprovalStore(pending_path, ttl_seconds=-1)
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            store = PendingApprovalStore(pending_path, ttl_seconds=30, now_func=lambda: now)
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
                 pending_approval_store=store,
             )
             initial = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
+            now = now + timedelta(seconds=31)
             retry = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             approvals = store.list()
 
@@ -178,6 +314,63 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(retry.gateway_result.decision, Decision.DENY)
         self.assertIn("EXPIRED", retry.reason)
         self.assertEqual(approvals[0].status, ApprovalStatus.EXPIRED)
+
+    def test_approval_remains_valid_for_configured_ttl(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            store = PendingApprovalStore(pending_path, ttl_seconds=120, now_func=lambda: now)
+            gateway = PermissionGateway(
+                self.policy,
+                approvals=ApprovalProvider(stdin_is_tty=lambda: False),
+                pending_approval_store=store,
+            )
+            initial = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
+            provider = ApprovalProvider(
+                config_path=self._config_path(tmpdir),
+                getpass_func=lambda prompt: "test-passphrase",
+                stdin_is_tty=lambda: True,
+            )
+            now = now + timedelta(seconds=119)
+            approved, result = store.approve(initial.gateway_result.approval_request_id, approval_provider=provider)
+
+        self.assertTrue(result.approved)
+        self.assertIsNotNone(approved)
+        self.assertEqual(approved.status, ApprovalStatus.APPROVED)
+
+    def test_ttl_config_bounds(self) -> None:
+        self.assertEqual(resolve_approval_ttl_seconds(None), DEFAULT_APPROVAL_TTL_SECONDS)
+        self.assertEqual(resolve_approval_ttl_seconds(1), MIN_APPROVAL_TTL_SECONDS)
+        self.assertEqual(resolve_approval_ttl_seconds(9999), MAX_APPROVAL_TTL_SECONDS)
+        self.assertEqual(resolve_approval_ttl_seconds("not-an-int"), DEFAULT_APPROVAL_TTL_SECONDS)
+        with patch.dict("os.environ", {"AGENT_SUDO_APPROVAL_TTL_SECONDS": "240"}):
+            self.assertEqual(resolve_approval_ttl_seconds(None), 240)
+
+    def test_mcp_structured_approval_response_contains_id_and_expiry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            server = build_server(
+                pending_approvals_file=pending_path,
+                audit_log=Path(tmpdir) / "audit.jsonl",
+                approval_ttl_seconds=120,
+            )
+            response = server.handle(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "shell",
+                    "method": "tools/call",
+                    "params": {"name": "run_shell_command", "arguments": {"command": "pwd"}},
+                }
+            )
+            structured = response["result"]["structuredContent"]
+
+        self.assertEqual(structured["status"], "approval_required")
+        self.assertTrue(structured["approval_id"])
+        self.assertTrue(structured["approval_command"].startswith("agent-sudo approve "))
+        self.assertTrue(structured["expires_at"])
+        self.assertIsNotNone(structured["expires_in_seconds"])
+        self.assertIn("run_shell_command", structured["action_summary"])
+        self.assertEqual(structured["risk"], "CRITICAL")
 
     def test_audit_logs_denied_and_expired_state_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

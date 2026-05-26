@@ -77,14 +77,21 @@ def run_jsonrpc_case(
     incoming = message
     normalized = tool_call_from_jsonrpc(incoming)
     execution = mcp_gateway.dispatch(normalized, dry_run=dry_run)
+    approval_required = execution.gateway_result.decision.name.startswith("REQUIRE_")
     return {
+        "status": "approval_required" if approval_required else ("executed" if execution.executed else "blocked"),
         "incoming_mcp_request": incoming,
         "normalized_action_request": execution.request.to_dict(),
         "classification": execution.gateway_result.classification.value,
+        "risk": execution.gateway_result.classification.value,
         "approval_decision": execution.gateway_result.decision.value,
         "approval_method": execution.gateway_result.approval_method,
         "approval_request_id": execution.gateway_result.approval_request_id,
+        "approval_id": execution.gateway_result.approval_request_id,
         "approval_command": execution.gateway_result.approval_command,
+        "expires_at": execution.gateway_result.approval_expires_at,
+        "expires_in_seconds": execution.gateway_result.approval_expires_in_seconds,
+        "action_summary": f"{execution.request.action} by {execution.request.actor} on {execution.request.target}",
         "execution_result": {
             "executed": execution.executed,
             "exit_code": execution.exit_code,

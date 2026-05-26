@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0-rc2
+
+Release candidate focused on MCP approval lifecycle reliability and Claude Desktop usability.
+
+- Changed pending approval TTL defaults to 120 seconds
+- Added bounded TTL configuration through `AGENT_SUDO_APPROVAL_TTL_SECONDS` and `agent-sudo-mcp --approval-ttl-seconds`
+- Added structured MCP approval metadata with approval ID, expiry, risk, action summary, and approval command
+- Added `agent-sudo pending` for active pending approval review
+- Added short-index approval support with `agent-sudo approve 1`
+- Preserved exact-request matching, single-use approvals, audit logging, BLOCKED policy behavior, `.env` protections, and shell policy enforcement
+
 ## v0.2.0-beta
 
 Beta release for the real MCP enforcement path.

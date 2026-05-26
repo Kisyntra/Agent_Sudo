@@ -199,6 +199,8 @@ class GatewayResult:
     approval_attempts: list[dict[str, Any]] = field(default_factory=list)
     approval_request_id: str = ""
     approval_command: str = ""
+    approval_expires_at: str = ""
+    approval_expires_in_seconds: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -211,6 +213,8 @@ class GatewayResult:
             "dry_run": self.dry_run,
             "approval_request_id": self.approval_request_id,
             "approval_command": self.approval_command,
+            "approval_expires_at": self.approval_expires_at,
+            "approval_expires_in_seconds": self.approval_expires_in_seconds,
         }
 
 

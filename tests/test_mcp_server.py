@@ -74,7 +74,7 @@ class MCPServerSubprocessTests(unittest.TestCase):
                     process.stderr.close()
 
         self.assertEqual(initialize["result"]["serverInfo"]["name"], "agent-sudo-mcp")
-        self.assertEqual(initialize["result"]["serverInfo"]["version"], "v0.4.0-rc1")
+        self.assertEqual(initialize["result"]["serverInfo"]["version"], "v0.4.0-rc2")
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertEqual(tool_names, {"read_file", "write_file", "run_shell_command"})
 

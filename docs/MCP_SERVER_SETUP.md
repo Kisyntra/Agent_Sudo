@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-Release: `v0.4.0-rc1`.
+Release: `v0.4.0-rc2`.
 
 agent-sudo includes a standard stdio MCP server entrypoint:
 
@@ -83,8 +83,12 @@ The MCP response includes:
 
 ```json
 {
+  "status": "approval_required",
   "executed": false,
-  "approval_request_id": "00000000-0000-4000-8000-000000000000",
+  "approval_id": "00000000-0000-4000-8000-000000000000",
+  "expires_in_seconds": 120,
+  "action_summary": "run_shell_command by mcp-client on pwd",
+  "risk": "CRITICAL",
   "approval_command": "agent-sudo approve 00000000-0000-4000-8000-000000000000"
 }
 ```
@@ -98,12 +102,15 @@ agent-sudo init-approval
 Then you can check, approve, or deny requests from a local terminal:
 
 ```bash
-agent-sudo approvals list
+agent-sudo pending
 agent-sudo approve APPROVAL_ID
+agent-sudo approve 1
 agent-sudo deny APPROVAL_ID
 ```
 
 Critical approvals require the local passphrase configured by `agent-sudo init-approval`. After approval, retry the same MCP tool call; the approval is consumed once and marked `USED`.
+
+Pending approvals default to 120 seconds. To adjust the window, set `AGENT_SUDO_APPROVAL_TTL_SECONDS` or start `agent-sudo-mcp` with `--approval-ttl-seconds`; values are clamped to 30-600 seconds.
 
 See [Pending Approvals](PENDING_APPROVALS.md) for the full workflow.
 

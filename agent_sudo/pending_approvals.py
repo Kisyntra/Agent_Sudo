@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
 
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.audit import AuditLogger
@@ -19,7 +21,10 @@ from agent_sudo.models import (
 
 
 PENDING_APPROVALS_PATH = Path.home() / ".agent-sudo" / "pending_approvals.json"
-DEFAULT_APPROVAL_TTL_SECONDS = 900
+APPROVAL_TTL_ENV = "AGENT_SUDO_APPROVAL_TTL_SECONDS"
+DEFAULT_APPROVAL_TTL_SECONDS = 120
+MIN_APPROVAL_TTL_SECONDS = 30
+MAX_APPROVAL_TTL_SECONDS = 600
 
 
 class PendingApprovalStore:
@@ -28,11 +33,13 @@ class PendingApprovalStore:
         path: Path = PENDING_APPROVALS_PATH,
         *,
         audit_logger: AuditLogger | None = None,
-        ttl_seconds: int = DEFAULT_APPROVAL_TTL_SECONDS,
+        ttl_seconds: int | None = None,
+        now_func: Callable[[], datetime] | None = None,
     ):
         self.path = path
         self.audit_logger = audit_logger
-        self.ttl_seconds = ttl_seconds
+        self.ttl_seconds = resolve_approval_ttl_seconds(ttl_seconds)
+        self.now_func = now_func or (lambda: datetime.now(timezone.utc))
 
     def create(
         self,
@@ -43,7 +50,7 @@ class PendingApprovalStore:
         required_approval_method: str,
         reason: str,
     ) -> ApprovalRequest:
-        now = datetime.now(timezone.utc)
+        now = self._now()
         approval = ApprovalRequest(
             approval_request_id=str(uuid.uuid4()),
             action_request=action_request,
@@ -88,6 +95,9 @@ class PendingApprovalStore:
         ]
         return matching[-1] if matching else None
 
+    def active_pending(self) -> list[ApprovalRequest]:
+        return [approval for approval in self.list() if approval.status == ApprovalStatus.PENDING]
+
     def approve(
         self,
         approval_request_id: str,
@@ -107,7 +117,7 @@ class PendingApprovalStore:
                 result = ApprovalResult(False, "APPROVAL_STORE", f"approval request is {approval.status.value}")
                 updated.append(approval)
                 continue
-            if _is_expired(approval):
+            if self._is_expired(approval):
                 expired = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
                 result = ApprovalResult(False, "APPROVAL_STORE", "approval request expired")
                 updated.append(expired)
@@ -150,7 +160,7 @@ class PendingApprovalStore:
         for approval in approvals:
             if consumed is None and approval.status == ApprovalStatus.APPROVED:
                 if _request_fingerprint(approval.action_request) == fingerprint:
-                    if _is_expired(approval):
+                    if self._is_expired(approval):
                         approval = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
                         self._record_state("approval_expired", approval)
                     else:
@@ -166,7 +176,7 @@ class PendingApprovalStore:
         changed = False
         updated: list[ApprovalRequest] = []
         for approval in approvals:
-            if approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED} and _is_expired(approval):
+            if approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED} and self._is_expired(approval):
                 approval = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
                 changed = True
                 self._record_state("approval_expired", approval)
@@ -188,6 +198,74 @@ class PendingApprovalStore:
                     "approval_result": result.to_dict(),
                 },
             )
+
+    def _is_expired(self, approval: ApprovalRequest) -> bool:
+        return _parse_time(approval.expires_at) <= self._now()
+
+    def _now(self) -> datetime:
+        value = self.now_func()
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+def resolve_approval_ttl_seconds(value: int | str | None = None) -> int:
+    raw_value: int | str | None = value
+    if raw_value is None:
+        raw_value = os.environ.get(APPROVAL_TTL_ENV)
+    if raw_value is None or raw_value == "":
+        ttl = DEFAULT_APPROVAL_TTL_SECONDS
+    else:
+        try:
+            ttl = int(raw_value)
+        except (TypeError, ValueError):
+            ttl = DEFAULT_APPROVAL_TTL_SECONDS
+    return min(MAX_APPROVAL_TTL_SECONDS, max(MIN_APPROVAL_TTL_SECONDS, ttl))
+
+
+def resolve_approval_identifier(identifier: str, approvals: list[ApprovalRequest]) -> str | None:
+    if identifier.isdecimal():
+        index = int(identifier)
+        active = [approval for approval in approvals if approval.status == ApprovalStatus.PENDING]
+        if 1 <= index <= len(active):
+            return active[index - 1].approval_request_id
+    for approval in approvals:
+        if approval.approval_request_id == identifier:
+            return approval.approval_request_id
+    return None
+
+
+def format_pending_approvals(approvals: list[ApprovalRequest], *, now: datetime | None = None) -> str:
+    active = [approval for approval in approvals if approval.status == ApprovalStatus.PENDING]
+    if not active:
+        return "No active pending approvals."
+    actual_now = now or datetime.now(timezone.utc)
+    if actual_now.tzinfo is None:
+        actual_now = actual_now.replace(tzinfo=timezone.utc)
+    rows = ["#  approval_id  action             actor       risk      age  expires"]
+    for index, approval in enumerate(active, start=1):
+        request = approval.action_request
+        rows.append(
+            "  ".join(
+                [
+                    str(index),
+                    approval.approval_request_id,
+                    _clip(request.action, 18),
+                    _clip(request.actor, 10),
+                    approval.classification.value,
+                    _duration(max(0, int((actual_now - _parse_time(approval.created_at)).total_seconds()))),
+                    _duration(max(0, int((_parse_time(approval.expires_at) - actual_now).total_seconds()))),
+                ]
+            )
+        )
+    return "\n".join(rows)
+
+
+def expires_in_seconds(approval: ApprovalRequest, *, now: datetime | None = None) -> int:
+    actual_now = now or datetime.now(timezone.utc)
+    if actual_now.tzinfo is None:
+        actual_now = actual_now.replace(tzinfo=timezone.utc)
+    return max(0, int((_parse_time(approval.expires_at) - actual_now.astimezone(timezone.utc)).total_seconds()))
 
 
 def approval_command(approval_request_id: str) -> str:
@@ -217,12 +295,22 @@ def _parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def _is_expired(approval: ApprovalRequest) -> bool:
-    return _parse_time(approval.expires_at) <= datetime.now(timezone.utc)
-
-
 def _chmod_best_effort(path: Path, mode: int) -> None:
     try:
         path.chmod(mode)
     except PermissionError:
         pass
+
+
+def _clip(value: str, width: int) -> str:
+    return value if len(value) <= width else value[: max(0, width - 1)] + "."
+
+
+def _duration(seconds: int) -> str:
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, remaining = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m{remaining:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m"
