@@ -46,7 +46,15 @@ def format_doctor_checks(checks: list[DoctorCheck]) -> str:
             status = "OK" if check.ok else "FAIL"
         if check.name == "no personal data in repo":
             status = "OK" if check.ok else "FAIL"
-        lines.append(f"{status}: {check.name} - {check.detail}")
+        if check.name == "approval config exists" and not check.ok:
+            lines.append(
+                f"{status}: {check.name} - {check.detail}\n\n"
+                "APPROVALS: NOT INITIALIZED\n\n"
+                "Recommended:\n"
+                "agent-sudo init-approval"
+            )
+        else:
+            lines.append(f"{status}: {check.name} - {check.detail}")
     return "\n".join(lines)
 
 
