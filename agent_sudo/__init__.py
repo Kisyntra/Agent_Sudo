@@ -1,4 +1,4 @@
 """agent-sudo: local permission gateway for AI agent tool execution."""
 
-__version__ = "0.3.4b0"
-__version_label__ = "v0.3.4-beta"
+__version__ = "0.4.0rc1"
+__version_label__ = "v0.4.0-rc1"

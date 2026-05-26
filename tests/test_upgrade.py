@@ -14,6 +14,7 @@ from agent_sudo.upgrade import version_key, handle_upgrade
 class UpgradeTests(unittest.TestCase):
     def test_version_key_parsing(self) -> None:
         self.assertEqual(version_key("v0.3.4-beta"), (0, 3, 4))
+        self.assertEqual(version_key("v0.4.0-rc1"), (0, 4, 0, 1))
         self.assertEqual(version_key("v0.12.0"), (0, 12, 0))
         self.assertEqual(version_key("0.3.3b0"), (0, 3, 3, 0))
 

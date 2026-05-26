@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-Release: `v0.3.4-beta`.
+Release: `v0.4.0-rc1`.
 
 agent-sudo includes a standard stdio MCP server entrypoint:
 
