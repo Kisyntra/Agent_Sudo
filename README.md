@@ -92,6 +92,8 @@ The security boundary is provenance + policy + mandatory routing through the gat
 
 ## Install
 
+For instructions on updating the installation safely, see the [Upgrading Guide](docs/UPGRADE.md).
+
 From this directory:
 
 ```bash

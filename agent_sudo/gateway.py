@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 from agent_sudo import __version_label__
-from agent_sudo.approvals import ApprovalProvider, init_approval_config
+from agent_sudo.approvals import ApprovalProvider, init_approval_config, CONFIG_PATH
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.classifier import ActionClassifier
 from agent_sudo.delegations import DelegationStore
@@ -217,6 +217,14 @@ class PermissionGateway:
         required_approval_method: str,
         reason: str,
     ) -> tuple[str, str, str]:
+        config_path = self.approvals.config_path if hasattr(self.approvals, "config_path") else CONFIG_PATH
+        if not config_path.exists():
+            sys.stderr.write(
+                "approval system not initialized\n\n"
+                "Run:\n"
+                "agent-sudo init-approval\n\n"
+                "to create a local approval passphrase.\n"
+            )
         if self.pending_approval_store is None:
             return "", "", reason
         approval = self.pending_approval_store.create(
@@ -331,6 +339,11 @@ def build_parser() -> argparse.ArgumentParser:
     delegate_revoke = delegate_subparsers.add_parser("revoke", help="Revoke a delegation token")
     delegate_revoke.add_argument("token_id")
     delegate_revoke.add_argument("--delegations-file", type=Path)
+
+    upgrade_parser = subparsers.add_parser("upgrade-local", help="Safe local upgrade of agent-sudo")
+    upgrade_parser.add_argument("--check", action="store_true", help="Check for available upgrades without updating")
+    upgrade_parser.add_argument("--allow-dirty", action="store_true", help="Allow upgrading even with uncommitted changes")
+
     return parser
 
 
@@ -367,9 +380,18 @@ def main(argv: Iterable[str] | None = None) -> int:
             print(json.dumps([approval.to_dict() for approval in store.list()], indent=2, sort_keys=True))
             return 0
     if args.command == "approve":
+        config_path = args.approval_config or CONFIG_PATH
+        if not config_path.exists():
+            sys.stderr.write(
+                "approval system not initialized\n\n"
+                "Run:\n"
+                "agent-sudo init-approval\n\n"
+                "to create a local approval passphrase.\n"
+            )
+            return 1
         audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
         store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)
-        provider_kwargs = {"config_path": args.approval_config} if args.approval_config else {}
+        provider_kwargs = {"config_path": config_path}
         approval, result = store.approve(
             args.approval_request_id,
             approval_provider=ApprovalProvider(**provider_kwargs),
@@ -413,6 +435,10 @@ def main(argv: Iterable[str] | None = None) -> int:
                 return 1
             print(json.dumps(token.to_dict(), sort_keys=True))
             return 0
+
+    if args.command == "upgrade-local":
+        from agent_sudo.upgrade import handle_upgrade
+        return handle_upgrade(check_only=args.check, allow_dirty=args.allow_dirty)
 
     policy = load_policy(args.policy) if args.policy else load_default_policy()
     if args.command == "hermes-check":
