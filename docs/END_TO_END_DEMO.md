@@ -1,6 +1,6 @@
 # End-to-End MCP Demo
 
-This demo shows the validated `v0.3.1-beta` workflow: a critical shell action is blocked without approval, allowed once by scoped delegation, then denied after the token is exhausted.
+This demo shows the validated `v0.3.2-beta` workflow: a critical shell action is blocked without approval, allowed once by scoped delegation, then denied after the token is exhausted.
 
 The local path in the transcript is redacted as `~/agent-sudo` so the demo is safe to publish.
 
