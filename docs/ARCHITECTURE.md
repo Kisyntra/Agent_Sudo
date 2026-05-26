@@ -58,6 +58,8 @@ Classification is based on the requested action, target path, provenance, source
 
 For file writes, ordinary documents remain `SENSITIVE`. Writes and edits are upgraded to `CRITICAL` when they target executable code, shell startup files, launchd plists, cron files, systemd units, MCP configs, or runtime configs.
 
+For file reads, ordinary documents remain `SAFE` and are auto-allowed by default. However, reads targeting sensitive configuration directories (such as `~/.ssh/`, `~/.config/`, `~/.agent-sudo/`, `~/.agent-runtime/`), env files (`.env`, `.env.*`), or paths/filenames containing keywords like `auth`, `token`, `credential`, `secret`, `private_key`, or `api-key` are upgraded to `BLOCKED` and denied by default.
+
 ### Policy
 
 Policy converts classification into a gateway decision:

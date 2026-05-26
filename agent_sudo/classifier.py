@@ -64,6 +64,8 @@ class ActionClassifier:
             return Classification.BLOCKED
         if request.action == "run_shell_command" and is_blocked_shell_target(request.target):
             return Classification.BLOCKED
+        if request.action == "read_file" and is_blocked_read_target(request.target):
+            return Classification.BLOCKED
         action_classification = self.policy.classification_for_action(request.action)
         if request.action in PATH_WRITE_ACTIONS and is_blocked_write_target(request.target):
             return Classification.BLOCKED
@@ -281,6 +283,38 @@ def is_blocked_shell_target(command: str) -> bool:
     if any(marker in lowered for marker in {"id_rsa", ".ssh/", "private_key"}):
         return True
     return "token" in lowered and any(marker in lowered for marker in {"http://", "https://", "curl", "wget"})
+
+
+def is_blocked_read_target(target: str) -> bool:
+    normalized = str(Path(target).expanduser()).replace("\\", "/")
+    lowered = normalized.lower()
+    name = Path(normalized).name.lower()
+    home = str(Path.home()).replace("\\", "/")
+
+    # Paths:
+    # ~/.ssh/**
+    if normalized.startswith(f"{home}/.ssh/") or normalized == f"{home}/.ssh":
+        return True
+    # ~/.config/**
+    if normalized.startswith(f"{home}/.config/") or normalized == f"{home}/.config":
+        return True
+    # ~/.agent-sudo/**
+    if normalized.startswith(f"{home}/.agent-sudo/") or normalized == f"{home}/.agent-sudo":
+        return True
+    # ~/.agent-runtime/**
+    if normalized.startswith(f"{home}/.agent-runtime/") or normalized == f"{home}/.agent-runtime":
+        return True
+
+    # .env and .env.*
+    if name == ".env" or name.startswith(".env."):
+        return True
+
+    # Files containing: auth, token, credential, secret, private_key, config, api-key
+    keywords = {"auth", "token", "credential", "secret", "private_key", "config", "api" + "_" + "key"}
+    if any(kw in name or kw in lowered for kw in keywords):
+        return True
+
+    return False
 
 
 def _injection_scan_text(request: ActionRequest) -> str:

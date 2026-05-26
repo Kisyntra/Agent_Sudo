@@ -1,6 +1,6 @@
 # agent-sudo
 
-Current public release: `v0.3.2-beta`.
+Current public release: `v0.3.3-beta`.
 
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
@@ -371,9 +371,9 @@ Provenance is written to audit logs, including `request_id`, `parent_request_id`
 
 ## Default Policy
 
-SAFE actions are auto-allowed:
+SAFE actions are auto-allowed by default:
 
-- `read_file`
+- `read_file` (upgraded to `BLOCKED` if the target is a sensitive configuration, credential, token, auth, or runtime file)
 - `search_files`
 - `summarize`
 - `draft`

@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-Release: `v0.3.2-beta`.
+Release: `v0.3.3-beta`.
 
 agent-sudo includes a standard stdio MCP server entrypoint:
 
@@ -70,7 +70,7 @@ Use only fake examples in committed docs and tests. Keep local policy files, aud
 
 ## Tool Behavior
 
-- `read_file` is allowed by the default policy.
+- `read_file` is allowed by the default policy (unless targeting a protected configuration or sensitive file, which is BLOCKED).
 - `write_file` requires approval or a matching delegation.
 - `run_shell_command` is critical by default.
 - destructive shell commands are blocked before execution.

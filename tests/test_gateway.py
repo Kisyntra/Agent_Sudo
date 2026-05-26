@@ -50,7 +50,7 @@ class GatewayTests(unittest.TestCase):
             "webpage",
             "filesystem",
             "read_file",
-            "~/.ssh/id_rsa",
+            "confidential.txt",
             "read key",
             ["secrets"],
         )

@@ -316,3 +316,7 @@ Recommended capture tools:
 - `vhs`: script the terminal demo into a repeatable GIF.
 
 Keep the capture under 45 seconds. The strongest story is deny -> one-use delegation -> allow once -> deny exhausted.
+
+## Note on File Read Access
+
+Under the default policy, most files are readable by default (`SAFE` and auto-allowed). However, files containing sensitive configuration data (such as those under `~/.ssh/` or `~/.config/`, `.env` files, or files with keywords like `auth` or `secret` in their path) are classified as `BLOCKED` and denied by default.
