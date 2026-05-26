@@ -109,6 +109,7 @@ python3 -m pip install -e .
 Or run without installing:
 
 ```bash
+python3 -m agent_sudo.gateway init-approval
 python3 -m agent_sudo.gateway check examples/demo_requests.json
 python3 -m agent_sudo.gateway run examples/demo_requests.json --dry-run
 ```

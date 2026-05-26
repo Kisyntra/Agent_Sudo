@@ -89,7 +89,13 @@ The MCP response includes:
 }
 ```
 
-Approve or deny from a local terminal:
+Before you can approve pending requests, you must initialize your local approval passphrase:
+
+```bash
+agent-sudo init-approval
+```
+
+Then you can check, approve, or deny requests from a local terminal:
 
 ```bash
 agent-sudo approvals list
