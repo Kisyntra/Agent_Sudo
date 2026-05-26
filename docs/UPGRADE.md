@@ -31,7 +31,30 @@ agent-sudo upgrade-local
 
 ### Options
 * `--check`: Checks for upgrades without performing any repository updates.
-* `--allow-dirty`: Ignores uncommitted changes in the Git working tree. By default, the upgrade halts if uncommitted changes are detected.
+* `--allow-dirty`: Allows upgrading even when real user changes are present. Use only if you understand the risk.
+
+By default, `upgrade-local` blocks tracked modifications and unknown untracked files so it does not overwrite or hide user work. It can automatically remove known generated artifacts before continuing, including:
+
+```text
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.DS_Store
+```
+
+If generated artifacts are mixed with real user changes, the upgrade stops and prints the two groups separately. Review the user changes before retrying. A conservative way to preserve the work before retrying is:
+
+```bash
+git status --short
+git stash push -u -m agent-sudo-upgrade-safety
+agent-sudo upgrade-local
+```
+
+If you prefer not to stash, remove only the generated artifact paths printed by `upgrade-local`, then rerun the upgrade.
 
 *Note: After upgrading the MCP server backend, you must restart your MCP client (such as Claude Desktop, Cursor, Hermes, or OpenClaw) for the changes to take effect.*
 

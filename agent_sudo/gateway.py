@@ -425,7 +425,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     upgrade_parser = subparsers.add_parser("upgrade-local", help="Safe local upgrade of agent-sudo")
     upgrade_parser.add_argument("--check", action="store_true", help="Check for available upgrades without updating")
-    upgrade_parser.add_argument("--allow-dirty", action="store_true", help="Allow upgrading even with uncommitted changes")
+    upgrade_parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="Allow upgrading even with user changes; generated artifacts are cleaned automatically without this flag",
+    )
 
     return parser
 

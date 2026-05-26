@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0-rc3
+
+Release candidate focused on improving `upgrade-local` reliability with generated files.
+
+- Added automatic cleaning of known generated untracked artifacts (like `agent_sudo.egg-info/`, `__pycache__/`, `.pytest_cache/`, `build/`, `dist/`, `.DS_Store`) during upgrade.
+- Reduced friction for non-technical users upgrading editable installs by preventing build/test artifacts from blocking the upgrade.
+- Bounded artifact cleanup strictly to known paths inside the repository root.
+- Ensured unknown untracked files and tracked modified files continue to safely block upgrades by default.
+- Maintained explicit requirement for `--allow-dirty` to ignore blocking user modifications.
+- Kept configuration data, pending approvals, delegations, and audit logs under `~/.agent-sudo` completely untouched and preserved.
+
 ## v0.4.0-rc2
 
 Release candidate focused on MCP approval lifecycle reliability and Claude Desktop usability.

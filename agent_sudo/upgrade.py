@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from agent_sudo import __version_label__
 
@@ -22,7 +24,35 @@ def get_git_root() -> Path | None:
     return None
 
 
+GENERATED_DIR_NAMES = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+}
+GENERATED_TOP_LEVEL_NAMES = {"build", "dist"}
+GENERATED_FILE_NAMES = {".DS_Store"}
+
+
+@dataclass(frozen=True)
+class WorkingTreeStatus:
+    generated_artifacts: list[str]
+    user_changes: list[str]
+
+    @property
+    def is_dirty(self) -> bool:
+        return bool(self.generated_artifacts or self.user_changes)
+
+    @property
+    def only_generated_artifacts(self) -> bool:
+        return bool(self.generated_artifacts) and not self.user_changes
+
+
 def is_working_tree_dirty(git_root: Path) -> bool:
+    return get_working_tree_status(git_root).is_dirty
+
+
+def get_working_tree_status(git_root: Path) -> WorkingTreeStatus:
     completed = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=git_root,
@@ -30,7 +60,60 @@ def is_working_tree_dirty(git_root: Path) -> bool:
         text=True,
         check=False,
     )
-    return bool(completed.stdout.strip())
+    generated: list[str] = []
+    user_changes: list[str] = []
+    for raw_line in completed.stdout.splitlines():
+        if not raw_line:
+            continue
+        path = _status_path(raw_line)
+        if raw_line.startswith("?? ") and is_generated_artifact(path):
+            generated.append(path)
+        else:
+            user_changes.append(raw_line)
+    return WorkingTreeStatus(generated, user_changes)
+
+
+def is_generated_artifact(path: str) -> bool:
+    normalized = path.rstrip("/")
+    parts = Path(normalized).parts
+    if not parts:
+        return False
+    if parts[-1] in GENERATED_FILE_NAMES:
+        return True
+    if any(part in GENERATED_DIR_NAMES for part in parts):
+        return True
+    if any(part.endswith(".egg-info") for part in parts):
+        return True
+    return parts[0] in GENERATED_TOP_LEVEL_NAMES
+
+
+def clean_generated_artifacts(git_root: Path, artifacts: list[str]) -> None:
+    for artifact in artifacts:
+        target = _safe_repo_path(git_root, artifact)
+        if target is None or not target.exists():
+            continue
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+
+def _status_path(raw_line: str) -> str:
+    path = raw_line[3:]
+    if " -> " in path:
+        path = path.split(" -> ", 1)[1]
+    return path.strip()
+
+
+def _safe_repo_path(git_root: Path, relative_path: str) -> Path | None:
+    try:
+        root = git_root.resolve()
+        target = (root / relative_path.rstrip("/")).resolve()
+    except OSError:
+        return None
+    if target == root or root not in target.parents:
+        return None
+    return target
 
 
 def version_key(tag: str) -> tuple[int, ...]:
@@ -93,11 +176,34 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
     if check_only:
         return 0
 
-    # Verify working tree is clean unless allow_dirty is True
-    if is_working_tree_dirty(git_root) and not allow_dirty:
-        print("Error: Git working tree has uncommitted changes.", file=sys.stderr)
-        print("Please commit or stash your changes, or pass --allow-dirty to ignore.", file=sys.stderr)
-        return 1
+    # Verify working tree is clean unless allow_dirty is True. Untracked generated
+    # build/cache artifacts are safe to remove because they can be recreated.
+    if not allow_dirty:
+        working_tree_status = get_working_tree_status(git_root)
+        if working_tree_status.only_generated_artifacts:
+            print("Found generated artifacts that can be safely removed:")
+            for artifact in working_tree_status.generated_artifacts:
+                print(f"- {artifact}")
+            print("Cleaning generated artifacts...")
+            clean_generated_artifacts(git_root, working_tree_status.generated_artifacts)
+            print("Proceeding with upgrade...")
+        elif working_tree_status.is_dirty:
+            print("Error: Git working tree has uncommitted changes.", file=sys.stderr)
+            if working_tree_status.generated_artifacts:
+                print("\nGenerated artifacts detected:", file=sys.stderr)
+                for artifact in working_tree_status.generated_artifacts:
+                    print(f"- {artifact}", file=sys.stderr)
+            if working_tree_status.user_changes:
+                print("\nUser changes blocking upgrade:", file=sys.stderr)
+                for change in working_tree_status.user_changes:
+                    print(f"- {change}", file=sys.stderr)
+            print("\nSuggested safe next steps:", file=sys.stderr)
+            print("  git status --short", file=sys.stderr)
+            print("  git stash push -u -m agent-sudo-upgrade-safety", file=sys.stderr)
+            print("Then rerun: agent-sudo upgrade-local", file=sys.stderr)
+            print("Generated artifacts listed above can also be removed manually if you prefer.", file=sys.stderr)
+            print("Pass --allow-dirty only if you understand the risk.", file=sys.stderr)
+            return 1
 
     # Pull current branch
     print(f"Pulling latest changes on branch {current_branch}...")
