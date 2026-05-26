@@ -1,13 +1,55 @@
 # agent-sudo
 
-Current release: `v0.2.0-beta` (`0.2.0b0` for Python packaging).
+Current public release: `v0.3.1-beta`.
 
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.
 It protects local tool execution with policy checks, approvals, scoped delegation, provenance, and audit logs.
 It cannot protect tools an agent can still access directly.
 `agent-sudo` is not a sandbox.
-Quickstart: install, run `agent-sudo init-approval`, then run `agent-sudo run examples/demo_requests.json --dry-run`.
+Quickstart: install, run `agent-sudo init-approval`, then follow [First Run](docs/FIRST_RUN.md) for the MCP deny -> allow once -> deny demo.
+
+## 5 Minute Quickstart
+
+From a fresh checkout:
+
+```bash
+python3 -m pip install -e .
+agent-sudo --version
+agent-sudo doctor
+agent-sudo init-approval
+```
+
+Then run the guided MCP demo:
+
+```bash
+cat docs/FIRST_RUN.md
+```
+
+The first-run path shows the core workflow:
+
+```text
+agent requests shell
+-> denied
+
+user grants one-use delegation
+-> allowed once
+
+same request again
+-> denied because delegation is exhausted
+```
+
+Expected timing:
+
+- first install: 2 to 5 minutes
+- first MCP demo: 5 to 10 minutes
+
+If console scripts are not on `PATH`, use the module form:
+
+```bash
+python3 -m agent_sudo.gateway doctor
+python3 -m agent_sudo.mcp_server --help
+```
 
 ## Why agent-sudo exists
 
