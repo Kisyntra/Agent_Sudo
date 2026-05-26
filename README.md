@@ -8,6 +8,18 @@ It protects local tool execution with policy checks, approvals, scoped delegatio
 It cannot protect tools an agent can still access directly.
 Quickstart: install, run `agent-sudo init-approval`, then run `agent-sudo run examples/demo_requests.json --dry-run`.
 
+## Why agent-sudo exists
+
+AI agents can call powerful local tools, but they cannot always distinguish a direct user request from prompt injection, external content, stale session state, or an over-broad tool permission.
+
+agent-sudo adds a local checkpoint before execution:
+
+- classify the action
+- apply least-privilege policy
+- require approval or scoped delegation
+- execute only after `ALLOW`
+- record an auditable decision
+
 This MVP is intentionally small:
 
 - local files only
@@ -143,6 +155,50 @@ agent-sudo generic-run examples/generic_tool_call.json --dry-run
 For the first enforceable dispatch prototype, see [docs/MCP_GATEWAY.md](docs/MCP_GATEWAY.md). It routes MCP-style JSON tool calls through `PermissionGateway.evaluate()` before running the small local demo tool set.
 
 For the stdio MCP server, see [docs/MCP_SERVER_SETUP.md](docs/MCP_SERVER_SETUP.md). It exposes `read_file`, `write_file`, and `run_shell_command` as MCP tools through `agent-sudo-mcp`.
+
+For non-interactive MCP clients, approval-required requests create local pending approvals instead of executing. Review them with `agent-sudo approvals list`, approve with `agent-sudo approve APPROVAL_ID`, then retry the same MCP tool call once. See [docs/PENDING_APPROVALS.md](docs/PENDING_APPROVALS.md).
+
+## Real MCP Example
+
+The validated end-to-end flow is documented in [docs/END_TO_END_DEMO.md](docs/END_TO_END_DEMO.md) and [DEMO_TRANSCRIPT.md](DEMO_TRANSCRIPT.md).
+
+Lifecycle:
+
+```text
+MCP client -> run_shell_command "pwd"
+classification: CRITICAL
+decision: REQUIRE_STRONG_APPROVAL
+executed: false
+```
+
+Then a scoped delegation is created:
+
+```text
+actor: codex
+action: run_shell_command
+target: pwd
+max uses: 1
+critical: true
+```
+
+The same MCP request is allowed once:
+
+```text
+classification: CRITICAL
+decision: ALLOW
+approval_method: DELEGATION
+executed: true
+output: ~/agent-sudo
+```
+
+A repeated request is denied:
+
+```text
+classification: CRITICAL
+decision: DENY
+executed: false
+reason: delegation token is exhausted
+```
 
 Run with approvals and audit logging:
 

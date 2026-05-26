@@ -41,6 +41,46 @@ The subprocess integration test starts `agent-sudo-mcp`, sends framed MCP messag
 - `tools/call read_file` is classified `SAFE`, allowed, executed, and audited.
 - `tools/call run_shell_command` with a destructive command is classified `BLOCKED`, denied, not executed, and audited.
 
+## Validated Security Workflow
+
+The validated delegation workflow proves that critical shell access is blocked by default, allowed only by a narrow scoped delegation, and denied after that delegation is exhausted.
+
+Sequence:
+
+```text
+1. MCP client attempted run_shell_command "pwd"
+2. Classification: CRITICAL
+3. Decision: REQUIRE_STRONG_APPROVAL
+4. Executed: false
+
+5. Created scoped delegation:
+   actor=codex
+   action=run_shell_command
+   target=pwd
+   max_uses=1
+   critical=true
+
+6. MCP client attempted run_shell_command "pwd"
+7. Classification: CRITICAL
+8. Decision: ALLOW
+9. Approval method: DELEGATION
+10. Executed: true
+11. Output: ~/agent-sudo
+
+12. MCP client attempted run_shell_command "pwd" again
+13. Classification: CRITICAL
+14. Decision: DENY
+15. Executed: false
+16. Reason: delegation token is exhausted
+```
+
+Security meaning:
+
+- shell remains critical even for simple commands
+- non-interactive MCP execution does not auto-approve
+- delegation is scoped to actor, action, target, and use count
+- audit records every transition
+
 ## Audit Results
 
 ### 1. MCP Protocol Correctness

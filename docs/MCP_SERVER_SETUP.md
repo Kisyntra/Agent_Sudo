@@ -35,7 +35,9 @@ Use this shape for MCP clients that accept a command-based stdio server:
       "command": "agent-sudo-mcp",
       "args": [
         "--audit-log",
-        ".agent-sudo/mcp-audit.jsonl"
+        ".agent-sudo/mcp-audit.jsonl",
+        "--pending-approvals-file",
+        ".agent-sudo/pending_approvals.json"
       ]
     }
   }
@@ -53,7 +55,9 @@ Add an entry like this to the local Claude Desktop MCP config:
       "command": "agent-sudo-mcp",
       "args": [
         "--audit-log",
-        ".agent-sudo/mcp-audit.jsonl"
+        ".agent-sudo/mcp-audit.jsonl",
+        "--pending-approvals-file",
+        ".agent-sudo/pending_approvals.json"
       ]
     }
   }
@@ -68,6 +72,32 @@ Use only fake examples in committed docs and tests. Keep local policy files, aud
 - `write_file` requires approval or a matching delegation.
 - `run_shell_command` is critical by default.
 - destructive shell commands are blocked before execution.
+
+## Pending Approvals
+
+MCP clients are normally non-interactive. If an MCP request requires approval and there is no TTY, agent-sudo creates a pending approval instead of executing the tool.
+
+The MCP response includes:
+
+```json
+{
+  "executed": false,
+  "approval_request_id": "00000000-0000-4000-8000-000000000000",
+  "approval_command": "agent-sudo approve 00000000-0000-4000-8000-000000000000"
+}
+```
+
+Approve or deny from a local terminal:
+
+```bash
+agent-sudo approvals list
+agent-sudo approve APPROVAL_ID
+agent-sudo deny APPROVAL_ID
+```
+
+Critical approvals require the local passphrase configured by `agent-sudo init-approval`. After approval, retry the same MCP tool call; the approval is consumed once and marked `USED`.
+
+See [Pending Approvals](PENDING_APPROVALS.md) for the full workflow.
 
 ## MCP Delegation Example
 

@@ -12,7 +12,8 @@ from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.classifier import ActionClassifier
 from agent_sudo.delegations import DelegationStore
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
-from agent_sudo.models import ActionRequest, Decision, GatewayResult, OriginType, TrustLevel
+from agent_sudo.models import ActionRequest, ApprovalStatus, Classification, Decision, GatewayResult, OriginType, TrustLevel
+from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore, approval_command
 from agent_sudo.policy import Policy, load_default_policy, load_policy
 
 
@@ -23,12 +24,14 @@ class PermissionGateway:
         approvals: ApprovalProvider | None = None,
         audit_logger: AuditLogger | None = None,
         delegation_store: DelegationStore | None = None,
+        pending_approval_store: PendingApprovalStore | None = None,
     ):
         self.policy = policy
         self.classifier = ActionClassifier(policy)
         self.approvals = approvals or ApprovalProvider()
         self.audit_logger = audit_logger
         self.delegation_store = delegation_store
+        self.pending_approval_store = pending_approval_store
 
     def evaluate(self, request: ActionRequest, *, dry_run: bool = False) -> GatewayResult:
         classification = self.classifier.classify(request)
@@ -37,6 +40,8 @@ class PermissionGateway:
         approval_method = "none"
         reason = policy_result.reason
         approval_attempts: list[dict[str, object]] = []
+        approval_request_id = ""
+        approval_command_text = ""
 
         if dry_run and decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}:
             approval_method = "dry_run"
@@ -71,8 +76,36 @@ class PermissionGateway:
                     }
                 )
             else:
-                decision, approval_method, reason, approval_attempts = self._prompt_for_approval(
+                pending_decision = self._evaluate_pending_approval(request)
+                if pending_decision is not None:
+                    decision, approval_method, reason, approval_request_id, approval_command_text = pending_decision
+                else:
+                    decision, approval_method, reason, approval_attempts, approval_request_id, approval_command_text = self._prompt_for_approval(
+                        request,
+                        classification,
+                        decision,
+                        approval_attempts,
+                    )
+        elif decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL} and self.pending_approval_store:
+            pending_decision = self._evaluate_pending_approval(request)
+            if pending_decision is not None:
+                decision, approval_method, reason, approval_request_id, approval_command_text = pending_decision
+            elif _external_content_requires_delegation(request, decision):
+                approval_method = "DENY"
+                decision = Decision.DENY
+                reason = "external content cannot approve, escalate, or initiate tool execution without delegation"
+                approval_attempts.append(
+                    {
+                        "approved": False,
+                        "method": "DENY",
+                        "reason": reason,
+                        "pending": False,
+                    }
+                )
+            else:
+                decision, approval_method, reason, approval_attempts, approval_request_id, approval_command_text = self._prompt_for_approval(
                     request,
+                    classification,
                     decision,
                     approval_attempts,
                 )
@@ -89,8 +122,9 @@ class PermissionGateway:
                 }
             )
         elif decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}:
-            decision, approval_method, reason, approval_attempts = self._prompt_for_approval(
+            decision, approval_method, reason, approval_attempts, approval_request_id, approval_command_text = self._prompt_for_approval(
                 request,
+                classification,
                 decision,
                 approval_attempts,
             )
@@ -103,6 +137,8 @@ class PermissionGateway:
             reason=reason,
             dry_run=dry_run,
             approval_attempts=approval_attempts,
+            approval_request_id=approval_request_id,
+            approval_command=approval_command_text,
         )
         if self.audit_logger is not None:
             self.audit_logger.record(result)
@@ -111,30 +147,89 @@ class PermissionGateway:
     def _prompt_for_approval(
         self,
         request: ActionRequest,
+        classification: Classification,
         decision: Decision,
         approval_attempts: list[dict[str, object]],
-    ) -> tuple[Decision, str, str, list[dict[str, object]]]:
+    ) -> tuple[Decision, str, str, list[dict[str, object]], str, str]:
         if decision == Decision.REQUIRE_APPROVAL:
             approval = self.approvals.approve_sensitive(request)
             approval_method = approval.method
             approval_attempts.append(approval.to_dict())
             if approval.pending:
+                approval_id, command, reason = self._create_pending_approval(
+                    request,
+                    classification,
+                    decision,
+                    approval_method,
+                    approval.reason,
+                )
                 decision = Decision.REQUIRE_APPROVAL
+                return decision, approval_method, reason, approval_attempts, approval_id, command
             else:
                 decision = Decision.ALLOW if approval.approved else Decision.DENY
             reason = approval.reason
-            return decision, approval_method, reason, approval_attempts
+            return decision, approval_method, reason, approval_attempts, "", ""
         if decision == Decision.REQUIRE_STRONG_APPROVAL:
             approval = self.approvals.approve_critical(request)
             approval_method = approval.method
             approval_attempts.append(approval.to_dict())
             if approval.pending:
+                approval_id, command, reason = self._create_pending_approval(
+                    request,
+                    classification,
+                    decision,
+                    approval_method,
+                    approval.reason,
+                )
                 decision = Decision.REQUIRE_STRONG_APPROVAL
+                return decision, approval_method, reason, approval_attempts, approval_id, command
             else:
                 decision = Decision.ALLOW if approval.approved else Decision.DENY
             reason = approval.reason
-            return decision, approval_method, reason, approval_attempts
-        return decision, "none", "approval not required", approval_attempts
+            return decision, approval_method, reason, approval_attempts, "", ""
+        return decision, "none", "approval not required", approval_attempts, "", ""
+
+    def _evaluate_pending_approval(
+        self,
+        request: ActionRequest,
+    ) -> tuple[Decision, str, str, str, str] | None:
+        if self.pending_approval_store is None:
+            return None
+        approval = self.pending_approval_store.find_matching(request)
+        if approval is None:
+            return None
+        if approval.status == ApprovalStatus.APPROVED:
+            used = self.pending_approval_store.consume_matching(request)
+            if used is not None:
+                return Decision.ALLOW, "PENDING_APPROVAL", f"approved by pending approval {used.approval_request_id}", used.approval_request_id, ""
+        command = approval_command(approval.approval_request_id)
+        if approval.status == ApprovalStatus.PENDING:
+            return approval.decision, approval.required_approval_method, approval.reason, approval.approval_request_id, command
+        return Decision.DENY, "PENDING_APPROVAL", f"approval request is {approval.status.value}", approval.approval_request_id, ""
+
+    def _create_pending_approval(
+        self,
+        request: ActionRequest,
+        classification: Classification,
+        decision: Decision,
+        required_approval_method: str,
+        reason: str,
+    ) -> tuple[str, str, str]:
+        if self.pending_approval_store is None:
+            return "", "", reason
+        approval = self.pending_approval_store.create(
+            action_request=request,
+            classification=classification,
+            decision=decision,
+            required_approval_method=required_approval_method,
+            reason=reason,
+        )
+        command = approval_command(approval.approval_request_id)
+        return (
+            approval.approval_request_id,
+            command,
+            f"{reason}; pending approval created: {approval.approval_request_id}; run `{command}`",
+        )
 
 
 def _external_content_requires_delegation(request: ActionRequest, decision: Decision) -> bool:
@@ -195,6 +290,22 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("init-approval", help="Initialize local approval passphrase hash")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
 
+    approvals_parser = subparsers.add_parser("approvals", help="Manage pending approval requests")
+    approvals_subparsers = approvals_parser.add_subparsers(dest="approvals_command", required=True)
+    approvals_list = approvals_subparsers.add_parser("list", help="List pending approval requests")
+    approvals_list.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+
+    approve_parser = subparsers.add_parser("approve", help="Approve a pending approval request")
+    approve_parser.add_argument("approval_request_id")
+    approve_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    approve_parser.add_argument("--audit-log", type=Path)
+    approve_parser.add_argument("--approval-config", type=Path)
+
+    deny_parser = subparsers.add_parser("deny", help="Deny a pending approval request")
+    deny_parser.add_argument("approval_request_id")
+    deny_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    deny_parser.add_argument("--audit-log", type=Path)
+
     setup_parser = subparsers.add_parser("setup", help="Print dry-run setup checklist for an agent runtime")
     setup_parser.add_argument("agent", choices=["hermes", "codex", "claude-desktop", "openclaw"])
 
@@ -247,6 +358,33 @@ def main(argv: Iterable[str] | None = None) -> int:
         print("dry-run only: no config files were edited")
         for index, line in enumerate(setup_lines(args.agent), start=1):
             print(f"{index}. {line}")
+        return 0
+    if args.command == "approvals":
+        store = PendingApprovalStore(args.pending_approvals_file)
+        if args.approvals_command == "list":
+            print(json.dumps([approval.to_dict() for approval in store.list()], indent=2, sort_keys=True))
+            return 0
+    if args.command == "approve":
+        audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
+        store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)
+        provider_kwargs = {"config_path": args.approval_config} if args.approval_config else {}
+        approval, result = store.approve(
+            args.approval_request_id,
+            approval_provider=ApprovalProvider(**provider_kwargs),
+        )
+        if approval is None:
+            print(result.reason, file=sys.stderr)
+            return 1
+        print(json.dumps(approval.to_dict(), sort_keys=True))
+        return 0 if result.approved else 1
+    if args.command == "deny":
+        audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
+        store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)
+        approval = store.deny(args.approval_request_id)
+        if approval is None:
+            print(f"approval request not found: {args.approval_request_id}", file=sys.stderr)
+            return 1
+        print(json.dumps(approval.to_dict(), sort_keys=True))
         return 0
     if args.command == "delegate":
         store = DelegationStore(args.delegations_file) if args.delegations_file else DelegationStore()

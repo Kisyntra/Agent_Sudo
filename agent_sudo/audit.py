@@ -14,11 +14,23 @@ class AuditLogger:
         self.path = path
 
     def record(self, result: GatewayResult) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         entry: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "event_type": "gateway_decision",
             **result.to_dict(),
         }
+        self._write_entry(entry)
+
+    def record_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        entry: dict[str, Any] = {
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "event_type": event_type,
+            **payload,
+        }
+        self._write_entry(entry)
+
+    def _write_entry(self, entry: dict[str, Any]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         previous_hash = _last_entry_hash(self.path)
         entry["previous_hash"] = previous_hash
         entry["entry_hash"] = _entry_hash(previous_hash, entry)

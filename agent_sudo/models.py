@@ -56,6 +56,14 @@ class AuthenticationMethod(str, Enum):
     UNKNOWN = "unknown"
 
 
+class ApprovalStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    EXPIRED = "EXPIRED"
+    USED = "USED"
+
+
 @dataclass(frozen=True)
 class Provenance:
     origin_type: OriginType = OriginType.UNKNOWN
@@ -189,6 +197,8 @@ class GatewayResult:
     reason: str
     dry_run: bool = False
     approval_attempts: list[dict[str, Any]] = field(default_factory=list)
+    approval_request_id: str = ""
+    approval_command: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -199,6 +209,8 @@ class GatewayResult:
             "approval_attempts": self.approval_attempts,
             "reason": self.reason,
             "dry_run": self.dry_run,
+            "approval_request_id": self.approval_request_id,
+            "approval_command": self.approval_command,
         }
 
 
@@ -264,3 +276,43 @@ class DelegationToken:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class ApprovalRequest:
+    approval_request_id: str
+    action_request: ActionRequest
+    classification: Classification
+    decision: Decision
+    required_approval_method: str
+    created_at: str
+    expires_at: str
+    status: ApprovalStatus
+    reason: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ApprovalRequest":
+        return cls(
+            approval_request_id=str(data["approval_request_id"]),
+            action_request=ActionRequest.from_dict(data["action_request"]),
+            classification=Classification(str(data["classification"])),
+            decision=Decision(str(data["decision"])),
+            required_approval_method=str(data["required_approval_method"]),
+            created_at=str(data["created_at"]),
+            expires_at=str(data["expires_at"]),
+            status=ApprovalStatus(str(data["status"])),
+            reason=str(data.get("reason", "")),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "approval_request_id": self.approval_request_id,
+            "action_request": self.action_request.to_dict(),
+            "classification": self.classification.value,
+            "decision": self.decision.value,
+            "required_approval_method": self.required_approval_method,
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
+            "status": self.status.value,
+            "reason": self.reason,
+        }

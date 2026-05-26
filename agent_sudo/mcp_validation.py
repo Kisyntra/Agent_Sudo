@@ -83,6 +83,8 @@ def run_jsonrpc_case(
         "classification": execution.gateway_result.classification.value,
         "approval_decision": execution.gateway_result.decision.value,
         "approval_method": execution.gateway_result.approval_method,
+        "approval_request_id": execution.gateway_result.approval_request_id,
+        "approval_command": execution.gateway_result.approval_command,
         "execution_result": {
             "executed": execution.executed,
             "exit_code": execution.exit_code,

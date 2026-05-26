@@ -13,6 +13,7 @@ from agent_sudo.gateway import PermissionGateway
 from agent_sudo.mcp_gateway import MCPGateway
 from agent_sudo.mcp_validation import tool_call_from_jsonrpc
 from agent_sudo.models import Decision
+from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore
 from agent_sudo.policy import load_default_policy, load_policy
 
 
@@ -95,6 +96,8 @@ class AgentSudoMCPServer:
             "classification": execution.gateway_result.classification.value,
             "approval_decision": execution.gateway_result.decision.value,
             "approval_method": execution.gateway_result.approval_method,
+            "approval_request_id": execution.gateway_result.approval_request_id,
+            "approval_command": execution.gateway_result.approval_command,
             "execution_result": {
                 "executed": execution.executed,
                 "exit_code": execution.exit_code,
@@ -121,11 +124,21 @@ def build_server(
     policy_path: Path | None = None,
     audit_log: Path | None = None,
     delegations_file: Path | None = None,
+    pending_approvals_file: Path | None = None,
 ) -> AgentSudoMCPServer:
     policy = load_policy(policy_path) if policy_path else load_default_policy()
     audit_logger = AuditLogger(audit_log or Path(".agent-sudo/mcp-audit.jsonl"))
     delegation_store = DelegationStore(delegations_file) if delegations_file else None
-    gateway = PermissionGateway(policy, audit_logger=audit_logger, delegation_store=delegation_store)
+    pending_store = PendingApprovalStore(
+        pending_approvals_file or PENDING_APPROVALS_PATH,
+        audit_logger=audit_logger,
+    )
+    gateway = PermissionGateway(
+        policy,
+        audit_logger=audit_logger,
+        delegation_store=delegation_store,
+        pending_approval_store=pending_store,
+    )
     return AgentSudoMCPServer(gateway)
 
 
@@ -184,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/mcp-audit.jsonl"))
     parser.add_argument("--delegations-file", type=Path)
+    parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
     return parser
 
 
@@ -193,6 +207,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         policy_path=args.policy,
         audit_log=args.audit_log,
         delegations_file=args.delegations_file,
+        pending_approvals_file=args.pending_approvals_file,
     )
     return serve(server=server)
 
