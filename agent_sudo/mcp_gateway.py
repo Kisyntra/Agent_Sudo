@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shlex
 import subprocess
 from pathlib import Path
@@ -53,6 +54,8 @@ class MCPGateway:
             return self._write_file(request, gateway_result, tool_call)
         if request.action == "run_shell_command":
             return self._run_shell_command(request, gateway_result)
+        if request.action == "get_runtime_context":
+            return self._get_runtime_context(request, gateway_result)
         return ExecutionResult(
             request=request,
             gateway_result=gateway_result,
@@ -60,6 +63,29 @@ class MCPGateway:
             exit_code=None,
             reason=f"demo MCP gateway does not implement action {request.action!r}",
         )
+
+    def _get_runtime_context(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
+        from agent_sudo.context import detect_runtime_context
+        try:
+            ctx = detect_runtime_context()
+            stdout_content = json.dumps(ctx.to_dict(), sort_keys=True)
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=True,
+                exit_code=0,
+                stdout=stdout_content,
+                reason="executed",
+            )
+        except Exception as exc:
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=False,
+                exit_code=1,
+                stderr=str(exc),
+                reason=f"failed to get runtime context: {exc}",
+            )
 
     def _read_file(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
         try:

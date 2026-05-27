@@ -25,6 +25,19 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
     normalized = _normalize_token(f"{tool} {action}")
     risk_hints = _risk_hints(tool_call, params)
 
+    if tool == "get_runtime_context" or action == "get_runtime_context" or normalized.strip() == "get_runtime_context":
+        return ActionRequest(
+            actor=actor,
+            source=source,
+            tool=tool or "get_runtime_context",
+            action="get_runtime_context",
+            target=_target(tool_call),
+            payload_summary=_summary(tool_call, "Get runtime workspace context"),
+            risk_hints=risk_hints,
+            source_trust=source_trust,
+            provenance=provenance,
+        )
+
     if action in {
         "exfiltrate_secrets",
         "disable_audit",

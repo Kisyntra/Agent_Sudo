@@ -448,6 +448,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow upgrading even with user changes; generated artifacts are cleaned automatically without this flag",
     )
 
+    subparsers.add_parser("context", help="Detect and return the runtime workspace context as JSON")
+
     return parser
 
 
@@ -560,6 +562,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "upgrade-local":
         from agent_sudo.upgrade import handle_upgrade
         return handle_upgrade(check_only=args.check, allow_dirty=args.allow_dirty)
+
+    if args.command == "context":
+        from agent_sudo.context import detect_runtime_context
+        ctx = detect_runtime_context()
+        print(json.dumps(ctx.to_dict(), indent=2, sort_keys=True))
+        return 0
 
     policy = load_policy(args.policy) if args.policy else load_default_policy()
     if args.command == "hermes-check":

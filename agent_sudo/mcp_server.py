@@ -56,6 +56,14 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["command"],
         },
     },
+    {
+        "name": "get_runtime_context",
+        "description": "Get current working directory, git repository root, active branch, and workspace status details.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
 ]
 
 

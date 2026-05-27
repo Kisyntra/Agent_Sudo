@@ -66,6 +66,8 @@ class ActionClassifier:
             return Classification.BLOCKED
         if request.action == "read_file" and is_blocked_read_target(request.target):
             return Classification.BLOCKED
+        if request.action == "get_runtime_context":
+            return Classification.SAFE
         action_classification = self.policy.classification_for_action(request.action)
         if request.action in PATH_WRITE_ACTIONS and is_blocked_write_target(request.target):
             return Classification.BLOCKED

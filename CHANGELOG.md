@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.0-rc7
+
+Release candidate introducing workspace discovery and runtime context for MCP clients.
+
+- Added runtime context discovery utility to detect cwd, repo root, git branch, root execution, and workspace presence.
+- Added `agent-sudo context` CLI command to output workspace context as JSON.
+- Added `get_runtime_context` MCP tool to return the same structured context to MCP clients.
+- Classifies context retrieval as `SAFE` (read-only, no approval required).
+- Logs warnings to `stderr` when running from the filesystem root or when no git repository/workspace is detected.
+
 ## v0.4.0-rc6
 
 Release candidate focused on improving CLI approval failure visibility.
