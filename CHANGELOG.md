@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0-rc5
+
+Release candidate focused on secure passphrase reset flow.
+
+- Implemented safe reset flow on `agent-sudo init-approval`: warns user, revokes active delegation tokens, and cancels active pending approvals (marking them `DENIED` with passphrase reset reason).
+- Added CLI option overrides (`--config`, `--pending-approvals-file`, `--delegations-file`, `--audit-log`, and `--force`) for `init-approval` subcommand.
+- Logged a chained `passphrase_reset` event to the audit log on successful reset.
+
 ## v0.4.0-rc4
 
 Release candidate focused on approval lifecycle correctness.

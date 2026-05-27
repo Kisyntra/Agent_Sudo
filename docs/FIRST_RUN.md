@@ -59,6 +59,27 @@ Use a unique local passphrase. Do not reuse an account password.
 
 This writes local approval state under `~/.agent-sudo/`. Do not commit that directory.
 
+### Resetting a Forgotten Passphrase
+
+If you forget your local passphrase, you can reset it by running the initialization command again:
+
+```bash
+agent-sudo init-approval
+```
+
+Resetting the passphrase has the following secure behavior:
+* **No passphrase recovery**: The old passphrase cannot be recovered because it is stored only as a one-way PBKDF2 hash.
+* **Revokes delegations**: All existing delegation tokens are immediately revoked to prevent compromised credentials from surviving the reset.
+* **Cancels pending approvals**: All active `PENDING` and `APPROVED` approvals are transitioned to `DENIED` with the reason `"passphrase was reset"`.
+* **Preserves audit logs**: Existing audit logs are preserved (none are deleted).
+* **Logs reset event**: A `passphrase_reset` event is cryptographically appended to the audit log, recording the counts of revoked delegations and canceled approvals.
+
+To run this command non-interactively (e.g., in automated scripts or tests), pass the `--force` flag:
+
+```bash
+agent-sudo init-approval --force
+```
+
 ## 3. Prepare Local Demo State
 
 Use `/tmp` for first-run state so no local audit or delegation files are created in the checkout:

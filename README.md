@@ -1,6 +1,6 @@
 # agent-sudo
 
-Current public release: `v0.4.0-rc4`.
+Current public release: `v0.4.0-rc5`.
 
 `agent-sudo` is a local permission gateway for AI agents before they execute tools.
 It exists because agents can confuse user intent, injected content, and agent-internal actions.

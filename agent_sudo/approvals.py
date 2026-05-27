@@ -135,19 +135,100 @@ class AutoDenyApprovalProvider(ApprovalProvider):
 def init_approval_config(
     *,
     config_path: Path = CONFIG_PATH,
-    getpass_func: Callable[[str], str] = getpass.getpass,
+    pending_approvals_path: Path | None = None,
+    delegations_path: Path | None = None,
+    audit_log_path: Path | None = None,
+    force: bool = False,
+    getpass_func: Callable[[str], str] | None = None,
+    input_func: Callable[[str], str] | None = None,
 ) -> None:
+    if input_func is None:
+        input_func = input
+    if getpass_func is None:
+        import getpass
+        getpass_func = getpass.getpass
+
+    from agent_sudo.delegations import DELEGATIONS_PATH, DelegationStore
+    from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore
+    from agent_sudo.audit import AuditLogger
+
+    actual_delegations_path = delegations_path or DELEGATIONS_PATH
+    actual_pending_path = pending_approvals_path or PENDING_APPROVALS_PATH
+
+    is_reset = config_path.exists()
+
+    if is_reset and not force:
+        print("Resetting the approval passphrase will revoke delegations and cancel pending approvals.")
+        answer = input_func("Do you want to proceed? [y/N] ").strip().lower()
+        if answer not in {"y", "yes"}:
+            raise ValueError("passphrase reset aborted by user")
+
     first = getpass_func("Create agent-sudo approval passphrase: ")
     second = getpass_func("Confirm agent-sudo approval passphrase: ")
     if not first:
         raise ValueError("passphrase cannot be empty")
     if first != second:
         raise ValueError("passphrases do not match")
+
+    if is_reset:
+        revoked_delegations_count = 0
+        del_store = DelegationStore(actual_delegations_path)
+        try:
+            tokens = del_store.list()
+        except Exception:
+            tokens = []
+
+        if tokens:
+            updated_tokens = []
+            for token in tokens:
+                if not token.revoked:
+                    from dataclasses import replace
+                    token = replace(token, revoked=True)
+                    revoked_delegations_count += 1
+                updated_tokens.append(token)
+            if revoked_delegations_count > 0:
+                del_store.save(updated_tokens)
+
+        canceled_approvals_count = 0
+        pending_store = PendingApprovalStore(actual_pending_path)
+        try:
+            approvals = pending_store.list(update_expired=False)
+        except Exception:
+            approvals = []
+
+        if approvals:
+            from agent_sudo.models import ApprovalStatus
+            updated_approvals = []
+            for approval in approvals:
+                if approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED}:
+                    from dataclasses import replace
+                    approval = replace(approval, status=ApprovalStatus.DENIED, reason="passphrase was reset")
+                    canceled_approvals_count += 1
+                updated_approvals.append(approval)
+            if canceled_approvals_count > 0:
+                pending_store.save(updated_approvals)
+
+        if audit_log_path:
+            audit_logger = AuditLogger(audit_log_path)
+            payload = {
+                "revoked_delegations_count": revoked_delegations_count,
+                "canceled_pending_approvals_count": canceled_approvals_count,
+                "config_path": str(config_path),
+            }
+            audit_logger.record_event("passphrase_reset", payload)
+
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.parent.chmod(0o700)
+    try:
+        config_path.parent.chmod(0o700)
+    except PermissionError:
+        pass
+
     config = hash_passphrase(first)
     config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    config_path.chmod(0o600)
+    try:
+        config_path.chmod(0o600)
+    except PermissionError:
+        pass
 
 
 def hash_passphrase(passphrase: str, *, salt: bytes | None = None) -> dict[str, str | int]:

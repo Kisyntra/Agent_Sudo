@@ -10,7 +10,7 @@ from agent_sudo import __version_label__
 from agent_sudo.approvals import ApprovalProvider, init_approval_config, CONFIG_PATH
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.classifier import ActionClassifier
-from agent_sudo.delegations import DelegationStore
+from agent_sudo.delegations import DelegationStore, DELEGATIONS_PATH
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
 from agent_sudo.models import ActionRequest, ApprovalStatus, Classification, Decision, GatewayResult, OriginType, TrustLevel
 from agent_sudo.pending_approvals import (
@@ -377,7 +377,24 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser = subparsers.add_parser("verify-audit", help="Verify audit JSONL hash chain")
     verify_parser.add_argument("audit_log", type=Path)
 
-    subparsers.add_parser("init-approval", help="Initialize local approval passphrase hash")
+    init_parser = subparsers.add_parser(
+        "init-approval",
+        help="Initialize or reset local approval passphrase hash",
+        description=(
+            "Initialize or reset the local agent-sudo passphrase hash. "
+            "If a passphrase already exists, resetting it will: "
+            "(1) revoke all existing delegation tokens, "
+            "(2) cancel all active pending or approved requests, "
+            "(3) preserve existing audit logs, and "
+            "(4) log a chained 'passphrase_reset' event to the audit log. "
+            "The old passphrase is one-way hashed only and cannot be recovered."
+        ),
+    )
+    init_parser.add_argument("--config", type=Path, default=CONFIG_PATH)
+    init_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    init_parser.add_argument("--delegations-file", type=Path, default=DELEGATIONS_PATH)
+    init_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
+    init_parser.add_argument("--force", action="store_true")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
 
     approvals_parser = subparsers.add_parser("approvals", help="Manage pending approval requests")
@@ -443,7 +460,13 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0 if ok else 1
     if args.command == "init-approval":
         try:
-            init_approval_config()
+            init_approval_config(
+                config_path=args.config,
+                pending_approvals_path=args.pending_approvals_file,
+                delegations_path=args.delegations_file,
+                audit_log_path=args.audit_log,
+                force=args.force,
+            )
         except ValueError as exc:
             print(f"init-approval failed: {exc}", file=sys.stderr)
             return 1
