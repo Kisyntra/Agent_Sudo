@@ -213,7 +213,7 @@ def init_approval_config(
             payload = {
                 "revoked_delegations_count": revoked_delegations_count,
                 "canceled_pending_approvals_count": canceled_approvals_count,
-                "config_path": str(config_path),
+                "config_path_redacted": "~/.agent-sudo/config.json",
             }
             audit_logger.record_event("passphrase_reset", payload)
 

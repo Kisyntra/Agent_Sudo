@@ -13,6 +13,10 @@ SKIP_DIRS = {
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
+    ".agent-sudo",
+    "build",
+    "dist",
+    "agent_sudo.egg-info",
 }
 SKIP_SUFFIXES = {".pyc", ".pyo"}
 
@@ -49,6 +53,9 @@ def iter_files() -> list[Path]:
         if any(part in SKIP_DIRS for part in path.parts):
             continue
         if path.is_dir() or path.suffix in SKIP_SUFFIXES:
+            continue
+        # Exclude audit log files
+        if "audit" in path.name.lower() and path.suffix in {".jsonl", ".log"}:
             continue
         files.append(path)
     return files

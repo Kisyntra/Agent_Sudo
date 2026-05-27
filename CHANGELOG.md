@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0-rc8
+
+Release candidate focusing on post-upgrade verification privacy and hygiene fixes.
+
+- Redacted absolute paths from the `passphrase_reset` audit event to avoid recording raw personal user directories.
+- Excluded the `.agent-sudo/` runtime state directory and build artifacts from the personal-data hygiene checks.
+- Prevented `agent-sudo doctor` and post-upgrade verification from failing on local runtime audit log files.
+- Preserved all local runtime state and audit log hash chains intact.
+
 ## v0.4.0-rc7
 
 Release candidate introducing workspace discovery and runtime context for MCP clients.

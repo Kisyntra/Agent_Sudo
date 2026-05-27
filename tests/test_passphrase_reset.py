@@ -250,7 +250,7 @@ class PassphraseResetTests(unittest.TestCase):
             self.assertEqual(last_entry["event_type"], "passphrase_reset")
             self.assertEqual(last_entry["revoked_delegations_count"], 1)
             self.assertEqual(last_entry["canceled_pending_approvals_count"], 2)
-            self.assertEqual(last_entry["config_path"], str(config_path))
+            self.assertEqual(last_entry["config_path_redacted"], "~/.agent-sudo/config.json")
             self.assertIn("timestamp", last_entry)
 
     def test_force_flag_bypasses_confirmation(self) -> None:
