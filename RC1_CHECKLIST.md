@@ -1,6 +1,6 @@
-# agent-sudo v0.4.0-rc3 Release Candidate Checklist
+# agent-sudo v0.4.0-rc4 Release Candidate Checklist
 
-This checklist outlines the verification steps required to certify `agent-sudo` for the `v0.4.0-rc3` release candidate.
+This checklist outlines the verification steps required to certify `agent-sudo` for the `v0.4.0-rc4` release candidate.
 
 ---
 
@@ -66,7 +66,7 @@ Check that every tutorial example runs and generates correct outputs:
 Verify that there are no obsolete artifacts or configurations in source control:
 
 - [x] **No LSP framing references**: Standard stdio newline transport replaces all old Content-Length headers references.
-- [x] **No stale version references**: Active release labels should be updated to `v0.4.0-rc3` (or package version `0.4.0rc3`) before release.
+- [x] **No stale version references**: Active release labels should be updated to `v0.4.0-rc4` (or package version `0.4.0rc4`) before release.
 - [x] **No uncommitted local tests**: No scratch scripts or temporary audit files (`.agent-sudo/audit.jsonl`, etc.) exist in the tracked workspace.
 
 ---

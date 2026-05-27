@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0-rc4
+
+Release candidate focused on approval lifecycle correctness.
+
+- Fixed a bug where stale resolved approvals (`USED`, `EXPIRED`, `DENIED`) in the pending approvals JSON store incorrectly matched future identical requests and blocked them from executing.
+- Ensured that future identical tool executions create a fresh pending approval request with a new unique UUID.
+- Preserved single-use approval semantics, audit logging history, and local passphrase validation.
+- Maintained all existing security boundaries, including `BLOCKED` policy enforcement and shell wrapper validation rules.
+
 ## v0.4.0-rc3
 
 Release candidate focused on improving `upgrade-local` reliability with generated files.

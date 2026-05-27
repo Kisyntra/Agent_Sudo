@@ -92,6 +92,7 @@ class PendingApprovalStore:
             approval
             for approval in self.list()
             if _request_fingerprint(approval.action_request) == fingerprint
+            and approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED}
         ]
         return matching[-1] if matching else None
 
