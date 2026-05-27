@@ -517,8 +517,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         if approval is None:
             print(result.reason, file=sys.stderr)
             return 1
+        if not result.approved:
+            print(f"Error: {result.reason}", file=sys.stderr)
+            return 1
         print(json.dumps(approval.to_dict(), sort_keys=True))
-        return 0 if result.approved else 1
+        return 0
     if args.command == "deny":
         audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
         store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)

@@ -4,7 +4,7 @@ import io
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -583,6 +583,143 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             self.assertIsNotNone(match)
             self.assertEqual(match.approval_request_id, active2.approval_request_id)
             self.assertEqual(match.reason, "active2")
+
+    def test_approve_command_wrong_passphrase_visibility(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            config_path = self._config_path(tmpdir, passphrase="correct-passphrase")
+            store = PendingApprovalStore(pending_path)
+            req = ActionRequest.from_dict(self._critical_tool_call())
+            app = store.create(
+                action_request=req,
+                classification=Classification.CRITICAL,
+                decision=Decision.REQUIRE_STRONG_APPROVAL,
+                required_approval_method="PASSPHRASE_CONFIRM",
+                reason="strong approval required",
+            )
+
+            # We need to mock ApprovalProvider to simulate inputting a WRONG passphrase
+            from unittest.mock import patch
+            from agent_sudo.approvals import ApprovalProvider
+
+            original_init = ApprovalProvider.__init__
+            def custom_init(self, *args, **kwargs):
+                original_init(self, *args, **kwargs)
+                self.getpass_func = lambda prompt: "wrong-passphrase"
+                self.stdin_is_tty = lambda: True
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch.object(ApprovalProvider, "__init__", custom_init), \
+                 redirect_stdout(stdout), \
+                 redirect_stderr(stderr):
+                code = main([
+                    "approve", "1",
+                    "--pending-approvals-file", str(pending_path),
+                    "--approval-config", str(config_path),
+                ])
+
+            self.assertEqual(code, 1)
+            self.assertIn("Error: passphrase verification failed", stderr.getvalue())
+            self.assertEqual(stdout.getvalue().strip(), "") # No misleading JSON
+            # Verify status on disk remains PENDING
+            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.PENDING)
+
+    def test_approve_command_expired_visibility(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            config_path = self._config_path(tmpdir)
+            # Create a store with a tiny TTL so we can mock/expire it, or just write it already expired
+            store = PendingApprovalStore(pending_path)
+            req = ActionRequest.from_dict(self._critical_tool_call())
+
+            from datetime import datetime, timedelta, timezone
+            now = datetime.now(timezone.utc)
+            from agent_sudo.pending_approvals import _format_time
+            # Directly inject an expired pending request on disk
+            from agent_sudo.models import ApprovalRequest
+            import uuid
+            app = ApprovalRequest(
+                approval_request_id=str(uuid.uuid4()),
+                action_request=req,
+                classification=Classification.CRITICAL,
+                decision=Decision.REQUIRE_STRONG_APPROVAL,
+                required_approval_method="PASSPHRASE_CONFIRM",
+                created_at=_format_time(now - timedelta(seconds=120)),
+                expires_at=_format_time(now - timedelta(seconds=10)),
+                status=ApprovalStatus.PENDING,
+                reason="strong approval required",
+            )
+            store.save([app])
+
+            # Try approving via CLI
+            from unittest.mock import patch
+            from agent_sudo.approvals import ApprovalProvider
+
+            original_init = ApprovalProvider.__init__
+            def custom_init(self, *args, **kwargs):
+                original_init(self, *args, **kwargs)
+                self.getpass_func = lambda prompt: "test-passphrase"
+                self.stdin_is_tty = lambda: True
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch.object(ApprovalProvider, "__init__", custom_init), \
+                 redirect_stdout(stdout), \
+                 redirect_stderr(stderr):
+                code = main([
+                    "approve", app.approval_request_id,
+                    "--pending-approvals-file", str(pending_path),
+                    "--approval-config", str(config_path),
+                ])
+
+            self.assertEqual(code, 1)
+            self.assertIn("Error: approval request is EXPIRED", stderr.getvalue())
+            self.assertEqual(stdout.getvalue().strip(), "") # No misleading JSON
+            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.EXPIRED)
+
+    def test_approve_command_success_visibility(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = Path(tmpdir) / "pending.json"
+            config_path = self._config_path(tmpdir, passphrase="test-passphrase")
+            store = PendingApprovalStore(pending_path)
+            req = ActionRequest.from_dict(self._critical_tool_call())
+            app = store.create(
+                action_request=req,
+                classification=Classification.CRITICAL,
+                decision=Decision.REQUIRE_STRONG_APPROVAL,
+                required_approval_method="PASSPHRASE_CONFIRM",
+                reason="strong approval required",
+            )
+
+            # We need to mock ApprovalProvider to simulate inputting the correct passphrase
+            from unittest.mock import patch
+            from agent_sudo.approvals import ApprovalProvider
+
+            original_init = ApprovalProvider.__init__
+            def custom_init(self, *args, **kwargs):
+                original_init(self, *args, **kwargs)
+                self.getpass_func = lambda prompt: "test-passphrase"
+                self.stdin_is_tty = lambda: True
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch.object(ApprovalProvider, "__init__", custom_init), \
+                 redirect_stdout(stdout), \
+                 redirect_stderr(stderr):
+                code = main([
+                    "approve", "1",
+                    "--pending-approvals-file", str(pending_path),
+                    "--approval-config", str(config_path),
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(stderr.getvalue().strip(), "")
+            # Successful approval prints JSON to stdout
+            out_json = json.loads(stdout.getvalue().strip())
+            self.assertEqual(out_json["status"], "APPROVED")
+            # Verify status on disk persists as APPROVED
+            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.APPROVED)
 
 
 if __name__ == "__main__":

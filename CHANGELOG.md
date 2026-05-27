@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.0-rc6
+
+Release candidate focused on improving CLI approval failure visibility.
+
+- Failed `agent-sudo approve` now prints clear errors to `stderr` explaining the failure reason.
+- Wrong passphrase no longer prints misleading pending approval JSON to `stdout`.
+- Expired approval failure is clearly reported to the user.
+- Successful approvals still print the updated `APPROVED` JSON to `stdout` and exit `0`.
+- No changes to underlying approval security semantics.
+
 ## v0.4.0-rc5
 
 Release candidate focused on secure passphrase reset flow.
