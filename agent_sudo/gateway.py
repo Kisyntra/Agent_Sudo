@@ -448,7 +448,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow upgrading even with user changes; generated artifacts are cleaned automatically without this flag",
     )
 
-    subparsers.add_parser("context", help="Detect and return the runtime workspace context as JSON")
+    context_parser = subparsers.add_parser("context", help="Detect and return the runtime workspace context as JSON")
+    context_parser.add_argument("--workspace", help="Path to configured workspace root")
 
     return parser
 
@@ -565,7 +566,7 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     if args.command == "context":
         from agent_sudo.context import detect_runtime_context
-        ctx = detect_runtime_context()
+        ctx = detect_runtime_context(workspace=args.workspace)
         print(json.dumps(ctx.to_dict(), indent=2, sort_keys=True))
         return 0
 

@@ -17,8 +17,8 @@ class UpgradeTests(unittest.TestCase):
         self.assertEqual(version_key("v0.4.0-rc1"), (0, 4, 0, 1))
         self.assertEqual(version_key("v0.4.0-rc4"), (0, 4, 0, 4))
         self.assertEqual(version_key("v0.4.0-rc5"), (0, 4, 0, 5))
-        self.assertEqual(version_key("v0.4.0-rc7"), (0, 4, 0, 7))
         self.assertEqual(version_key("v0.4.0-rc8"), (0, 4, 0, 8))
+        self.assertEqual(version_key("v0.4.0-rc9"), (0, 4, 0, 9))
         self.assertEqual(version_key("v0.12.0"), (0, 12, 0))
         self.assertEqual(version_key("0.3.3b0"), (0, 3, 3, 0))
 
@@ -219,7 +219,7 @@ def _mock_upgrade_run(status_stdout: str):
         if command[:2] == ["git", "fetch"]:
             return unittest.mock.MagicMock(returncode=0, stdout="", stderr="")
         if command == ["git", "tag"]:
-            return unittest.mock.MagicMock(returncode=0, stdout="v0.4.0-rc8\n", stderr="")
+            return unittest.mock.MagicMock(returncode=0, stdout="v0.4.0-rc9\n", stderr="")
         if command[:3] == ["git", "status", "--porcelain"]:
             return unittest.mock.MagicMock(returncode=0, stdout=status_stdout, stderr="")
         if command[:2] == ["git", "pull"]:

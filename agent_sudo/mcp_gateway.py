@@ -17,9 +17,16 @@ DEMO_SHELL_COMMANDS = {"pwd", "ls", "cat"}
 
 
 class MCPGateway:
-    def __init__(self, gateway: PermissionGateway, *, write_root: Path = DEMO_WRITE_ROOT):
+    def __init__(
+        self,
+        gateway: PermissionGateway,
+        *,
+        write_root: Path = DEMO_WRITE_ROOT,
+        workspace: str | None = None,
+    ):
         self.gateway = gateway
         self.write_root = write_root
+        self.workspace = workspace
 
     def dispatch(self, tool_call: dict[str, Any], *, dry_run: bool = False) -> ExecutionResult:
         request = from_mcp_tool_call(tool_call)
@@ -67,7 +74,7 @@ class MCPGateway:
     def _get_runtime_context(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
         from agent_sudo.context import detect_runtime_context
         try:
-            ctx = detect_runtime_context()
+            ctx = detect_runtime_context(workspace=self.workspace)
             stdout_content = json.dumps(ctx.to_dict(), sort_keys=True)
             return ExecutionResult(
                 request=request,
@@ -152,8 +159,9 @@ def dispatch_mcp_tool_call(
     gateway: PermissionGateway,
     *,
     dry_run: bool = False,
+    workspace: str | None = None,
 ) -> ExecutionResult:
-    return MCPGateway(gateway).dispatch(tool_call, dry_run=dry_run)
+    return MCPGateway(gateway, workspace=workspace).dispatch(tool_call, dry_run=dry_run)
 
 
 def _content_from_tool_call(tool_call: dict[str, Any]) -> str:

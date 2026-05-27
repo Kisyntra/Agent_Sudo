@@ -68,9 +68,9 @@ TOOLS: list[dict[str, Any]] = [
 
 
 class AgentSudoMCPServer:
-    def __init__(self, gateway: PermissionGateway):
+    def __init__(self, gateway: PermissionGateway, *, workspace: str | None = None):
         self.gateway = gateway
-        self.mcp_gateway = MCPGateway(gateway)
+        self.mcp_gateway = MCPGateway(gateway, workspace=workspace)
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
         method = message.get("method")
@@ -144,6 +144,7 @@ def build_server(
     delegations_file: Path | None = None,
     pending_approvals_file: Path | None = None,
     approval_ttl_seconds: int | None = None,
+    workspace: str | None = None,
 ) -> AgentSudoMCPServer:
     policy = load_policy(policy_path) if policy_path else load_default_policy()
     audit_logger = AuditLogger(audit_log or Path(".agent-sudo/mcp-audit.jsonl"))
@@ -159,7 +160,7 @@ def build_server(
         delegation_store=delegation_store,
         pending_approval_store=pending_store,
     )
-    return AgentSudoMCPServer(gateway)
+    return AgentSudoMCPServer(gateway, workspace=workspace)
 
 
 def serve(
@@ -208,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--delegations-file", type=Path)
     parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
     parser.add_argument("--approval-ttl-seconds", type=int, help="Pending approval TTL, clamped to 30-600 seconds")
+    parser.add_argument("--workspace", help="Path to configured workspace root")
     return parser
 
 
@@ -219,6 +221,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         delegations_file=args.delegations_file,
         pending_approvals_file=args.pending_approvals_file,
         approval_ttl_seconds=args.approval_ttl_seconds,
+        workspace=args.workspace,
     )
     return serve(server=server)
 

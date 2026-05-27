@@ -220,3 +220,121 @@ class RuntimeContextTests(unittest.TestCase):
         self.assertIn("git_branch", ctx_dict)
         self.assertIn("workspace_detected", ctx_dict)
         self.assertIn("running_from_root", ctx_dict)
+
+    def test_no_configured_workspace_uses_cwd(self) -> None:
+        with mock.patch.dict(os.environ, {}), \
+             mock.patch("agent_sudo.context._load_config_workspace", return_value=None):
+            ctx = detect_runtime_context()
+            self.assertIsNone(ctx.configured_workspace)
+            self.assertEqual(ctx.effective_workspace, ctx.cwd)
+
+    def test_valid_configured_workspace_detects_repo_and_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            # Initialize git repo
+            subprocess.run(
+                ["git", "init"],
+                cwd=tmp_path,
+                env=self.git_env,
+                capture_output=True,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "checkout", "-b", "test-branch"],
+                cwd=tmp_path,
+                env=self.git_env,
+                capture_output=True,
+                check=False,
+            )
+            # Make a commit
+            dummy_file = tmp_path / "dummy.txt"
+            dummy_file.write_text("dummy", encoding="utf-8")
+            subprocess.run(["git", "add", "dummy.txt"], cwd=tmp_path, env=self.git_env, capture_output=True, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, env=self.git_env, capture_output=True, check=True)
+
+            ctx = detect_runtime_context(workspace=tmp_path)
+            self.assertEqual(ctx.configured_workspace, str(tmp_path))
+            self.assertEqual(ctx.effective_workspace, str(tmp_path))
+            self.assertTrue(ctx.workspace_detected)
+            self.assertEqual(ctx.repo_root, str(tmp_path))
+            self.assertEqual(ctx.git_branch, "test-branch")
+
+    def test_invalid_configured_workspace_returns_warning_no_crash(self) -> None:
+        invalid_path = "/non/existent/workspace/path"
+        ctx = detect_runtime_context(workspace=invalid_path)
+        self.assertEqual(ctx.configured_workspace, invalid_path)
+        self.assertEqual(ctx.effective_workspace, ctx.cwd)
+        self.assertFalse(ctx.workspace_detected)
+        self.assertTrue(any("invalid or inaccessible" in w for w in ctx.warnings))
+
+    def test_agent_sudo_workspace_env_var_respected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            with mock.patch.dict(os.environ, {"AGENT_SUDO_WORKSPACE": str(tmp_path)}):
+                ctx = detect_runtime_context()
+                self.assertEqual(ctx.configured_workspace, str(tmp_path))
+                self.assertEqual(ctx.effective_workspace, str(tmp_path))
+                self.assertTrue(ctx.workspace_detected)
+
+    def test_cli_workspace_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            stdout = io.StringIO()
+            with mock.patch("sys.stdout", stdout):
+                exit_code = main(["context", "--workspace", str(tmp_path)])
+
+            self.assertEqual(exit_code, 0)
+            output_json = json.loads(stdout.getvalue())
+            self.assertEqual(output_json["configured_workspace"], str(tmp_path))
+            self.assertEqual(output_json["effective_workspace"], str(tmp_path))
+            self.assertTrue(output_json["workspace_detected"])
+
+    def test_mcp_server_workspace_flag(self) -> None:
+        from agent_sudo.mcp_server import build_server
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+
+            # Build server with workspace
+            server = build_server(workspace=str(tmp_path))
+
+            # Dispatch get_runtime_context
+            result = server.mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "get_runtime_context",
+                    "action": "get_runtime_context",
+                    "target": "get_runtime_context",
+                }
+            )
+
+            self.assertTrue(result.executed)
+            ctx_dict = json.loads(result.stdout)
+            self.assertEqual(ctx_dict["configured_workspace"], str(tmp_path))
+            self.assertEqual(ctx_dict["effective_workspace"], str(tmp_path))
+
+    def test_running_from_root_but_workspace_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+
+            ctx = detect_runtime_context(cwd="/", workspace=tmp_path)
+            self.assertEqual(ctx.cwd, "/")
+            self.assertEqual(ctx.configured_workspace, str(tmp_path))
+            self.assertEqual(ctx.effective_workspace, str(tmp_path))
+            self.assertFalse(ctx.running_from_root)
+
+    def test_configured_workspace_does_not_bypass_approvals_or_policy(self) -> None:
+        gateway = PermissionGateway(self.policy)
+        mcp_gateway = MCPGateway(gateway, workspace="/some/workspace")
+
+        result = mcp_gateway.dispatch(
+            {
+                "actor": "mcp-client",
+                "source": "user",
+                "tool": "filesystem",
+                "action": "write_file",
+                "target": "/some/workspace/test.txt",
+                "parameters": {"path": "/some/workspace/test.txt", "content": "hello"},
+            }
+        )
+        self.assertFalse(result.executed)

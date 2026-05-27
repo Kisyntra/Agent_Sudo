@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0-rc9
+
+Release candidate adding configurable workspace root support.
+
+- Added CLI flags `--workspace` to both `agent-sudo context` and `agent-sudo-mcp` tools.
+- Added environment variable support via `AGENT_SUDO_WORKSPACE`.
+- Added config file fallback loading workspace paths from `~/.agent-sudo/config.json`.
+- Introduced `configured_workspace` and `effective_workspace` fields to the runtime context.
+- Prevents unanchored root execution reports for MCP clients (like Claude Desktop) when a valid workspace is configured.
+- Maintained exact approval mechanics and policy boundaries for all workspace contexts.
+
 ## v0.4.0-rc8
 
 Release candidate focusing on post-upgrade verification privacy and hygiene fixes.
