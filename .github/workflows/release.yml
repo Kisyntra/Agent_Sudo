@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Extract Release Notes
+      id: extract_notes
+      run: |
+        TAG_NAME="${{ github.ref_name }}"
+        python -c '
+        import re, sys
+        from pathlib import Path
+        tag = sys.argv[1]
+        changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+        pattern = rf"(^## {re.escape(tag)}\b.*?)(?=\n## |\Z)"
+        match = re.search(pattern, changelog, re.MULTILINE | re.DOTALL)
+        if match:
+            section = match.group(1).strip()
+            lines = section.splitlines()
+            if lines and lines[0].startswith("## "):
+                lines = lines[1:]
+            while lines and not lines[0].strip():
+                lines = lines[1:]
+            notes = "\n".join(lines).strip()
+        else:
+            notes = f"Release {tag}"
+        Path("release_notes.md").write_text(notes, encoding="utf-8")
+        ' "$TAG_NAME"
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG_NAME: ${{ github.ref_name }}
+      run: |
+        # Prevent duplicating an existing release
+        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          echo "Release $TAG_NAME already exists, skipping."
+          exit 0
+        fi
+
+        # Determine release type (prerelease if version contains "rc")
+        IS_PRERELEASE=false
+        if [[ "$TAG_NAME" == *"rc"* ]]; then
+          IS_PRERELEASE=true
+        fi
+
+        # Create release using gh CLI
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          gh release create "$TAG_NAME" \
+            --prerelease \
+            --latest=false \
+            --title "$TAG_NAME" \
+            --notes-file release_notes.md
+        else
+          gh release create "$TAG_NAME" \
+            --title "$TAG_NAME" \
+            --notes-file release_notes.md
+        fi

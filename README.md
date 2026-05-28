@@ -4,6 +4,11 @@
   <img src="assets/brand/agent-sudo-logo-readme.png" alt="Agent_Sudo logo" width="320">
 </p>
 
+
+## Demo
+
+![Agent_Sudo Demo](assets/demo/agent-sudo-demo.gif)
+
 `Agent_Sudo` is a local permission gateway for AI agents that validates, authorizes, and controls tool execution before actions are run.
 
 ## Why Agent_Sudo?
@@ -61,3 +66,13 @@ agent-sudo context
 - **[Claude Desktop Setup Guide](docs/CLAUDE_DESKTOP_SETUP.md)**: Connect `Agent_Sudo` to Claude Desktop, configure the active workspace, and run verification tests.
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**: Solutions for common startup errors, passphrase failures, and workspace detection issues.
 - **[Security & Threat Model](docs/SECURITY_MODEL.md)**: Deep dive into the security boundaries, audit log guarantees, and future hardening plans.
+
+---
+
+## CI/CD & Release Automation
+
+`Agent_Sudo` uses GitHub Actions to automate checks and distribution:
+- **Continuous Integration**: The CI workflow runs on all pushes and pull requests targeting the `main` branch, running the unittest suite, scanning for personal path disclosures, executing `git diff --check` whitespace validation, and verifying Python package compilation.
+- **Automated Releases**: Releases are generated automatically when a git tag matching `v*` is pushed.
+  - Release candidate tags (e.g. `v0.4.0-rc12`) are published as GitHub Prereleases and are explicitly excluded from being marked as the latest release.
+  - Release notes are automatically parsed and extracted from the matching version entry in `CHANGELOG.md`.
