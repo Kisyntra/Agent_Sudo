@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_sudo.models import GatewayResult
+from agent_sudo.spec_helpers import compute_entry_hash, verify_jsonl_file
 
 
 class AuditLogger:
@@ -33,42 +34,19 @@ class AuditLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         previous_hash = _last_entry_hash(self.path)
         entry["previous_hash"] = previous_hash
-        entry["entry_hash"] = _entry_hash(previous_hash, entry)
+        entry["entry_hash"] = compute_entry_hash(previous_hash, entry)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
 def verify_audit_log(path: Path) -> tuple[bool, str]:
-    previous_hash = GENESIS_HASH
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            try:
-                entry = json.loads(line)
-            except json.JSONDecodeError as exc:
-                return False, f"line {line_number}: invalid JSON: {exc}"
-            expected_previous = entry.get("previous_hash")
-            if expected_previous != previous_hash:
-                return False, f"line {line_number}: previous_hash mismatch"
-            actual_hash = entry.get("entry_hash")
-            expected_hash = _entry_hash(previous_hash, entry)
-            if actual_hash != expected_hash:
-                return False, f"line {line_number}: entry_hash mismatch"
-            previous_hash = actual_hash
-    return True, "audit log verified"
+    result = verify_jsonl_file(path)
+    if result.success:
+        return True, "audit log verified"
+    return False, str(result)
 
 
 GENESIS_HASH = "0" * 64
-
-
-def _canonical_json(entry: dict[str, Any]) -> str:
-    clean = {key: value for key, value in entry.items() if key != "entry_hash"}
-    return json.dumps(clean, sort_keys=True, separators=(",", ":"))
-
-
-def _entry_hash(previous_hash: str, entry: dict[str, Any]) -> str:
-    return hashlib.sha256(f"{previous_hash}{_canonical_json(entry)}".encode("utf-8")).hexdigest()
 
 
 def _last_entry_hash(path: Path) -> str:

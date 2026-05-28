@@ -145,3 +145,47 @@ Integrations are encouraged to add custom top-level keys to represent platform-s
 The verifier semantics (Genesis base, sorted-key serialization, SHA-256 concatenation) are **highly stable** and ready for external adoption. Because the mathematical chain verification has zero dependency on specific OS layers or gateway internals, external systems can implement it with absolute confidence.
 
 We recommend **publishing these specifications immediately** as stable boundaries for the ecosystem, while keeping the full Python in-process engine implementation deferred.
+
+---
+
+## 6. Practical Interoperability Examples
+
+### A. Verifying an External JSONL Log
+External systems (e.g., LexFlow) writing logs to a custom path (e.g., `path/to/mcp.log`) can run the standard `agent-sudo` CLI tool to verify the entire hash chain integrity:
+
+```bash
+agent-sudo verify-audit path/to/mcp.log
+```
+If the log is intact, the tool will exit with `0` and print:
+```text
+audit log verified
+```
+
+### B. Interpreting Verification Failures
+When verification fails, the tool exits with `1` and prints structured, diagnostic errors without leaking the full records. Common errors include:
+
+1. **Previous Hash Mismatch**:
+   ```text
+   line 3: previous_hash mismatch
+   ```
+   *Explanation*: The record at line 3 does not link back to the cryptographic hash of line 2. This suggests line deletion or insertion has occurred before line 3.
+
+2. **Entry Hash Mismatch**:
+   ```text
+   line 5: entry_hash mismatch
+   ```
+   *Explanation*: The computed SHA-256 hash of line 5 (excluding `entry_hash` itself) does not match the value saved in the `entry_hash` key. This indicates line-level tampering (e.g., changing the decision value or timestamp of that event).
+
+3. **Invalid JSON**:
+   ```text
+   line 1: invalid JSON: Expecting value: line 1 column 1 (char 0)
+   ```
+   *Explanation*: The log file has been corrupted or contains malformed syntax on the given line.
+
+### C. Minimal External Compatible AuditRecord Example
+Below is a valid, minimal JSON line that conforms to the `AuditRecord` specification. Notice how it includes the required fields as well as an optional extension key (`lexflow_workflow_id`):
+
+```json
+{"approval_method":"none","classification":"SAFE","decision":"ALLOW","entry_hash":"fa531b79f2913e73b22cf90040bc134d13e00787e91d8487e415b3c4314e3650","event_type":"gateway_decision","lexflow_workflow_id":"wf-9988-ab","previous_hash":"0000000000000000000000000000000000000000000000000000000000000000","reason":"read allowed","request":{"action":"read_file","actor":"lexflow-desktop","payload_summary":"Read README","source":"user","source_trust":"USER_DIRECT","target":"README.md","tool":"filesystem"},"timestamp":"2026-05-28T06:00:00Z"}
+```
+*(Remember that the file on disk must be a JSONL file where this entire dictionary is serialized compact on a single line with no leading or trailing whitespace, ending with a Unix newline `\n`).*

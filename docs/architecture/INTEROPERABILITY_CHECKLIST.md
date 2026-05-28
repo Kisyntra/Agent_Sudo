@@ -68,3 +68,20 @@ To confirm that your integration's logs are compliant, they must pass the refere
 
 - [ ] Run `agent-sudo verify-audit <path_to_log>` against your log file.
 - [ ] Verify the utility exits with `0` and outputs `audit log verified`.
+
+---
+
+## 6. Python Integration Helpers
+
+For Python-based clients or integrations, `Agent_Sudo` distributes a lightweight, standard library-only helper module: [spec_helpers.py](../../agent_sudo/spec_helpers.py).
+
+Developers can import it directly to serialize and verify hash chains in-process:
+```python
+from agent_sudo.spec_helpers import (
+    canonicalize_record,
+    compute_entry_hash,
+    verify_hash_chain,
+    verify_jsonl_file,
+)
+```
+This enables zero-dependency audit logging and verification in single-process desktop applications.
