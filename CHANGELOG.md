@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.0-rc10
+
+Release candidate introducing optional native macOS approval notifications.
+
+- Added optional native macOS desktop notification support for pending approval requests.
+- Added `--notify` CLI flag to both `agent-sudo-mcp` and `agent-sudo run / generic-run` commands.
+- Enabled environment variable `AGENT_SUDO_NOTIFY=1` to toggle notifications.
+- Sanitized and truncated notification payloads (reducing path disclosures and command arguments) to prevent secrets leakage.
+- Ensured non-blocking notification behavior; failures do not disrupt the approval creation or MCP tool execution.
+- Validated Claude Desktop end-to-end approval UX flow.
+- Avoided the use of `shell=True` to prevent shell injection vectors.
+
 ## v0.4.0-rc9
 
 Release candidate adding configurable workspace root support.
