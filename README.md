@@ -7,7 +7,7 @@
 
 ## Demo
 
-![Agent_Sudo Demo](assets/demo/agent-sudo-demo.gif)
+![Agent_Sudo Demo](assets/demo/demo-agent_sudo.gif)
 
 `Agent_Sudo` is a local permission gateway for AI agents that validates, authorizes, and controls tool execution before actions are run.
 
