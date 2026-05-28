@@ -35,11 +35,13 @@ class PendingApprovalStore:
         audit_logger: AuditLogger | None = None,
         ttl_seconds: int | None = None,
         now_func: Callable[[], datetime] | None = None,
+        notify: bool | None = None,
     ):
         self.path = path
         self.audit_logger = audit_logger
         self.ttl_seconds = resolve_approval_ttl_seconds(ttl_seconds)
         self.now_func = now_func or (lambda: datetime.now(timezone.utc))
+        self.notify = notify if notify is not None else (os.environ.get("AGENT_SUDO_NOTIFY") == "1")
 
     def create(
         self,
@@ -66,6 +68,16 @@ class PendingApprovalStore:
         approvals.append(approval)
         self.save(approvals)
         self._record_state("approval_created", approval)
+
+        if self.notify:
+            try:
+                import sys
+                from agent_sudo.notifications import send_approval_notification
+                send_approval_notification(approval)
+            except Exception as exc:
+                import sys
+                sys.stderr.write(f"Warning: failed to send desktop notification: {exc}\n")
+
         return approval
 
     def list(self, *, update_expired: bool = True) -> list[ApprovalRequest]:

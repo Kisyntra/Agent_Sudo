@@ -46,6 +46,14 @@ AGENT_SUDO_APPROVAL_TTL_SECONDS=240 agent-sudo-mcp
 agent-sudo-mcp --approval-ttl-seconds 240
 ```
 
+## Desktop Notifications
+
+To avoid constantly polling or watching the terminal for pending requests, you can optionally enable native desktop alerts:
+- **CLI/MCP Argument**: Start the server or gateway run with `--notify` (e.g. `agent-sudo-mcp --notify`).
+- **Environment Variable**: Set `AGENT_SUDO_NOTIFY=1` in your environment.
+
+When a pending approval is created, a macOS user notification is triggered (via `osascript`) warning the operator to run the approval command.
+
 ## CLI Workflow
 
 List pending approvals:

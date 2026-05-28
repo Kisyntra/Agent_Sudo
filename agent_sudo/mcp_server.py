@@ -145,6 +145,7 @@ def build_server(
     pending_approvals_file: Path | None = None,
     approval_ttl_seconds: int | None = None,
     workspace: str | None = None,
+    notify: bool | None = None,
 ) -> AgentSudoMCPServer:
     policy = load_policy(policy_path) if policy_path else load_default_policy()
     audit_logger = AuditLogger(audit_log or Path(".agent-sudo/mcp-audit.jsonl"))
@@ -153,6 +154,7 @@ def build_server(
         pending_approvals_file or PENDING_APPROVALS_PATH,
         audit_logger=audit_logger,
         ttl_seconds=approval_ttl_seconds,
+        notify=notify,
     )
     gateway = PermissionGateway(
         policy,
@@ -210,6 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
     parser.add_argument("--approval-ttl-seconds", type=int, help="Pending approval TTL, clamped to 30-600 seconds")
     parser.add_argument("--workspace", help="Path to configured workspace root")
+    parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
     return parser
 
 
@@ -222,6 +225,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         pending_approvals_file=args.pending_approvals_file,
         approval_ttl_seconds=args.approval_ttl_seconds,
         workspace=args.workspace,
+        notify=args.notify,
     )
     return serve(server=server)
 

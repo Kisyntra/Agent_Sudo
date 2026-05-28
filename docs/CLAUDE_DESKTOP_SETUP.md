@@ -85,7 +85,8 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
         "--pending-approvals-file",
         "~/.agent-sudo/pending_approvals.json",
         "--workspace",
-        "/path/to/your/project"
+        "/path/to/your/project",
+        "--notify"
       ]
     }
   }
@@ -95,6 +96,7 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 > [!IMPORTANT]
 > - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array (e.g. write `"--workspace"` and `"/path/to/your/project"` as separate items).
 > - **Workspace Config**: Always configure the `--workspace` parameter to point to a valid, absolute directory on your filesystem where you plan to execute commands. Claude Desktop launches MCP servers from the root `/` directory by default, so omitting the workspace will cause context detection to fail.
+> - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript` displays) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly. This is disabled by default.
 
 ---
 

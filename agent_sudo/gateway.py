@@ -355,6 +355,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path(".agent-sudo/audit.jsonl"),
         help="Audit JSONL path",
     )
+    run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
 
     hermes_parser = subparsers.add_parser("hermes-check", help="Normalize and check an agent native tool call")
     hermes_parser.add_argument("tool_call_file", type=Path)
@@ -373,6 +374,7 @@ def build_parser() -> argparse.ArgumentParser:
     generic_run_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     generic_run_parser.add_argument("--dry-run", action="store_true")
     generic_run_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
+    generic_run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
 
     verify_parser = subparsers.add_parser("verify-audit", help="Verify audit JSONL hash chain")
     verify_parser.add_argument("audit_log", type=Path)
@@ -601,7 +603,8 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         request = from_generic_tool_call(load_tool_call(args.tool_call_file))
         audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-        gateway = PermissionGateway(policy, audit_logger=audit_logger)
+        pending_store = None if args.dry_run else PendingApprovalStore(notify=getattr(args, "notify", False))
+        gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
         executor = SafeToolExecutor(gateway, ShellCommandExecutor())
         execution = executor.dry_run(request) if args.dry_run else executor.execute(request)
         _print_execution_result(execution)
@@ -616,7 +619,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _exit_code_for(results=None)
 
     audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-    gateway = PermissionGateway(policy, audit_logger=audit_logger)
+    pending_store = None if args.dry_run else PendingApprovalStore(notify=getattr(args, "notify", False))
+    gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
     results = [gateway.evaluate(request, dry_run=args.dry_run) for request in requests]
     for result in results:
         _print_result(result)
