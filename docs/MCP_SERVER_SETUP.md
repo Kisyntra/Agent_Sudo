@@ -34,12 +34,15 @@ Use this shape for MCP clients that accept a command-based stdio server:
 {
   "mcpServers": {
     "agent-sudo": {
-      "command": "agent-sudo-mcp",
+      "command": "/path/to/agent-sudo-mcp",
       "args": [
         "--audit-log",
-        ".agent-sudo/mcp-audit.jsonl",
+        "/path/to/mcp-audit.jsonl",
         "--pending-approvals-file",
-        ".agent-sudo/pending_approvals.json"
+        "/path/to/pending_approvals.json",
+        "--workspace",
+        "/path/to/project",
+        "--notify"
       ]
     }
   }
@@ -54,12 +57,15 @@ Add an entry like this to the local Claude Desktop MCP config:
 {
   "mcpServers": {
     "agent-sudo": {
-      "command": "agent-sudo-mcp",
+      "command": "/path/to/agent-sudo-mcp",
       "args": [
         "--audit-log",
-        ".agent-sudo/mcp-audit.jsonl",
+        "/path/to/mcp-audit.jsonl",
         "--pending-approvals-file",
-        ".agent-sudo/pending_approvals.json"
+        "/path/to/pending_approvals.json",
+        "--workspace",
+        "/path/to/project",
+        "--notify"
       ]
     }
   }

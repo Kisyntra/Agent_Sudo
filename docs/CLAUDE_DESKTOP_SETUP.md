@@ -81,11 +81,11 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
       "command": "/path/to/agent-sudo-mcp",
       "args": [
         "--audit-log",
-        "~/.agent-sudo/mcp-audit.jsonl",
+        "/path/to/mcp-audit.jsonl",
         "--pending-approvals-file",
-        "~/.agent-sudo/pending_approvals.json",
+        "/path/to/pending_approvals.json",
         "--workspace",
-        "/path/to/your/project",
+        "/path/to/project",
         "--notify"
       ]
     }
@@ -94,9 +94,12 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 ```
 
 > [!IMPORTANT]
-> - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array (e.g. write `"--workspace"` and `"/path/to/your/project"` as separate items).
+> - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array (e.g. write `"--workspace"` and `"/path/to/project"` as separate items).
 > - **Workspace Config**: Always configure the `--workspace` parameter to point to a valid, absolute directory on your filesystem where you plan to execute commands. Claude Desktop launches MCP servers from the root `/` directory by default, so omitting the workspace will cause context detection to fail.
-> - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript` displays) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly. This is disabled by default.
+> - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript`) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly.
+>   - **Optional & Default OFF**: Notifications must be explicitly enabled using the flag or environment variable.
+>   - **macOS-only**: This is currently macOS-only MVP behavior.
+>   - **Non-blocking & Safe**: If a notification fails to trigger or display, the operation will proceed normally without blocking approval creation or failing the MCP execution.
 
 ---
 
