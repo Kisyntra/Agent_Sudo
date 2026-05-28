@@ -77,12 +77,29 @@ To fully automate the terminal opening loop on macOS:
 - **CLI/MCP Argument**: Start the server or gateway run with `--open-approval-terminal` (e.g. `agent-sudo-mcp --open-approval-terminal`).
 - **Environment Variable**: Set `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1` in your environment.
 
-When a pending approval is created, `Agent_Sudo` automatically spawns a new Terminal.app window running `agent-sudo approval-helper`.
+When a pending approval is created, `Agent_Sudo` automatically spawns a new Terminal.app window running `agent-sudo approval-helper --auto-opened`.
+
+### Auto-Opened Terminal UX & Behavior
+
+When launched automatically:
+1. **Suppressed Shell Noise & Minimal Display**: The helper runs in a clean window. It clears the screen immediately and suppresses macOS login shell startup noise (e.g. motd, zsh warnings, powerlevel10k details, and full Python execution paths).
+2. **Safe Target Summary**: Any absolute paths or full python executable paths are truncated to their basenames to prevent leaking sensitive local system structures.
+3. **Auto-Closing Countdown**:
+   - If there is exactly **one** pending approval when the terminal opens, and you successfully approve or deny it, the terminal will display `Approved. Closing in 3 seconds...` (or `Denied. Closing in 3 seconds...`), wait 3 seconds, and automatically close the window.
+4. **Safe Keep-Open Modes**:
+   - The terminal window **will not auto-close** if:
+     - No approval config exists (setup onboarding is required).
+     - No pending approvals are found.
+     - Multiple pending approvals exist in the queue.
+     - Verification fails (incorrect passphrase).
+     - Watch mode is active (`--watch`).
+     - An unexpected error or crash occurs.
+   - In any of these keep-open scenarios, the terminal helper blocks on a `Press Enter to exit...` prompt so you can read the warnings, setup instructions, or error logs before closing.
 
 > [!CAUTION]
 > **Safety Design**:
 > - It never auto-approves or auto-enters passphrases.
-> - It never passes sensitive tool command arguments or private environment variables through the window command string (it only calls `approval-helper` safely using `sys.executable` and an optional custom path to the `pending_approvals.json` store).
+> - It never passes sensitive tool command arguments or private environment variables through the window command string (it only calls `approval-helper` safely using `sys.executable` and an optional custom path to the `pending_approvals.json` store with the `--auto-opened` flag).
 > - Terminal opening errors are caught internally and logged to stderr without blocking or interrupting the approval generation.
 
 ## CLI Workflow

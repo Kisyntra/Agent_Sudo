@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.0-rc12
+
+Release candidate polishing the guided terminal helper auto-open UX for Claude Desktop approval workflows.
+
+- Cleans and clears the terminal screen immediately upon auto-open to suppress login shell warnings, powerlevel10k details, and startup noise.
+- Sanitizes and truncates target details to command/file basenames (e.g. `python3` instead of `/usr/bin/python3`) to reduce shell/path leakage and secrets exposure.
+- Implements a 3-second auto-close countdown on successful approval or denial when a single pending request is resolved.
+- Ensures keep-open behavior (blocking on a "Press Enter to exit..." prompt) on onboarding states, multiple requests, wrong passphrases, watch mode, or unexpected execution failures.
+- Polishes overall operator UX and visual presentation for auto-opened helper sessions.
+
 ## v0.4.0-rc11
 
 Release candidate introducing guided terminal helper workflow for pending approvals.

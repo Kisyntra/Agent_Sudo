@@ -75,7 +75,7 @@ def open_approval_terminal_window(pending_approvals_file: Path | None = None) ->
     if sys.platform != "darwin":
         return False
 
-    cmd_parts = [sys.executable, "-m", "agent_sudo.gateway", "approval-helper"]
+    cmd_parts = [sys.executable, "-m", "agent_sudo.gateway", "approval-helper", "--auto-opened"]
     if pending_approvals_file:
         cmd_parts.extend(["--pending-approvals-file", str(pending_approvals_file.resolve())])
 
@@ -85,10 +85,10 @@ def open_approval_terminal_window(pending_approvals_file: Path | None = None) ->
     # Escape for AppleScript double-quotes
     escaped_shell_cmd = shell_cmd.replace("\\", "\\\\").replace('"', '\\"')
 
-    # AppleScript command
+    # AppleScript command: clear screen first, then exec to replace shell and auto-close
     applescript = (
         f'tell application "Terminal"\n'
-        f'    do script "{escaped_shell_cmd}"\n'
+        f'    do script "clear; exec {escaped_shell_cmd}"\n'
         f'    activate\n'
         f'end tell'
     )

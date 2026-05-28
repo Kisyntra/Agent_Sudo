@@ -165,3 +165,16 @@ This guide provides solutions for common issues encountered when setting up, run
   2. Ensure you are running macOS.
   3. Go to macOS **System Settings > Notifications**, find **Script Editor** (or your Terminal emulator), and ensure notifications are enabled.
   4. Ensure Terminal.app has permission to control your computer if requested, or that System Settings under **Privacy & Security > Automation** has permissions enabled for the parent execution processes to control Terminal.app.
+
+---
+
+## 13. Auto-opened terminal window does not close automatically after successful approval/denial
+
+* **Symptom**: The countdown finishes and the python process terminates, but the macOS Terminal.app window or tab remains open showing `[Process completed]`.
+* **Likely Cause**: Terminal.app is configured by default to keep the window open after the shell process terminates.
+* **Fix**:
+  1. Open **Terminal.app**.
+  2. Open **Terminal > Settings...** (or **Preferences...** on older macOS versions) from the top menu bar.
+  3. Navigate to **Profiles** and select your active profile (e.g. *Default* or *Basic*).
+  4. Under the **Shell** tab, locate **When the shell exits**.
+  5. Change the dropdown setting to **Close if the shell exited cleanly** (since success exits with code `0`, this triggers window closure cleanly).

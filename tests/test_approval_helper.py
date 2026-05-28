@@ -158,6 +158,8 @@ class ApprovalHelperTests(unittest.TestCase):
         self.assertIn(str(self.pending_file.resolve()), script_content)
         self.assertNotIn("pwd", script_content)  # does not contain target secrets
         self.assertEqual(kwargs.get("shell"), None)  # shell=True not used
+        self.assertIn("--auto-opened", script_content)
+        self.assertIn("clear; exec ", script_content)
 
     @patch("sys.platform", "darwin")
     @patch("subprocess.run")
@@ -174,6 +176,211 @@ class ApprovalHelperTests(unittest.TestCase):
             reason="critical action",
         )
         self.assertEqual(len(store.list()), 1)
+
+    def test_helper_auto_opened_minimal_details(self) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+
+        # 1. Shell command target with absolute path
+        store.create(
+            action_request=self._sample_action_request(action="run_shell_command", target="/usr/bin/python3 -c 'print(1)'"),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical",
+        )
+
+        out_stream = io.StringIO()
+        mock_input = MagicMock(return_value="n") # deny to complete
+        with patch("sys.stdout", out_stream):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        self.assertEqual(code, 0)
+        output = out_stream.getvalue()
+        self.assertIn("Agent_Sudo approval required", output)
+        self.assertIn("Target:    python3", output) # extracts command basename
+        self.assertNotIn("/usr/bin/python3", output)
+
+    @patch("time.sleep")
+    def test_helper_auto_opened_successful_approval_triggers_countdown(self, mock_sleep) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+        store.create(
+            action_request=self._sample_action_request(),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical",
+        )
+
+        out_stream = io.StringIO()
+        mock_input = MagicMock(return_value="y")
+        from agent_sudo.models import ApprovalResult
+        mock_approve_critical = MagicMock(return_value=ApprovalResult(approved=True, method="MOCK", reason="approved"))
+
+        with patch("sys.stdout", out_stream), \
+             patch("agent_sudo.approvals.ApprovalProvider.approve_critical", mock_approve_critical):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        self.assertEqual(code, 0)
+        output = out_stream.getvalue()
+        self.assertIn("Approved. Closing in 3 seconds...", output)
+        mock_sleep.assert_called_once_with(3.0)
+
+    @patch("time.sleep")
+    def test_helper_auto_opened_denial_triggers_countdown(self, mock_sleep) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+        store.create(
+            action_request=self._sample_action_request(),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical",
+        )
+
+        out_stream = io.StringIO()
+        mock_input = MagicMock(return_value="n")
+
+        with patch("sys.stdout", out_stream):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        self.assertEqual(code, 0)
+        output = out_stream.getvalue()
+        self.assertIn("Denied. Closing in 3 seconds...", output)
+        mock_sleep.assert_called_once_with(3.0)
+
+    def test_helper_auto_opened_failed_verification_does_not_close(self) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+        store.create(
+            action_request=self._sample_action_request(),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical",
+        )
+
+        out_stream = io.StringIO()
+        # Mock inputs: first "y" for approval prompt, second "" (Enter) for blocking exit prompt
+        mock_input = MagicMock(side_effect=["y", ""])
+        mock_approve = MagicMock(return_value=(None, MagicMock(approved=False, reason="incorrect passphrase")))
+
+        with patch("sys.stdout", out_stream), \
+             patch("agent_sudo.pending_approvals.PendingApprovalStore.approve", mock_approve), \
+             patch("time.sleep") as mock_sleep:
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        self.assertEqual(code, 0)
+        output = out_stream.getvalue()
+        self.assertIn("Approval failed: incorrect passphrase", output)
+        self.assertEqual(mock_input.call_count, 2) # both prompts were processed
+        mock_sleep.assert_not_called()
+
+    def test_helper_auto_opened_multiple_requests_do_not_close(self) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+        # Create two requests
+        store.create(
+            action_request=self._sample_action_request(),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical 1",
+        )
+        store.create(
+            action_request=self._sample_action_request(target="ls"),
+            classification=Classification.CRITICAL,
+            decision=Decision.REQUIRE_STRONG_APPROVAL,
+            required_approval_method="PASSPHRASE_CONFIRM",
+            reason="critical 2",
+        )
+
+        out_stream = io.StringIO()
+        # 1st request approve prompt -> "y"
+        # 2nd request approve prompt -> "y"
+        # Blocking exit prompt -> ""
+        mock_input = MagicMock(side_effect=["y", "y", ""])
+        mock_approve = MagicMock(return_value=(MagicMock(), MagicMock(approved=True)))
+
+        with patch("sys.stdout", out_stream), \
+             patch("agent_sudo.pending_approvals.PendingApprovalStore.approve", mock_approve), \
+             patch("time.sleep") as mock_sleep:
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        self.assertEqual(code, 0)
+        mock_sleep.assert_not_called()
+        self.assertEqual(mock_input.call_count, 3) # "y", "y", then exit prompt
+
+    def test_helper_auto_opened_no_config_blocks_enter(self) -> None:
+        # Config path does not exist
+        err_stream = io.StringIO()
+        mock_input = MagicMock(return_value="")
+        with patch("sys.stderr", err_stream):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+        self.assertEqual(code, 1)
+        mock_input.assert_called_once_with("\nPress Enter to exit...")
+
+    def test_helper_auto_opened_no_pending_blocks_enter(self) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        out_stream = io.StringIO()
+        mock_input = MagicMock(return_value="")
+        with patch("sys.stdout", out_stream):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+        self.assertEqual(code, 0)
+        self.assertIn("No active pending approvals.", out_stream.getvalue())
+        mock_input.assert_called_once_with("\nPress Enter to exit...")
+
+    def test_helper_auto_opened_unexpected_error_blocks_enter(self) -> None:
+        self.config_file.write_text("{}", encoding="utf-8")
+        mock_input = MagicMock(return_value="")
+
+        # Force exception by making store.list raise a ValueError
+        with patch("agent_sudo.pending_approvals.PendingApprovalStore.list", side_effect=ValueError("crashed")), \
+             patch("sys.stderr", new_callable=io.StringIO):
+            code = run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+        self.assertEqual(code, 1)
+        mock_input.assert_called_once_with("\nPress Enter to exit...")
 
 
 if __name__ == "__main__":

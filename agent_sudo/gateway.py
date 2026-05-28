@@ -425,6 +425,7 @@ def build_parser() -> argparse.ArgumentParser:
     helper_parser.add_argument("--approval-config", type=Path, default=CONFIG_PATH)
     helper_parser.add_argument("--audit-log", type=Path)
     helper_parser.add_argument("--watch", action="store_true", help="Continuously poll and watch for new requests")
+    helper_parser.add_argument("--auto-opened", action="store_true", help="Minimal display mode with auto-close logic for auto-opened terminals")
 
     setup_parser = subparsers.add_parser("setup", help="Print dry-run setup checklist for an agent runtime")
     setup_parser.add_argument("agent", choices=["hermes", "codex", "claude-desktop", "openclaw"])
@@ -587,6 +588,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             config_path=args.approval_config,
             audit_log_path=args.audit_log,
             watch=args.watch,
+            auto_opened=args.auto_opened,
         )
 
     policy = load_policy(args.policy) if args.policy else load_default_policy()
