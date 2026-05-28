@@ -86,7 +86,8 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
         "/path/to/pending_approvals.json",
         "--workspace",
         "/path/to/project",
-        "--notify"
+        "--notify",
+        "--open-approval-terminal"
       ]
     }
   }
@@ -100,6 +101,10 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 >   - **Optional & Default OFF**: Notifications must be explicitly enabled using the flag or environment variable.
 >   - **macOS-only**: This is currently macOS-only MVP behavior.
 >   - **Non-blocking & Safe**: If a notification fails to trigger or display, the operation will proceed normally without blocking approval creation or failing the MCP execution.
+> - **Auto-Open Guided Terminal**: Enabling `"--open-approval-terminal"` in `args` (or setting the environment variable `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1`) automatically opens a new macOS Terminal.app window running `agent-sudo approval-helper` when a pending approval request is generated.
+>   - **Optional & Default OFF**: This is disabled by default.
+>   - **macOS-only**: Spawning a terminal window automatically is currently macOS-only behavior.
+>   - **Non-blocking & Safe**: Spawning failure will fail safe, writing a warning to stderr without blocking tool execution or approval creation. It never auto-approves, never requests automated passphrases, and never passes sensitive payloads.
 
 ---
 

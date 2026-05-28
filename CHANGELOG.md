@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0-rc11
+
+Release candidate introducing guided terminal helper workflow for pending approvals.
+
+- Added `agent-sudo approval-helper` CLI command to guide the user interactively through approvals or denials with onboarding tips and interactive `[y/N]` prompts.
+- Added continuous watching support via `--watch` flag for `approval-helper`.
+- Added optional macOS Terminal.app auto-opening window support to streamline developer and Claude Desktop testing workflows.
+- Wired `--open-approval-terminal` configuration flag to MCP server (`agent-sudo-mcp`) and CLI evaluation paths.
+- Enabled environment variable support via `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1`.
+- Built secure AppleScript Terminal opening execution (safely using python's `sys.executable` and `shlex.quote` without passing secrets, sensitive command targets, or passphrases).
+- Ensured non-blocking opener behavior (opener warning logged to stderr on failure).
+- Maintained exact approval validation, `shell=False` protections, and auto-approval security boundaries.
+
 ## v0.4.0-rc10
 
 Release candidate introducing optional native macOS approval notifications.

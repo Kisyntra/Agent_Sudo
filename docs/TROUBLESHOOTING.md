@@ -153,14 +153,15 @@ This guide provides solutions for common issues encountered when setting up, run
 
 ---
 
-## 12. Desktop notifications do not display
+## 12. Desktop notifications or auto-open terminal do not display/trigger
 
-* **Symptom**: Pending approvals are created successfully, but no macOS desktop notifications are shown, or the CLI/MCP server writes `Warning: failed to send desktop notification` to standard error.
+* **Symptom**: Pending approvals are created successfully, but no macOS desktop notifications are shown, and/or Terminal.app windows fail to open.
 * **Likely Cause**:
-  1. The `--notify` parameter is missing from the Claude Desktop config, and `AGENT_SUDO_NOTIFY=1` is not set.
-  2. The system is not macOS (only macOS native notifications are supported in Phase 1).
-  3. Notifications for `osascript` (Script Editor) or terminal applications are disabled in macOS System Settings.
+  1. The `--notify` or `--open-approval-terminal` parameter is missing from the Claude Desktop config, and their corresponding env variables (`AGENT_SUDO_NOTIFY=1`, `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1`) are not set.
+  2. The system is not macOS (only macOS native notifications and Terminal auto-opening are supported in Phase 1).
+  3. System permissions block AppleScript (`osascript`) execution for Script Editor or Terminal.app in macOS.
 * **Fix**:
-  1. Verify `"--notify"` is added to your MCP config `args` array, or verify `export AGENT_SUDO_NOTIFY=1` is set in the shell environment.
+  1. Verify `"--notify"` and `"--open-approval-terminal"` are added to your MCP config `args` array, or verify `export AGENT_SUDO_NOTIFY=1` and `export AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1` are set in the shell environment.
   2. Ensure you are running macOS.
   3. Go to macOS **System Settings > Notifications**, find **Script Editor** (or your Terminal emulator), and ensure notifications are enabled.
+  4. Ensure Terminal.app has permission to control your computer if requested, or that System Settings under **Privacy & Security > Automation** has permissions enabled for the parent execution processes to control Terminal.app.

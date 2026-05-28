@@ -36,12 +36,14 @@ class PendingApprovalStore:
         ttl_seconds: int | None = None,
         now_func: Callable[[], datetime] | None = None,
         notify: bool | None = None,
+        open_approval_terminal: bool | None = None,
     ):
         self.path = path
         self.audit_logger = audit_logger
         self.ttl_seconds = resolve_approval_ttl_seconds(ttl_seconds)
         self.now_func = now_func or (lambda: datetime.now(timezone.utc))
         self.notify = notify if notify is not None else (os.environ.get("AGENT_SUDO_NOTIFY") == "1")
+        self.open_approval_terminal = open_approval_terminal if open_approval_terminal is not None else (os.environ.get("AGENT_SUDO_OPEN_APPROVAL_TERMINAL") == "1")
 
     def create(
         self,
@@ -77,6 +79,15 @@ class PendingApprovalStore:
             except Exception as exc:
                 import sys
                 sys.stderr.write(f"Warning: failed to send desktop notification: {exc}\n")
+
+        if self.open_approval_terminal:
+            try:
+                import sys
+                from agent_sudo.notifications import open_approval_terminal_window
+                open_approval_terminal_window(self.path)
+            except Exception as exc:
+                import sys
+                sys.stderr.write(f"Warning: failed to open approval terminal: {exc}\n")
 
         return approval
 

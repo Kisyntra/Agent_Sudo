@@ -54,6 +54,37 @@ To avoid constantly polling or watching the terminal for pending requests, you c
 
 When a pending approval is created, a macOS user notification is triggered (via `osascript`) warning the operator to run the approval command.
 
+## Guided Terminal Helper (`agent-sudo approval-helper`)
+
+For a more streamlined local UX, you can run the guided approval helper:
+
+```bash
+agent-sudo approval-helper
+```
+
+This interactive utility:
+1. Verifies if your approval passphrase configuration exists. If missing, it prints setup onboarding guidance.
+2. Formats and prints active pending approvals.
+3. Guides you through approving or denying each pending request interactively using a `[y/N]` prompt. If approved, it calls the standard passphrase prompt (if critical) or CLI confirm (if sensitive).
+4. Exits when the queue is processed, or can run continuously to poll for new requests by passing the `--watch` flag:
+   ```bash
+   agent-sudo approval-helper --watch
+   ```
+
+## Auto-Opening Terminal for Approvals
+
+To fully automate the terminal opening loop on macOS:
+- **CLI/MCP Argument**: Start the server or gateway run with `--open-approval-terminal` (e.g. `agent-sudo-mcp --open-approval-terminal`).
+- **Environment Variable**: Set `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1` in your environment.
+
+When a pending approval is created, `Agent_Sudo` automatically spawns a new Terminal.app window running `agent-sudo approval-helper`.
+
+> [!CAUTION]
+> **Safety Design**:
+> - It never auto-approves or auto-enters passphrases.
+> - It never passes sensitive tool command arguments or private environment variables through the window command string (it only calls `approval-helper` safely using `sys.executable` and an optional custom path to the `pending_approvals.json` store).
+> - Terminal opening errors are caught internally and logged to stderr without blocking or interrupting the approval generation.
+
 ## CLI Workflow
 
 List pending approvals:

@@ -65,3 +65,41 @@ def send_approval_notification(approval: ApprovalRequest) -> bool:
         return res.returncode == 0
     except Exception:
         return False
+
+
+def open_approval_terminal_window(pending_approvals_file: Path | None = None) -> bool:
+    """
+    Opens a macOS Terminal.app window running agent-sudo approval-helper.
+    This function is secure, non-blocking, and handles AppleScript execution safely.
+    """
+    if sys.platform != "darwin":
+        return False
+
+    cmd_parts = [sys.executable, "-m", "agent_sudo.gateway", "approval-helper"]
+    if pending_approvals_file:
+        cmd_parts.extend(["--pending-approvals-file", str(pending_approvals_file.resolve())])
+
+    import shlex
+    shell_cmd = " ".join(shlex.quote(part) for part in cmd_parts)
+
+    # Escape for AppleScript double-quotes
+    escaped_shell_cmd = shell_cmd.replace("\\", "\\\\").replace('"', '\\"')
+
+    # AppleScript command
+    applescript = (
+        f'tell application "Terminal"\n'
+        f'    do script "{escaped_shell_cmd}"\n'
+        f'    activate\n'
+        f'end tell'
+    )
+
+    try:
+        res = subprocess.run(
+            ["osascript", "-e", applescript],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        return res.returncode == 0
+    except Exception:
+        return False

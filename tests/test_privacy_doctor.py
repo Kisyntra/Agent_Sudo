@@ -158,7 +158,7 @@ class PrivacyDoctorTests(unittest.TestCase):
                 if command[:2] == ["git", "fetch"]:
                     return mock.MagicMock(returncode=0, stdout="", stderr="")
                 if command == ["git", "tag"]:
-                    return mock.MagicMock(returncode=0, stdout="v0.4.0-rc10\n", stderr="")
+                    return mock.MagicMock(returncode=0, stdout="v0.4.0-rc11\n", stderr="")
                 if command[:3] == ["git", "status", "--porcelain"]:
                     return mock.MagicMock(returncode=0, stdout="", stderr="")
                 if command[:2] == ["git", "pull"]:

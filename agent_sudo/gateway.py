@@ -356,6 +356,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Audit JSONL path",
     )
     run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
+    run_parser.add_argument("--open-approval-terminal", action="store_true", help="Automatically open Terminal.app for pending approvals")
 
     hermes_parser = subparsers.add_parser("hermes-check", help="Normalize and check an agent native tool call")
     hermes_parser.add_argument("tool_call_file", type=Path)
@@ -375,6 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
     generic_run_parser.add_argument("--dry-run", action="store_true")
     generic_run_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
     generic_run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
+    generic_run_parser.add_argument("--open-approval-terminal", action="store_true", help="Automatically open Terminal.app for pending approvals")
 
     verify_parser = subparsers.add_parser("verify-audit", help="Verify audit JSONL hash chain")
     verify_parser.add_argument("audit_log", type=Path)
@@ -417,6 +419,12 @@ def build_parser() -> argparse.ArgumentParser:
     deny_parser.add_argument("approval_request_id")
     deny_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
     deny_parser.add_argument("--audit-log", type=Path)
+
+    helper_parser = subparsers.add_parser("approval-helper", help="Guided terminal approval helper for pending requests")
+    helper_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    helper_parser.add_argument("--approval-config", type=Path, default=CONFIG_PATH)
+    helper_parser.add_argument("--audit-log", type=Path)
+    helper_parser.add_argument("--watch", action="store_true", help="Continuously poll and watch for new requests")
 
     setup_parser = subparsers.add_parser("setup", help="Print dry-run setup checklist for an agent runtime")
     setup_parser.add_argument("agent", choices=["hermes", "codex", "claude-desktop", "openclaw"])
@@ -572,6 +580,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(json.dumps(ctx.to_dict(), indent=2, sort_keys=True))
         return 0
 
+    if args.command == "approval-helper":
+        from agent_sudo.helper import run_approval_helper
+        return run_approval_helper(
+            pending_approvals_path=args.pending_approvals_file,
+            config_path=args.approval_config,
+            audit_log_path=args.audit_log,
+            watch=args.watch,
+        )
+
     policy = load_policy(args.policy) if args.policy else load_default_policy()
     if args.command == "hermes-check":
         from agent_sudo.adapters.hermes import from_hermes_tool_call
@@ -603,7 +620,10 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         request = from_generic_tool_call(load_tool_call(args.tool_call_file))
         audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-        pending_store = None if args.dry_run else PendingApprovalStore(notify=getattr(args, "notify", False))
+        pending_store = None if args.dry_run else PendingApprovalStore(
+            notify=getattr(args, "notify", False),
+            open_approval_terminal=getattr(args, "open_approval_terminal", None)
+        )
         gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
         executor = SafeToolExecutor(gateway, ShellCommandExecutor())
         execution = executor.dry_run(request) if args.dry_run else executor.execute(request)
@@ -619,7 +639,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _exit_code_for(results=None)
 
     audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-    pending_store = None if args.dry_run else PendingApprovalStore(notify=getattr(args, "notify", False))
+    pending_store = None if args.dry_run else PendingApprovalStore(
+        notify=getattr(args, "notify", False),
+        open_approval_terminal=getattr(args, "open_approval_terminal", None)
+    )
     gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
     results = [gateway.evaluate(request, dry_run=args.dry_run) for request in requests]
     for result in results:
