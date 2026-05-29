@@ -307,6 +307,34 @@ def is_blocked_shell_target(command: str) -> bool:
         if marker in lowered:
             return True
 
+    # Check for symlinks pointing to protected/blocked targets
+    if _has_protected_symlink(command, blocked_markers):
+        return True
+
+    return False
+
+
+def _has_protected_symlink(command: str, blocked_markers: set[str]) -> bool:
+    delimiters = ['\'', '"', '`', ';', '(', ')', '|', '&', '>', '<', '$', '=', ',']
+    temp = command
+    for d in delimiters:
+        temp = temp.replace(d, ' ')
+
+    words = temp.split()
+    for word in words:
+        try:
+            # Clean trailing punctuation but keep slashes for absolute paths
+            cleaned = word.strip('.,:;?!')
+            if not cleaned:
+                continue
+            path = Path(cleaned).expanduser()
+            if path.is_symlink():
+                resolved = str(path.resolve()).lower()
+                for marker in blocked_markers:
+                    if marker in resolved:
+                        return True
+        except Exception:
+            pass
     return False
 
 
