@@ -5,6 +5,7 @@
 # Logs and audit trails
 *.log
 *.jsonl
+!docs/interop/*.jsonl
 
 # Local credentials and secrets
 auth.json

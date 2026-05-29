@@ -1,0 +1,59 @@
+name: Autofix
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  ruff-autofix:
+    runs-on: ubuntu-latest
+    # Skip forks where GITHUB_TOKEN has read-only permissions
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff
+
+    - name: Run Ruff Format
+      run: ruff format .
+
+    - name: Run Ruff Linter Fix
+      run: ruff check --fix .
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Check for modifications
+        if ! git diff --quiet; then
+          # Prevent automated changes from modifying interop reference files
+          if git diff --name-only | grep -E '^docs/interop/'; then
+            echo "Warning: Autofix modified files inside docs/interop/. Restoring to prevent hash-chain breakage."
+            git restore docs/interop/
+          fi
+          
+          # Stage and commit ruff mechanical styling fixes only
+          git add .
+          git commit -m "style: mechanical ruff format and lint fixes"
+          git push
+        else
+          echo "No formatting or lint changes detected."
+        fi
