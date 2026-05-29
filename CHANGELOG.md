@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.4.0-rc14
+
+Release candidate addressing critical shell command policy bypass vulnerabilities.
+
+- Hardens `is_blocked_shell_target` in `agent_sudo/classifier.py` and `agent_sudo/executors.py` by implementing comprehensive substring inspections for protected configuration paths and files (e.g. `.agent-sudo`, `.ssh`, `.agent-runtime`, `.env`, `auth.json`, `policy.yaml`, etc.).
+- Adds deep token scanning to check all flattened command arguments for symlinks pointing to protected configuration paths, preventing obfuscation-based bypasses.
+- Introduces robust regression tests covering path traversal variations (`$HOME`, relative `../`, no-space redirections `>`), copy/move/link utilities (`mv`, `cp`, `ln`, `rsync`, `tar`, `tee`, `dd`, `cat`), logical chained commands (`&&`, `;`), nested subshells (`bash -c`), and symlinks.
+
+## v0.4.0-rc13
+
+Release candidate introducing portable audit verifier helpers.
+
+- Implements stable PolicyDecision and AuditRecord schemas.
+- Adds canonical hash-chain verification semantics.
+- Introduces `agent-sudo verify-audit` command-line utility to cryptographically validate audit trails and detect tamper attempts.
+- Publishes lightweight `agent_sudo.spec_helpers` module for third-party runtime integrations.
+
 ## v0.4.0-rc12
 
 Release candidate polishing the guided terminal helper auto-open UX for Claude Desktop approval workflows.

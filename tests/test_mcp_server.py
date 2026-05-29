@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from agent_sudo import __version_label__
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -74,7 +76,7 @@ class MCPServerSubprocessTests(unittest.TestCase):
                     process.stderr.close()
 
         self.assertEqual(initialize["result"]["serverInfo"]["name"], "agent-sudo-mcp")
-        self.assertEqual(initialize["result"]["serverInfo"]["version"], "v0.4.0-rc12")
+        self.assertEqual(initialize["result"]["serverInfo"]["version"], __version_label__)
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertEqual(tool_names, {"read_file", "write_file", "run_shell_command", "get_runtime_context"})
 

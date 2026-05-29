@@ -13,6 +13,12 @@
 
 ## Why Agent_Sudo?
 
+> [!IMPORTANT]
+> **Security Boundaries Notice**:
+> - **Gateway, Not a Sandbox**: `Agent_Sudo` is a local permission gateway and policy engine; it is **not** an OS-level sandbox or container. It gates tool access but does not isolate filesystem or process resources.
+> - **Best-Effort Shell Filtering**: Shell command policy checks are best-effort unless reinforced by OS-level containment or custom runtime sandboxes.
+> - **Client Runtime Bypass**: Native tools registered directly in host runtimes (e.g., Eino, Hermes) can bypass `Agent_Sudo` entirely unless those tools are disabled or explicitly routed through this gateway.
+
 AI agents can execute powerful local commands and read private files, but they cannot always distinguish authentic user intent from malicious prompt injection, untrusted external content, or over-broad tool permissions.
 
 `Agent_Sudo` intercepts tool calls at execution time, applying least-privilege policies, prompt injection detection, and user-in-the-loop approvals before allowing any tool to run. It acts as an enforcement layer, reducing the blast radius of autonomous agent behavior.

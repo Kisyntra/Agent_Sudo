@@ -14,7 +14,9 @@ This MVP does not provide cloud identity, remote attestation, a database, centra
 Audit hash chains detect after-the-fact edits to a log file, but they do not prevent local deletion or replacement by a process with filesystem access.
 
 Do not treat this project as a complete sandbox.
-It is an enforcement and audit boundary that must sit in front of real tool execution.
+- **Gateway, Not a Sandbox**: `Agent_Sudo` is an enforcement and audit boundary that must sit in front of real tool execution. It does not provide OS-level isolation (e.g. containers, separate users, or kernel-level boundaries).
+- **Best-Effort Shell Safety**: Shell command policy checks (such as blocking commands targeting `~/.agent-sudo/` or `.ssh/`) are best-effort. If the host environment allows complex shell executions without external sandboxing, bypasses may exist.
+- **Runtime Bypass Risks**: Native tools configured directly in host agent runtimes (e.g., Eino, Hermes, agent-runtimes) bypass `Agent_Sudo` completely unless explicitly disabled or routed through the gateway.
 
 ## Reporting Vulnerabilities
 
