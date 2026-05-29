@@ -1,0 +1,39 @@
+{
+  "approval_attempts": [],
+  "approval_command": "",
+  "approval_expires_at": "",
+  "approval_expires_in_seconds": null,
+  "approval_method": "none",
+  "approval_request_id": "",
+  "classification": "SAFE",
+  "decision": "ALLOW",
+  "dry_run": false,
+  "entry_hash": "99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7",
+  "event_type": "gateway_decision",
+  "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "reason": "Action is pre-approved by user policy",
+  "request": {
+    "action": "search",
+    "actor": "lexflow-agent",
+    "payload_summary": "search for python security library",
+    "provenance": {
+      "authenticated": true,
+      "authentication_method": "token",
+      "channel": "cli",
+      "delegation_chain": [],
+      "origin_type": "USER_DIRECT",
+      "parent_request_id": "",
+      "request_id": "req_0001",
+      "session_id": "session_abc123"
+    },
+    "risk_hints": [
+      "internet_access"
+    ],
+    "source": "user_chat",
+    "source_trust": "USER_DIRECT",
+    "target": "google.com",
+    "tool": "web_search"
+  },
+  "schema_version": "agent-sudo/0.4.0-rc14",
+  "timestamp": "2026-05-29T15:53:00Z"
+}

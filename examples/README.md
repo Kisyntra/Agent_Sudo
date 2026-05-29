@@ -13,3 +13,12 @@ All examples use fake actors, fake paths, and placeholder `.invalid` email addre
 - `provenance_external_content.json`: external webpage provenance example.
 - `strict_policy.yaml`: stricter sample policy.
 - `local.example.yaml`: fake local setup example showing ignored local config locations.
+
+## Framework Integration Examples
+
+These examples demonstrate how to integrate the `Agent_Sudo` permission gateway in-process within popular Python agent frameworks:
+
+- **[pydantic_ai/](pydantic_ai/)**: Gating tools inside `pydantic-ai` applications using Python decorators.
+- **[openai_agents_sdk/](openai_agents_sdk/)**: Pre-wrapping tool functions passed to the OpenAI Agents SDK.
+- **[langgraph/](langgraph/)**: Securing tool nodes and graph runner flows inside LangGraph agent graphs.
+- **[agent_runtimes/](agent_runtimes/)**: Registering the native `agent_sudo_local` hook plugin in the `agent-runtimes` package.

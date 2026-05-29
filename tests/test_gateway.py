@@ -130,6 +130,16 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn('"decision": "DENY"', buffer.getvalue())
 
+    def test_cli_demo_succeeds(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["demo"])
+        self.assertEqual(code, 0)
+        self.assertIn("AGENT_SUDO INTERACTIVE DEMO", buffer.getvalue())
+        self.assertIn("Scenario 1: Safe Tool Execution (ALLOW)", buffer.getvalue())
+        self.assertIn("Scenario 2: Unsafe / Blocked Execution (DENY)", buffer.getvalue())
+        self.assertIn("Verifying the audit log integrity", buffer.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

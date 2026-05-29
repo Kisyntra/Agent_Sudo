@@ -200,6 +200,27 @@ class SpecHelpersTests(unittest.TestCase):
             self.assertTrue(result.success)
             self.assertEqual(result.reason, "audit log verified")
 
+    def test_interop_reference_assets_valid(self) -> None:
+        # Verify that the reference_log.jsonl file under docs/interop/ verifies successfully
+        proj_root = Path(__file__).parent.parent
+        log_path = proj_root / "docs" / "interop" / "reference_log.jsonl"
+        self.assertTrue(log_path.exists(), f"reference_log.jsonl not found at {log_path}")
+
+        result = verify_jsonl_file(log_path)
+        self.assertTrue(result.success, f"reference_log.jsonl verification failed: {result.reason}")
+
+        # Verify reference_record.json contents and hash
+        record_path = proj_root / "docs" / "interop" / "reference_record.json"
+        self.assertTrue(record_path.exists(), f"reference_record.json not found at {record_path}")
+        with record_path.open("r", encoding="utf-8") as f:
+            record = json.load(f)
+        
+        # Strip entry_hash to calculate it canonically
+        expected_entry_hash = "99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7"
+        self.assertEqual(record.get("entry_hash"), expected_entry_hash)
+        computed_hash = compute_entry_hash(record.get("previous_hash", "0" * 64), record)
+        self.assertEqual(computed_hash, expected_entry_hash)
+
 
 if __name__ == "__main__":
     unittest.main()

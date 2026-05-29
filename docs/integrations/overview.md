@@ -47,6 +47,9 @@ The integration pattern is the same for every runtime:
 
 Shell requests normalize to `run_shell_command`, which is `CRITICAL` under the default policy.
 
+> [!NOTE]
+> For details on experimental Hermes integration design and local Proof of Concept findings, see the [Hermes Integration Research Note](hermes-research.md).
+
 ## Claude Desktop
 
 ```json

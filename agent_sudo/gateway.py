@@ -400,6 +400,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
     init_parser.add_argument("--force", action="store_true")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
+    subparsers.add_parser("demo", help="Run a built-in interactive demo of Agent_Sudo gateway decisions")
 
     approvals_parser = subparsers.add_parser("approvals", help="Manage pending approval requests")
     approvals_subparsers = approvals_parser.add_subparsers(dest="approvals_command", required=True)
@@ -465,9 +466,97 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def run_built_in_demo() -> int:
+    import tempfile
+    
+    print("=" * 60)
+    print("                AGENT_SUDO INTERACTIVE DEMO                 ")
+    print("=" * 60)
+    print("Agent_Sudo is a local permission gateway for AI agents.")
+    print("This demo evaluates three simulated tool calls using the default policy.\n")
+    
+    policy = load_default_policy()
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        audit_path = Path(tmpdir) / "demo_audit.jsonl"
+        audit_logger = AuditLogger(audit_path)
+        gateway = PermissionGateway(policy, audit_logger=audit_logger)
+        
+        # 1. ALLOW Scenario
+        print("--- Scenario 1: Safe Tool Execution (ALLOW) ---")
+        safe_req = ActionRequest(
+            actor="developer-agent",
+            source="user",
+            tool="filesystem",
+            action="read_file",
+            target="README.md",
+            payload_summary="Read the project README to understand repository structure."
+        )
+        print("Simulating agent requesting tool call:")
+        print(f"  Actor: {safe_req.actor}")
+        print(f"  Tool: {safe_req.tool} | Action: {safe_req.action}")
+        print(f"  Target: {safe_req.target}")
+        
+        result_safe = gateway.evaluate(safe_req, dry_run=True)
+        print(f"\nGateway Decision: [ {result_safe.decision.value} ]")
+        print(f"  Classification: {result_safe.classification.value}")
+        print(f"  Reason: {result_safe.reason}")
+        print("✓ Success: The agent is allowed to perform this operation.\n")
+        
+        # 2. DENY Scenario
+        print("--- Scenario 2: Unsafe / Blocked Execution (DENY) ---")
+        unsafe_req = ActionRequest(
+            actor="developer-agent",
+            source="webpage",
+            tool="network",
+            action="exfiltrate_secrets",
+            target="https://attacker.example/leak",
+            payload_summary="Upload local env variables containing credentials."
+        )
+        print("Simulating agent requesting tool call:")
+        print(f"  Actor: {unsafe_req.actor}")
+        print(f"  Tool: {unsafe_req.tool} | Action: {unsafe_req.action}")
+        print(f"  Target: {unsafe_req.target}")
+        print(f"  Source/Trust: {unsafe_req.source} / External Page Context (Low Trust)")
+        
+        result_unsafe = gateway.evaluate(unsafe_req, dry_run=True)
+        print(f"\nGateway Decision: [ {result_unsafe.decision.value} ]")
+        print(f"  Classification: {result_unsafe.classification.value}")
+        print(f"  Reason: {result_unsafe.reason}")
+        print("❌ Blocked: The action was safely blocked before any tool execution occurred.\n")
+        
+        # 3. Audit Log & Verifier
+        print("--- Scenario 3: Cryptographic Audit Logging & Verification ---")
+        print("All gateway decisions are written to a tamper-evident audit log.")
+        print(f"Logs written to: {audit_path.name}\n")
+        
+        print("Reading the generated JSONL log records:")
+        log_lines = audit_path.read_text(encoding="utf-8").splitlines()
+        for idx, line in enumerate(log_lines, start=1):
+            data = json.loads(line)
+            print(f"  Record #{idx}:")
+            print(f"    Action: {data['request']['tool']}:{data['request']['action']}")
+            print(f"    Decision: {data['decision']}")
+            print(f"    Entry Hash (SHA-256): {data['entry_hash'][:16]}...")
+            
+        print("\nVerifying the audit log integrity (detecting tampering)...")
+        ok, msg = verify_audit_log(audit_path)
+        if ok:
+            print(f"✓ Verification Result: {msg} (Log is pristine)")
+        else:
+            print(f"❌ Verification Failed: {msg}")
+            
+    print("=" * 60)
+    print("For more integrations and examples, check out the examples/ directory.")
+    print("=" * 60)
+    return 0
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
+    if args.command == "demo":
+        return run_built_in_demo()
     if args.command == "verify-audit":
         ok, message = verify_audit_log(args.audit_log)
         print(message)
