@@ -33,10 +33,10 @@ Register the built-in `agent_sudo_local` plugin hook handler inside your runtime
 tool_hooks:
     # Path configuration for local policy rules
     agent_sudo_policy_path: "/path/to/agent_sudo_policy.yaml"
-    
+
     # Target audit log file
     agent_sudo_audit_log_path: "/tmp/agent_runtimes_tool_approvals_audit.jsonl"
-    
+
     # Intercept tool calls prior to execution
     before_tool_execute:
         - handler: agent_sudo_local
@@ -44,7 +44,7 @@ tool_hooks:
 
 ### B. Audit Verification
 
-Any hooks or plugins outputting Agent_Sudo-compatible records write to the configured audit log path using a cryptographic SHA-256 hash chain to ensure tamper detection. 
+Any hooks or plugins outputting Agent_Sudo-compatible records write to the configured audit log path using a cryptographic SHA-256 hash chain to ensure tamper detection.
 
 To verify the integrity of the emitted logs:
 
