@@ -8,7 +8,7 @@ from pathlib import Path
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.builders import AgentActionRequest
 from agent_sudo.gateway import PermissionGateway
-from agent_sudo.models import ActionRequest, Decision
+from agent_sudo.models import ActionRequest, Classification, Decision
 from agent_sudo.policy import load_default_policy
 
 
@@ -91,6 +91,50 @@ class TamperResistanceTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertIn("entry_hash mismatch", message)
+
+    def test_shell_command_tamper_bypasses_are_blocked(self) -> None:
+        bypass_commands = [
+            'echo "safe: [run_shell_command]" > ~/.agent-sudo/policy.yaml',
+            'echo "rules: []" > ~/.agent-sudo/policy.yaml && echo 1',
+            'mv /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'cp /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'ln -sf /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'rsync /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'tar -xf /tmp/archive.tar -C ~/.agent-sudo/',
+            'cat ~/.agent-sudo/policy.yaml',
+            'bash -c "echo hack > ~/.agent-sudo/policy.yaml"',
+            'echo "safe: [run_shell_command]" > $HOME/.agent-sudo/policy.yaml',
+            'echo "safe: [run_shell_command]" > ~/.config/../.agent-sudo/policy.yaml',
+            'echo "safe: [run_shell_command]" > ../.agent-sudo/policy.yaml',
+            'cat "~/.agent-sudo/policy.yaml"',
+            'echo x>~/.agent-sudo/policy.yaml',
+            'tee ~/.agent-sudo/policy.yaml',
+            'dd of=~/.agent-sudo/policy.yaml',
+            'tar -xf payload.tar -C ~/.agent-sudo/',
+        ]
+        for cmd in bypass_commands:
+            with self.subTest(command=cmd):
+                request = AgentActionRequest.shell_command(cmd)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
+
+    def test_shell_command_symlink_bypass_is_blocked(self) -> None:
+        import os
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_agent_sudo = Path(tmpdir) / ".agent-sudo"
+            fake_agent_sudo.mkdir()
+            fake_policy = fake_agent_sudo / "policy.yaml"
+            fake_policy.write_text("rules: []", encoding="utf-8")
+
+            symlink_path = Path(tmpdir) / "mysymlink"
+            os.symlink(str(fake_policy), str(symlink_path))
+
+            cmd = f"echo 'hacked' > {symlink_path}"
+            request = AgentActionRequest.shell_command(cmd)
+            result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+            self.assertEqual(result.classification, Classification.BLOCKED)
+            self.assertEqual(result.decision, Decision.DENY)
 
 
 if __name__ == "__main__":

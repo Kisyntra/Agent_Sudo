@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from agent_sudo.classifier import is_blocked_shell_target
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.models import ActionRequest, Classification, Decision, GatewayResult
 
@@ -154,6 +155,9 @@ def _blocked_shell_reason(command: str) -> str | None:
 
     if any(marker in lowered for marker in {"id_rsa", ".ssh/", "aws_secret_access_key", "private_key"}):
         return "blocked possible credential access command"
+
+    if is_blocked_shell_target(command):
+        return "blocked shell command targeting protected path or action"
 
     return None
 
