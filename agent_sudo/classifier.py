@@ -284,7 +284,30 @@ def is_blocked_shell_target(command: str) -> bool:
         return True
     if any(marker in lowered for marker in {"id_rsa", ".ssh/", "private_key"}):
         return True
-    return "token" in lowered and any(marker in lowered for marker in {"http://", "https://", "curl", "wget"})
+    if "token" in lowered and any(marker in lowered for marker in {"http://", "https://", "curl", "wget"}):
+        return True
+
+    # Block commands targeting protected configuration directories or system/agent credentials
+    blocked_markers = {
+        ".agent-sudo",
+        ".agent-runtime",
+        ".ssh",
+        ".config",
+        ".env",
+        "pyproject.toml",
+        "default_policy.yaml",
+        "default_policy.yml",
+        "auth.json",
+        "mcp-audit.jsonl",
+        "audit.jsonl",
+        "audit.log",
+        "agent_sudo/",
+    }
+    for marker in blocked_markers:
+        if marker in lowered:
+            return True
+
+    return False
 
 
 def is_blocked_read_target(target: str) -> bool:

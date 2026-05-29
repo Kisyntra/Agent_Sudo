@@ -8,7 +8,7 @@ from pathlib import Path
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.builders import AgentActionRequest
 from agent_sudo.gateway import PermissionGateway
-from agent_sudo.models import ActionRequest, Decision
+from agent_sudo.models import ActionRequest, Classification, Decision
 from agent_sudo.policy import load_default_policy
 
 
@@ -91,6 +91,25 @@ class TamperResistanceTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertIn("entry_hash mismatch", message)
+
+    def test_shell_command_tamper_bypasses_are_blocked(self) -> None:
+        bypass_commands = [
+            'echo "safe: [run_shell_command]" > ~/.agent-sudo/policy.yaml',
+            'echo "rules: []" > ~/.agent-sudo/policy.yaml && echo 1',
+            'mv /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'cp /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'ln -sf /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'rsync /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
+            'tar -xf /tmp/archive.tar -C ~/.agent-sudo/',
+            'cat ~/.agent-sudo/policy.yaml',
+            'bash -c "echo hack > ~/.agent-sudo/policy.yaml"',
+        ]
+        for cmd in bypass_commands:
+            with self.subTest(command=cmd):
+                request = AgentActionRequest.shell_command(cmd)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
 
 
 if __name__ == "__main__":
