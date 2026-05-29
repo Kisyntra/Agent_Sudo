@@ -9,14 +9,14 @@ This document specifies the purpose, guidelines, and recommended usage of the `A
 
 ## 1. Asset Inventory
 
-All branding files are stored under [assets/brand/](../assets/brand/).
+All branding files are stored under [assets/brand/](brand/).
 
 | Filename | Purpose | Recommended Usage | Format |
 | :--- | :--- | :--- | :--- |
-| [`agent-sudo-logo-primary.png`](../assets/brand/agent-sudo-logo-primary.png) | Primary Project Logo | Main header representation, README branding, project presentations. | PNG |
-| [`agent-sudo-icon-square.png`](../assets/brand/agent-sudo-icon-square.png) | Compact Square Icon | Client logos, GitHub repository avatar, IDE integration icons. | PNG |
-| [`agent-sudo-icon-monochrome.png`](../assets/brand/agent-sudo-icon-monochrome.png) | Monochrome/Solid Variant | High-contrast environments, print layouts, status bars, and menus. | PNG |
-| [`agent-sudo-icon-notification.png`](../assets/brand/agent-sudo-icon-notification.png) | Notification Icon | macOS user notifications, alert icons, system toast messages. | PNG |
+| [`agent-sudo-logo-primary.png`](brand/agent-sudo-logo-primary.png) | Primary Project Logo | Main header representation, README branding, project presentations. | PNG |
+| [`agent-sudo-icon-square.png`](brand/agent-sudo-icon-square.png) | Compact Square Icon | Client logos, GitHub repository avatar, IDE integration icons. | PNG |
+| [`agent-sudo-icon-monochrome.png`](brand/agent-sudo-icon-monochrome.png) | Monochrome/Solid Variant | High-contrast environments, print layouts, status bars, and menus. | PNG |
+| [`agent-sudo-icon-notification.png`](brand/agent-sudo-icon-notification.png) | Notification Icon | macOS user notifications, alert icons, system toast messages. | PNG |
 
 ---
 
@@ -42,4 +42,4 @@ All branding files are stored under [assets/brand/](../assets/brand/).
 ## 3. General Rules
 - **No Decoration**: Do not stretch, distort, rotate, or apply arbitrary dropshadows or filters to the branding assets.
 - **Maintain Proportions**: Always scale using aspect-ratio locked sizing.
-- **Minimalism**: Avoid over-saturating documentation files with logos. Keep assets restricted to main gateways or landing files like the primary `README.md` or `docs/BRAND_ASSETS.md`.
+- **Minimalism**: Avoid over-saturating documentation files with logos. Keep assets restricted to main gateways or landing files like the primary `README.md` or `assets/README.md`.
