@@ -105,7 +105,7 @@ If you are developing `Agent_Sudo` or integrating it with a custom runtime:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Ram9199/Agent_Sudo.git
+git clone https://github.com/Kisyntra/Agent_Sudo.git
 cd Agent_Sudo
 
 # Install in editable mode
