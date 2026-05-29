@@ -119,13 +119,21 @@ python3 -m unittest discover -s tests
 
 ---
 
+## Ecosystem Integrations
+
+✅ **[agent-runtimes](https://github.com/datalayer/agent-runtimes)** (merged)
+
+`Agent_Sudo` is available as a plugin for `agent-runtimes`, enabling local policy evaluation, approvals, delegation, and audit verification. See the [agent-runtimes Integration Guide](docs/integrations/agent-runtimes.md) for more details.
+
+---
+
 ## Documentation Directory
 
 | Directory / Section | Topic | Key Files |
 | :--- | :--- | :--- |
 | **First Run** | Getting started tutorial | [docs/first_run.md](docs/first_run.md) |
 | **Troubleshooting** | Diagnostics and resolution steps | [docs/troubleshooting.md](docs/troubleshooting.md) |
-| **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) |
+| **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) • [agent-runtimes](docs/integrations/agent-runtimes.md) |
 | **Architecture** | Abstractions and core pipelines | [docs/architecture/overview.md](docs/architecture/overview.md) • [Layered Architecture](docs/architecture/layered_architecture.md) • [Enforcement Model](docs/architecture/enforcement_model.md) |
 | **Specifications** | Language-agnostic standard models | [spec/runtime_compatibility_levels.md](spec/runtime_compatibility_levels.md) • [Universal Schema](spec/universal_schema.md) • [Policy & Audit](spec/policy_audit_schema.md) |
 | **Security** | Threat modeling and limits | [docs/architecture/security_model.md](docs/architecture/security_model.md) |
