@@ -42,7 +42,7 @@ This dashboard tracks active ecosystem integrations, community implementations, 
 | :--- | :--- | :--- | :--- | :--- |
 | **awesome-mcp-servers** | `punkpeye/awesome-mcp-servers` | Pull Request (Draft) | 🔄 **Submitted (Draft PR)** | [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) |
 | **Official MCP Registry** | `registry.modelcontextprotocol.io` | `mcp-publisher` CLI | 📋 **Staged** | - |
-| **Glama MCP Registry** | `glama.ai/mcp/servers` | OAuth/Manual Form | 📋 **Pending (Manual)** | - |
+| **Glama MCP Registry** | `glama.ai/mcp/servers` | OAuth/Manual Form | ✅ **Active** (Listed: 2026-05-29) | [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo) |
 | **mcpservers.org** | `mcpservers.org` | Web Form Submission | 📋 **Pending (Manual)** | - |
 | **modelcontextprotocol/servers** | `modelcontextprotocol/servers` | Pull Request | ❌ **Dropped** (Decision: 2026-05-29) | See Dropped Opportunities |
 
@@ -59,6 +59,7 @@ To maximize ecosystem impact, our distribution work is structured into the follo
 ### Tier 2: Glama Activation
 *   **Goal**: Manually register the `Agent_Sudo` MCP server on Glama.
 *   **Completion Criteria**: The repository is submitted via Glama OAuth, listed publicly at `glama.ai/mcp/servers/Kisyntra/Agent_Sudo`, and shows 100% successful introspection tests on the server capabilities.
+*   **Status**: ✅ **Completed** (Active as of 2026-05-29)
 
 ### Tier 3: Official MCP Registry Publication
 *   **Goal**: Publish server metadata to the official metaregistry using `mcp-publisher`.

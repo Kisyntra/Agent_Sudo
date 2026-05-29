@@ -8,8 +8,8 @@ This document reviews the current distribution channels, active bottlenecks, upc
 
 *   **GitHub**: `Kisyntra/Agent_Sudo` is the repository home. It hosts the core permission gateway, CLI tool, standard spec schemas, and documentation.
 *   **PyPI**: Registered as `agent-sudo` (v0.4.0-rc14), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
-*   **Glama.ai**: Setup is staged. Visible once the owner registers the repository manually via Glama's OAuth workflow.
-*   **awesome-mcp-servers**: [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) is currently open in draft state, containing the description and Glama badge.
+*   **Glama.ai**: ✅ **Active**. Live and verified listing page at [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo).
+*   **awesome-mcp-servers**: [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) is currently open, containing the description and Glama badge.
 *   **Official MCP Registry**: Metadata schema initialized and reverse DNS registration plan formulated. Publication is staged for implementation.
 
 ---
@@ -17,34 +17,43 @@ This document reviews the current distribution channels, active bottlenecks, upc
 ## 2. Current Bottlenecks
 
 1.  **LexFlow Validation (Verifier Parity)**: The first external JS/TS implementation must pass verification of emitter-generated logs using the core Python `verify_jsonl_file()` verifier.
-2.  **Lack of Programmatic Glama Registry API**: The Glama directory does not offer an API-based indexing system, requiring manual user authentication/OAuth actions by the repository owner before public page generation.
-3.  **awesome-mcp PR Merge Blockers**: The list repository runs automation checking if the submitted server's Glama score is active and verified. The PR remains blocked until the owner activates the Glama listing.
-4.  **Maintainer Outreach and Relocation**: PydanticAI outreach was auto-triaged as spam due to placement in their bug issue tracker. Future outreach must pivot to example/documentation code submissions rather than open proposals.
+2.  **Maintainer Outreach and Relocation**: PydanticAI outreach was auto-triaged as spam due to placement in their bug issue tracker. Future outreach must pivot to example/documentation code submissions rather than open proposals.
 
 ---
 
-## 3. Next Milestones
+## 3. Next Milestones & Priorities
 
-*   **Milestone 1: LexFlow Verifier CI Pass**: Confirm LexFlow emitter logs successfully pass validation in their GitHub Actions CI tests.
-*   **Milestone 2: Glama Activation**: Complete manual GitHub OAuth registration to create the public listing page.
-*   **Milestone 3: awesome-mcp Catalog Merge**: Once Glama checks pass, merge PR #7111 to list `Agent_Sudo` in the popular catalog.
-*   **Milestone 4: Official MCP Metaregistry Acceptance**: Publish reverse DNS server metadata using the `mcp-publisher` tool.
+Our ecosystem distribution and adoption activities are prioritized as follows:
+
+*   **Priority 1: LexFlow Verifier CI Pass**
+    *   *Description*: Emitters in the LexFlow codebase successfully compile logs, execute `agent-sudo verify-audit` inside their CI script, and pass with exit code `0`.
+*   **Priority 2: Official MCP Registry Publication**
+    *   *Description*: Staged metaregistry metadata schema is published using the `mcp-publisher` CLI, making the package officially queryable.
+*   **Priority 3: awesome-mcp Merge**
+    *   *Description*: The now-resolving Glama badge enables maintainers to merge PR #7111, listing `Agent_Sudo` in the main catalog.
+*   **Priority 4: agent-runtimes Merge**
+    *   *Description*: Close out PR #97 review comments with Eric Charles to enable direct integration inside the datalayer runtime core.
+*   **Priority 5: First External Adopter**
+    *   *Description*: A non-maintainer project integrates the permission gateway or consumes verification libraries in a production AI agent pipeline.
+
+### Completed Milestones
+*   ✅ **Glama Activation** (Completed: 2026-05-29) - Manual GitHub OAuth registration successfully completed and introspection checks verified.
 
 ---
 
 ## 4. Final Distribution ROI Priority Ranking
 
-We rank the four active discovery directories by their actual impact on developer adoption:
+We rank the active discovery directories by their actual impact on developer adoption:
 
-1.  **Glama MCP Registry (Priority 1)**
+1.  **Glama MCP Registry (Rank 1)**
     *   *Adoption Impact*: **Highest**. Direct integration inside popular IDE workspaces and Claude search indices. High volume of developer traffic for discovering MCP tools.
-    *   *Cost/Effort*: Extremely low (requires a single manual GitHub link verification).
-2.  **awesome-mcp-servers (Priority 2)**
-    *   *Adoption Impact*: **Very High**. The primary community-curated list for developers looking for high-quality, production-tested MCP servers.
-    *   *Cost/Effort*: Low-medium (PR already drafted, pending Glama badge check resolution).
-3.  **Official MCP Registry (Priority 3)**
-    *   *Adoption Impact*: **High**. Standard lookup metaregistry maintained by Anthropic/MCP, queryable by SDK tools.
+    *   *Cost/Effort*: Staged and active (zero remaining effort).
+2.  **Official MCP Registry (Rank 2)**
+    *   *Adoption Impact*: **Extremely High**. Standard lookup metaregistry maintained by Anthropic/MCP, queryable by SDK tools.
     *   *Cost/Effort*: Medium (requires CLI configuration, namespace verification, and packaging alignment).
-4.  **mcpservers.org (Priority 4)**
+3.  **awesome-mcp-servers (Rank 3)**
+    *   *Adoption Impact*: **Very High**. The primary community-curated list for developers looking for high-quality, production-tested MCP servers.
+    *   *Cost/Effort*: Low-medium (PR already drafted, pending final merge review).
+4.  **mcpservers.org (Rank 4)**
     *   *Adoption Impact*: **Medium**. A secondary community indexing catalog.
     *   *Cost/Effort*: Low (requires form submission).
