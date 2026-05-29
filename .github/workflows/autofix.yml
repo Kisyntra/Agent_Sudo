@@ -41,7 +41,7 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
+
         # Check for modifications
         if ! git diff --quiet; then
           # Prevent automated changes from modifying interop reference files
@@ -49,7 +49,7 @@ jobs:
             echo "Warning: Autofix modified files inside docs/interop/. Restoring to prevent hash-chain breakage."
             git restore docs/interop/
           fi
-          
+
           # Stage and commit ruff mechanical styling fixes only
           git add .
           git commit -m "style: mechanical ruff format and lint fixes"
