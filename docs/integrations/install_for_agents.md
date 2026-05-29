@@ -19,7 +19,7 @@ Where possible:
 
 ## Safe Install Request
 
-Give the agent [AGENT_INSTALL_PROMPT.md](AGENT_INSTALL_PROMPT.md).
+Give the agent [AGENT_INSTALL_PROMPT.md](agent_install_prompt.md).
 
 The agent should:
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -21,9 +22,12 @@ class MCPServerSubprocessTests(unittest.TestCase):
             read_path = tmp_path / "read.txt"
             read_path.write_text("server read ok\n", encoding="utf-8")
 
+            env = dict(os.environ)
+            env["PYTHONPATH"] = str(ROOT)
             process = subprocess.Popen(
-                [str(ROOT / "agent-sudo-mcp"), "--audit-log", str(audit_path)],
+                [sys.executable, str(ROOT / "scripts" / "agent-sudo-mcp"), "--audit-log", str(audit_path)],
                 cwd=ROOT,
+                env=env,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

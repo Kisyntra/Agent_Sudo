@@ -118,7 +118,7 @@ Critical approvals require the local passphrase configured by `agent-sudo init-a
 
 Pending approvals default to 120 seconds. To adjust the window, set `AGENT_SUDO_APPROVAL_TTL_SECONDS` or start `agent-sudo-mcp` with `--approval-ttl-seconds`; values are clamped to 30-600 seconds.
 
-See [Pending Approvals](PENDING_APPROVALS.md) for the full workflow.
+See [Pending Approvals](../architecture/pending_approvals.md) for the full workflow.
 
 ## MCP Delegation Example
 

@@ -4,12 +4,13 @@
   <img src="assets/brand/agent-sudo-logo-readme.png" alt="Agent_Sudo logo" width="320">
 </p>
 
-
 ## Demo
 
 ![Agent_Sudo Demo](assets/demo/demo-agent_sudo.gif)
 
 `Agent_Sudo` is a local permission gateway for AI agents that validates, authorizes, and controls tool execution before actions are run.
+
+---
 
 ## Why Agent_Sudo?
 
@@ -23,6 +24,21 @@ AI agents can execute powerful local commands and read private files, but they c
 
 `Agent_Sudo` intercepts tool calls at execution time, applying least-privilege policies, prompt injection detection, and user-in-the-loop approvals before allowing any tool to run. It acts as an enforcement layer, reducing the blast radius of autonomous agent behavior.
 
+### How is Agent_Sudo different from built-in approvals?
+
+Many agent environments (like Claude Desktop or Cursor) offer static confirmation toggles. Here is how `Agent_Sudo` differs:
+
+| Feature | Built-in Client Approvals | Agent_Sudo Gateway |
+| :--- | :--- | :--- |
+| **Granularity** | All-or-nothing (e.g., prompt for every tool call) | Fine-grained (allow safe actions, prompt on sensitive, block critical/private directories) |
+| **Policy Engine** | Static / hardcoded configurations | Dynamic, user-defined YAML files |
+| **Context Aware** | Ignores payload contents | Classifies risk dynamically (e.g., blocks writes to system configurations) |
+| **Trust Evaluation** | Treats all requests identically | Tracks request origin (e.g., user-direct vs external-content provenance) |
+| **Audit Trails** | Local stdout logs only | Cryptographically secured log files using SHA-256 hash chains |
+| **Automation** | Always blocks non-interactive runs | Support for temporary scoped delegation tokens |
+
+---
+
 ## Core Features
 
 - **Approval Gates**: Prompts for interactive confirmation (CLI yes/no) on sensitive actions, and requires a local passphrase for critical actions (e.g., running shell commands).
@@ -34,6 +50,22 @@ AI agents can execute powerful local commands and read private files, but they c
 
 ---
 
+## Try it in 30 Seconds
+
+Verify how `Agent_Sudo` classifies tool risk and makes gateway decisions without configuring any agent runtime:
+
+```bash
+# Run a dry-run check against a sample tool request
+agent-sudo generic-check examples/generic_tool_call.json
+```
+
+**Expected Output:**
+```json
+{"action": "unknown_tool_call", "actor": "agent-a", "approval_attempts": [], "approval_method": "dry_run", "classification": "SENSITIVE", "decision": "REQUIRE_APPROVAL", "dry_run": true, "reason": "SENSITIVE actions require CLI approval; approval skipped in dry-run", "target": "/home/user/example/project"}
+```
+
+---
+
 ## 5-Minute Quickstart
 
 ### 1. Install Agent_Sudo
@@ -42,7 +74,7 @@ Install the package from your local clone or repository path:
 ```bash
 pip install agent-sudo
 ```
-*(If you are developing or running from source, see the [Claude Desktop Setup Guide](docs/CLAUDE_DESKTOP_SETUP.md) for editable installation).*
+*(If you are developing or running from source, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md) for editable installation).*
 
 Verify the installation:
 ```bash
@@ -67,11 +99,36 @@ agent-sudo context
 
 ---
 
-## Documentation Links
+## Contributor Setup
 
-- **[Claude Desktop Setup Guide](docs/CLAUDE_DESKTOP_SETUP.md)**: Connect `Agent_Sudo` to Claude Desktop, configure the active workspace, and run verification tests.
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**: Solutions for common startup errors, passphrase failures, and workspace detection issues.
-- **[Security & Threat Model](docs/SECURITY_MODEL.md)**: Deep dive into the security boundaries, audit log guarantees, and future hardening plans.
+If you are developing `Agent_Sudo` or integrating it with a custom runtime:
+
+```bash
+# Clone the repository
+git clone https://github.com/Ram9199/Agent_Sudo.git
+cd Agent_Sudo
+
+# Install in editable mode
+python3 -m pip install -e .
+```
+
+To run unit tests:
+```bash
+python3 -m unittest discover -s tests
+```
+
+---
+
+## Documentation Directory
+
+| Directory / Section | Topic | Key Files |
+| :--- | :--- | :--- |
+| **First Run** | Getting started tutorial | [docs/first_run.md](docs/first_run.md) |
+| **Troubleshooting** | Diagnostics and resolution steps | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) |
+| **Architecture** | Abstractions and core pipelines | [docs/architecture/overview.md](docs/architecture/overview.md) • [Layered Architecture](docs/architecture/layered_architecture.md) • [Enforcement Model](docs/architecture/enforcement_model.md) |
+| **Specifications** | Language-agnostic standard models | [spec/runtime_compatibility_levels.md](spec/runtime_compatibility_levels.md) • [Universal Schema](spec/universal_schema.md) • [Policy & Audit](spec/policy_audit_schema.md) |
+| **Security** | Threat modeling and limits | [docs/architecture/security_model.md](docs/architecture/security_model.md) |
 
 ---
 
