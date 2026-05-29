@@ -15,7 +15,7 @@ This dashboard tracks active ecosystem integrations, community implementations, 
 
 ### 2. LexFlow (Active Implementation)
 *   **Current Status**: 🔄 **In Active Spec Review** (Emitter and verifier CI implementation underway)
-*   **Next Milestone**: Verify LexFlow `v0.4.0-rc13` output logs against Agent_Sudo spec helpers in their CI tests.
+*   **Next Milestone**: Verify LexFlow `v0.4.0-rc14` output logs against Agent_Sudo spec helpers in their CI tests.
 *   **Owner**: Victor (VforVitorio) / Sri Ram Prakhya
 *   **Last Activity**: May 2026 (Aligned on custom namespacing prefix convention `lexflow_` and coordination split).
 *   **Link**: [LexFlow #124](https://github.com/VforVitorio/LexFlow/issues/124) • [Coordination Tracker #14](https://github.com/Kisyntra/Agent_Sudo/issues/14)

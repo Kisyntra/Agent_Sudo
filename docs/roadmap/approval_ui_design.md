@@ -6,7 +6,7 @@ This document proposes a secure approval user experience (UX) for `agent-sudo` t
 
 ## 1. Problem Statement
 
-Under the current `v0.4.0-rc6` architecture, when an AI agent running in a headless MCP client (such as Claude Desktop or Cursor) requests a tool execution that requires manual confirmation:
+Under the current `v0.4.0-rc14` architecture, when an AI agent running in a headless MCP client (such as Claude Desktop or Cursor) requests a tool execution that requires manual confirmation:
 1. `agent-sudo` halts execution, creates a pending approval record, and returns a command line command containing a UUID.
 2. The user must manually leave their editor or chat interface, open a terminal window, run the `agent-sudo approve <uuid>` command, and type their passphrase (if it is a critical command).
 3. The user must then switch back to the MCP client and instruct the agent to retry the tool call.

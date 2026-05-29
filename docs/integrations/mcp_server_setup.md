@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-Release: `v0.4.0-rc6`.
+Release: `v0.4.0-rc14`.
 
 agent-sudo includes a standard stdio MCP server entrypoint:
 
@@ -176,3 +176,18 @@ The MCP subprocess integration test starts `agent-sudo-mcp`, sends `initialize`,
 ## Bypass Risk
 
 agent-sudo only enforces calls routed through this MCP server. If an agent keeps direct access to shell, file, browser, email, or desktop tools, those tools can bypass agent-sudo.
+
+## Running the MCP Server inside Docker
+
+If you prefer to run the `Agent_Sudo` MCP server containerized:
+
+1. **Build the Docker Image**:
+   ```bash
+   docker build -t agent-sudo-mcp .
+   ```
+
+2. **Run the Containerized MCP Server**:
+   Mount your workspace folder so the container has access to it and specify the path via `--workspace`:
+   ```bash
+   docker run -i --rm -v /path/to/your/project:/app/workspace agent-sudo-mcp --workspace /app/workspace
+   ```

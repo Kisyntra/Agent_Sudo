@@ -190,6 +190,8 @@ We work with agent runtime maintainers and external implementers to define porta
     *   **[LexFlow](https://github.com/VforVitorio/LexFlow)** — In-progress design review (#124) for native JS/TS client audit logging and verification.
 *   **Research & Local PoC**:
     *   **[Hermes](https://github.com/NousResearch/hermes-agent)** — Experimental architecture research (#34992) targeting registry-level dispatch gating.
+*   **Public Listings**:
+    *   **[Glama MCP Registry](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)** — Active, verified listing with introspection tests.
 
 For a full compatibility matrix and integration details, see the [Ecosystem Status Guide](docs/ecosystem/ecosystem_status.md).
 
@@ -203,7 +205,7 @@ For a full compatibility matrix and integration details, see the [Ecosystem Stat
 | **Troubleshooting** | Diagnostics and resolution steps | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Ecosystem Status](docs/ecosystem/ecosystem_status.md) • [Outreach Playbook](docs/ecosystem/outreach_playbook.md) • [Adoption Dashboard](docs/ecosystem/adoption_dashboard.md) • [Discoverability Notes](docs/ecosystem/discoverability_notes.md) • [LexFlow Readiness](docs/ecosystem/lexflow_readiness.md) • [LexFlow Checklist](docs/ecosystem/lexflow_compatibility_checklist.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) • [agent-runtimes](docs/integrations/agent-runtimes.md) • [Hermes (Research)](docs/integrations/hermes-research.md) |
 | **Architecture** | Abstractions and core pipelines | [docs/architecture/overview.md](docs/architecture/overview.md) • [Layered Architecture](docs/architecture/layered_architecture.md) • [Enforcement Model](docs/architecture/enforcement_model.md) |
-| **Specifications** | Language-agnostic standard models | [spec/runtime_compatibility_levels.md](spec/runtime_compatibility_levels.md) • [Universal Schema](spec/universal_schema.md) • [Policy & Audit](spec/policy_audit_schema.md) |
+| **Specifications** | Language-agnostic standard models | [spec/runtime_compatibility_levels.md](spec/runtime_compatibility_levels.md) • [Universal Schema](spec/universal_schema.md) • [Policy & Audit](spec/policy_audit_schema.md) • [Interoperability Test Kit](docs/interop/interoperability_test_kit.md) |
 | **Security** | Threat modeling and limits | [docs/architecture/security_model.md](docs/architecture/security_model.md) |
 | **Comparisons** | Policy vs Container Sandboxes | [Docker & Firecracker comparison](docs/comparison/sandboxes.md) |
 

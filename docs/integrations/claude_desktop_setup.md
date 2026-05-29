@@ -22,8 +22,8 @@ pip install agent-sudo
 ### Developer / Editable Installation
 If running from a local checkout or developing changes:
 ```bash
-git clone <repository_url>
-cd agent-sudo
+git clone https://github.com/Kisyntra/Agent_Sudo.git
+cd Agent_Sudo
 pip install -e .
 ```
 

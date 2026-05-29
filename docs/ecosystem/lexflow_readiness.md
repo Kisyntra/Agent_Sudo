@@ -5,7 +5,7 @@ This report assesses the readiness of `LexFlow` as the first independent externa
 ---
 
 ## 1. Current Implementation Status
-*   **Target Version**: Pinning to `v0.4.0-rc13` / `v0.4.0-rc14` specification.
+*   **Target Version**: Pinning to `v0.4.0-rc14` specification.
 *   **Vertical Slice 1**: Emitter-only audit log. Writes JSONL records to `~/.lexflow/mcp.log`.
 *   **Verification integration**: The first LexFlow PR will invoke the Python `agent_sudo.spec_helpers.verify_jsonl_file()` via a test subprocess to assert parity.
 
