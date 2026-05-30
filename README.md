@@ -130,6 +130,8 @@ agent-sudo demo
 
 See provenance-based blocking in ~60 seconds. An agent reads a poisoned web page that tells it to exfiltrate your `.env`; Agent_Sudo **denies** it (untrusted origin) while **allowing** the user's own work — and writes a tamper-evident audit log.
 
+![Agent_Sudo exfiltration-prevention demo](assets/demo/exfil-demo.gif)
+
 ```bash
 cd examples/exfil_demo && python demo.py
 ```
