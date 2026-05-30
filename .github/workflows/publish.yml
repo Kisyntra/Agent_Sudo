@@ -1,0 +1,159 @@
+name: Secure Package Release (Draft)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.4.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run check (defaults to true for safety)'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff build twine
+
+      - name: Run Ruff Format & Check
+        run: |
+          ruff format --check .
+          ruff check .
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Verify release notes exist
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION_CLEAN="${VERSION#v}"
+          NOTES_FILE="docs/releases/release_notes_${VERSION_CLEAN}.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "Error: Release notes file $NOTES_FILE is missing!"
+            exit 1
+          fi
+
+      - name: Run Release Safety Checks
+        run: python scripts/validate_release.py
+
+  build-and-verify:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Twine validation
+        run: python -m twine check dist/*
+
+      - name: Clean execution verification
+        run: |
+          python -m venv test_venv
+          source test_venv/bin/activate
+          pip install dist/*.whl
+
+          # 1. Check version output
+          agent-sudo --version
+          
+          # 2. Run doctor diagnostics
+          agent-sudo doctor
+          
+          # 3. Execute built-in demo
+          agent-sudo demo
+
+          # 4. JSON-RPC Initialize Handshake test
+          python -c '
+          import subprocess, json
+          req = {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                  "protocolVersion": "2025-03-26",
+                  "capabilities": {},
+                  "clientInfo": {"name": "ci-test", "version": "1.0"}
+              }
+          }
+          proc = subprocess.run(["agent-sudo-mcp"], input=json.dumps(req), text=True, capture_output=True)
+          resp = json.loads(proc.stdout)
+          assert "result" in resp, "Initialize failed: no result in response"
+          assert resp["result"]["serverInfo"]["name"] == "agent-sudo-mcp", "Server name mismatch"
+          print("MCP Handshake succeeded!")
+          '
+
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
+
+  publish-dry-run-report:
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dry Run Publishing Report
+        run: |
+          echo "=========================================================="
+          echo "                  DRY RUN RELEASE REPORT                  "
+          echo "=========================================================="
+          echo "  Release Type: Draft / Dry-Run Verification"
+          echo "  Target Version: ${{ github.event.inputs.version || github.ref_name }}"
+          echo "  Verification Gates: ALL PASSED"
+          echo "=========================================================="
+          echo "PyPI publishing and GitHub Release creation are intentionally"
+          echo "skipped. The actual publish steps will remain inactive until"
+          echo "this workflow draft has been fully reviewed and approved."
+          echo "=========================================================="
+
+      # Actual publish steps are commented out below for review.
+      # To enable after review, configure trusted publishing on PyPI, 
+      # verify OIDC permissions, and uncomment the steps below.
+      #
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #
+      # - name: Create GitHub Release
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     VERSION="${{ github.event.inputs.version || github.ref_name }}"
+      #     VERSION_CLEAN="${VERSION#v}"
+      #     NOTES_FILE="docs/releases/release_notes_${VERSION_CLEAN}.md"
+      #     gh release create "$VERSION" \
+      #       --title "$VERSION" \
+      #       --notes-file "$NOTES_FILE" \
+      #       dist/*
