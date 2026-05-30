@@ -18,11 +18,7 @@ secrets*
 __pycache__/
 *.py[cod]
 
-__pycache__/
-
-*.pyc
-
-__pycache__/
-*.pyc
-__pycache__/
-*.pyc
+# Python packaging build artifacts
+build/
+dist/
+*.egg-info/

@@ -1,3 +1,0 @@
-[console_scripts]
-agent-sudo = agent_sudo.gateway:main
-agent-sudo-mcp = agent_sudo.mcp_server:main
