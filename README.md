@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/pypi/v/agent-sudo-mcp.svg" alt="PyPI Version"></a>
   <a href="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo"><img src="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo/badges/score.svg" alt="Glama MCP Server Score"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
@@ -13,7 +14,7 @@
 
 ## Discoverability & Registry Status
 
-*   📦 **PyPI Package**: Planned for public release
+*   📦 **PyPI Package**: [agent-sudo-mcp on PyPI](https://pypi.org/project/agent-sudo-mcp/)
 *   🌐 **Glama Registry Listing**: Live listing at [glama.ai/mcp/servers/Kisyntra/Agent_Sudo](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)
 *   🛠️ **MCP Server Integration**: Read the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md)
 *   🏢 **GitHub Organization**: Part of the [Kisyntra](https://github.com/Kisyntra) ecosystem
@@ -30,7 +31,7 @@ Whether you want to protect your desktop agent, secure your custom Python agent 
 
 ### 1. Claude Desktop / MCP Users
 For developers running Claude Desktop or other Model Context Protocol (MCP) clients who want to secure local filesystem/command execution.
-*   **Installation**: Standard `pipx install agent-sudo` (recommended) or `pip install agent-sudo`.
+*   **Installation**: Standard `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`.
 *   **Configuration**: Add the Agent_Sudo stdio server to your `claude_desktop_config.json`.
 *   **Guide**: See the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md) and [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
 
@@ -59,7 +60,7 @@ For developers building autonomous agents using frameworks like PydanticAI, Lang
 
 ### 3. CLI / Security Operations
 For system administrators and security engineers who want to audit agent logs, manage credentials, and configure temporary delegation tokens.
-*   **Install**: `pipx install agent-sudo` (recommended) or `pip install agent-sudo`
+*   **Install**: `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`
 *   **Initialize**: `agent-sudo init-approval` (sets up local passphrase for CLI confirmations)
 *   **Built-in Demo**: Run `agent-sudo demo` to see policies in action.
 *   **Audit Verification**: Run `agent-sudo verify-audit <path/to/audit.jsonl>` to verify cryptographic hash chain integrity.
@@ -137,7 +138,7 @@ Choose the installation method based on how you intend to use the gateway:
 To run the CLI tools or the MCP server, install using `pipx` (recommended) to automatically manage your executable path and avoid global dependency conflicts:
 
 ```bash
-pipx install agent-sudo
+pipx install agent-sudo-mcp
 ```
 *Note: If the `agent-sudo` command is not found after installation, make sure your pipx binary path is in your environment by running `pipx ensurepath` and restarting your terminal.*
 
@@ -145,7 +146,7 @@ pipx install agent-sudo
 If you are integrating Agent_Sudo programmatically within your agent codebase (e.g., PydanticAI, LangGraph), install the package into your project environment:
 
 ```bash
-pip install agent-sudo
+pip install agent-sudo-mcp
 ```
 *(If you are developing or running from source, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md) for editable installation).*
 

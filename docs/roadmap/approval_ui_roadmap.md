@@ -126,7 +126,7 @@ Replace text passphrase confirmations on macOS with secure hardware-backed biome
 ### Migration Path
 1. **Opt-in Service**: The daemon and UI components are packaged in an optional dependency block:
    ```bash
-   pip install agent-sudo[ui]
+   pip install agent-sudo-mcp[ui]
    ```
 2. **Doctor Verification**: `agent-sudo doctor` checks for the active socket daemon and daemon health checks:
    ```text

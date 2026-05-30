@@ -16,7 +16,7 @@ Before starting, ensure you have:
 ### Standard Installation
 Install the package using `pip`:
 ```bash
-pip install agent-sudo
+pip install agent-sudo-mcp
 ```
 
 ### Developer / Editable Installation

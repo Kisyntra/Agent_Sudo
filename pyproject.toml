@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-sudo"
+name = "agent-sudo-mcp"
 version = "0.4.0"
 description = "Local permission gateway for AI agent tool execution"
 readme = "README.md"
