@@ -6,7 +6,7 @@ This document analyzes the necessity of memory governance for stateful AI agents
 
 ## 1. Executive Summary & Problem Statement
 
-As AI agents transition from stateless request-response loops to stateful systems utilizing long-term memory (e.g., Mem0, vector databases) and thread checkpointers, memory becomes a critical security vector. 
+As AI agents transition from stateless request-response loops to stateful systems utilizing long-term memory (e.g., Mem0, vector databases) and thread checkpointers, memory becomes a critical security vector.
 
 The key insight is:
 > **Agents should not decide which private memories they are allowed to retrieve or inject into context.**
@@ -42,7 +42,7 @@ If an agent is compromised by prompt injection, relying on the agent to follow s
 ## 3. The Role of Provenance and Trust Gates
 
 ### Why Provenance Matters for Memory
-Provenance tracks the origin and chain of custody of the data triggering a tool or memory action. 
+Provenance tracks the origin and chain of custody of the data triggering a tool or memory action.
 *   **For Reads**: If a memory query is triggered while the execution loop contains untrusted inputs (e.g. `TrustLevel.EXTERNAL_UNTRUSTED` due to web scraping), the gateway degrades access permissions. The agent is blocked from querying the `private` namespace, protecting passwords and keys from exfiltration.
 *   **For Writes**: If the prompt source is untrusted, the agent is blocked from writing to long-term memory without explicit human approval, preventing memory poisoning.
 
@@ -80,7 +80,7 @@ Medium-High
 *   Possible generic `REDACT` decision support
 
 ### **Problem Statement:**
-AI agents are increasingly stateful, relying on long-term memory (Mem0, vector DBs) and serialized checkpointers (LangGraph) to persist context. If an agent is compromised by prompt injection (e.g., ChatGPT "spAIware"), it can query long-term memory to exfiltrate private credentials, or write malicious instructions to memory to poison future sessions. 
+AI agents are increasingly stateful, relying on long-term memory (Mem0, vector DBs) and serialized checkpointers (LangGraph) to persist context. If an agent is compromised by prompt injection (e.g., ChatGPT "spAIware"), it can query long-term memory to exfiltrate private credentials, or write malicious instructions to memory to poison future sessions.
 
 Because agents cannot be trusted to self-govern their context, `Agent_Sudo` must introduce access controls at the memory boundary. This requires extending the gateway to classify memory namespaces, evaluate query provenance, and redact sensitive variables.
 
