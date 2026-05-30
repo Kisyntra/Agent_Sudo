@@ -22,3 +22,6 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+
+# Local scratch checkouts of external repos (not part of this project)
+lexflow_temp/

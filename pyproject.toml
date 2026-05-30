@@ -32,6 +32,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
 [project.urls]
 Homepage = "https://github.com/Kisyntra/Agent_Sudo"
 Repository = "https://github.com/Kisyntra/Agent_Sudo.git"
@@ -47,3 +50,6 @@ include = ["agent_sudo*"]
 
 [tool.setuptools.package-data]
 agent_sudo = ["config/*.yaml", "examples/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
