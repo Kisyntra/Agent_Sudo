@@ -11,5 +11,7 @@ def from_mcp_tool_call(tool_call: dict[str, Any]) -> ActionRequest:
     return normalize_tool_call(tool_call, default_actor="mcp-client")
 
 
-def execute_mcp_tool_call(tool_call: dict[str, Any], executor: SafeToolExecutor) -> ExecutionResult:
+def execute_mcp_tool_call(
+    tool_call: dict[str, Any], executor: SafeToolExecutor
+) -> ExecutionResult:
     return executor.execute(from_mcp_tool_call(tool_call))

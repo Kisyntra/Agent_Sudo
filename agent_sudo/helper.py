@@ -69,18 +69,23 @@ def run_approval_helper(
 
     try:
         from agent_sudo.audit import AuditLogger
+
         audit_logger = AuditLogger(audit_log_path) if audit_log_path else None
         store = PendingApprovalStore(pending_approvals_path, audit_logger=audit_logger)
 
-        initial_pending = [a for a in store.list() if a.status == ApprovalStatus.PENDING]
-        allow_autoclose = (len(initial_pending) == 1)
+        initial_pending = [
+            a for a in store.list() if a.status == ApprovalStatus.PENDING
+        ]
+        allow_autoclose = len(initial_pending) == 1
         autoclose_triggered = False
         autoclose_message = ""
 
         def process_pending(processed_ids: set[str]) -> bool:
             nonlocal autoclose_triggered, autoclose_message
             approvals = [a for a in store.list() if a.status == ApprovalStatus.PENDING]
-            unprocessed = [a for a in approvals if a.approval_request_id not in processed_ids]
+            unprocessed = [
+                a for a in approvals if a.approval_request_id not in processed_ids
+            ]
             if not approvals:
                 return False
 
@@ -97,6 +102,7 @@ def run_approval_helper(
                         safe_target = get_safe_target_summary(app)
                         from datetime import datetime, timezone
                         from agent_sudo.pending_approvals import _parse_time
+
                         try:
                             expires_at = _parse_time(app.expires_at)
                             now = datetime.now(timezone.utc)
@@ -136,14 +142,27 @@ def run_approval_helper(
                     if answer in {"y", "yes"}:
                         provider = ApprovalProvider(config_path=config_path)
                         try:
-                            approval, result = store.approve(app.approval_request_id, approval_provider=provider)
+                            approval, result = store.approve(
+                                app.approval_request_id, approval_provider=provider
+                            )
                             if approval and result.approved:
                                 print(f"Request #{idx} approved successfully.")
                                 # Check auto-close logic
-                                remaining = [a for a in store.list() if a.status == ApprovalStatus.PENDING]
-                                if auto_opened and allow_autoclose and not remaining and not watch:
+                                remaining = [
+                                    a
+                                    for a in store.list()
+                                    if a.status == ApprovalStatus.PENDING
+                                ]
+                                if (
+                                    auto_opened
+                                    and allow_autoclose
+                                    and not remaining
+                                    and not watch
+                                ):
                                     autoclose_triggered = True
-                                    autoclose_message = "Approved. Closing in 3 seconds..."
+                                    autoclose_message = (
+                                        "Approved. Closing in 3 seconds..."
+                                    )
                             else:
                                 print(f"Approval failed: {result.reason}")
                         except Exception as e:
@@ -153,8 +172,17 @@ def run_approval_helper(
                             store.deny(app.approval_request_id)
                             print(f"Request #{idx} denied.")
                             # Check auto-close logic
-                            remaining = [a for a in store.list() if a.status == ApprovalStatus.PENDING]
-                            if auto_opened and allow_autoclose and not remaining and not watch:
+                            remaining = [
+                                a
+                                for a in store.list()
+                                if a.status == ApprovalStatus.PENDING
+                            ]
+                            if (
+                                auto_opened
+                                and allow_autoclose
+                                and not remaining
+                                and not watch
+                            ):
                                 autoclose_triggered = True
                                 autoclose_message = "Denied. Closing in 3 seconds..."
                         except Exception as e:
@@ -198,7 +226,9 @@ def run_approval_helper(
                 has_pending = process_pending(processed_ids)
                 if not has_pending:
                     # check if queue is completely empty and we haven't printed the notice
-                    approvals = [a for a in store.list() if a.status == ApprovalStatus.PENDING]
+                    approvals = [
+                        a for a in store.list() if a.status == ApprovalStatus.PENDING
+                    ]
                     if not approvals and not has_printed_empty:
                         print("No active pending approvals.")
                         has_printed_empty = True
@@ -206,7 +236,9 @@ def run_approval_helper(
                     has_printed_empty = False
 
                 # Clean up processed_ids for expired/removed approvals to prevent leak
-                current_ids = {a.approval_request_id for a in store.list(update_expired=False)}
+                current_ids = {
+                    a.approval_request_id for a in store.list(update_expired=False)
+                }
                 processed_ids = processed_ids.intersection(current_ids)
 
                 time.sleep(1.0)
@@ -216,8 +248,9 @@ def run_approval_helper(
         else:
             print("\nInterrupted.")
         return 0
-    except Exception as e:
+    except Exception:
         import traceback
+
         traceback.print_exc()
         if auto_opened:
             try:

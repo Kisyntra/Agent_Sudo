@@ -48,7 +48,9 @@ class DelegationTests(unittest.TestCase):
                 source="unknown",
                 source_trust="UNKNOWN",
             )
-            result = PermissionGateway(self.policy, delegation_store=store).evaluate(request)
+            result = PermissionGateway(self.policy, delegation_store=store).evaluate(
+                request
+            )
 
         self.assertEqual(result.decision, Decision.ALLOW)
         self.assertEqual(result.approval_method, "DELEGATION")
@@ -142,8 +144,12 @@ class DelegationTests(unittest.TestCase):
                 reason="once",
             )
             gateway = PermissionGateway(self.policy, delegation_store=store)
-            first = gateway.evaluate(AgentActionRequest.file_edit("README.md", actor="codex"))
-            second = gateway.evaluate(AgentActionRequest.file_edit("README.md", actor="codex"))
+            first = gateway.evaluate(
+                AgentActionRequest.file_edit("README.md", actor="codex")
+            )
+            second = gateway.evaluate(
+                AgentActionRequest.file_edit("README.md", actor="codex")
+            )
 
         self.assertEqual(first.decision, Decision.ALLOW)
         self.assertEqual(second.decision, Decision.DENY)
@@ -185,13 +191,19 @@ class DelegationTests(unittest.TestCase):
                 self.policy,
                 approvals=NoTtyApprovalProvider(),
                 delegation_store=store,
-            ).evaluate(AgentActionRequest.send_email("recipient@example.invalid", actor="codex"))
+            ).evaluate(
+                AgentActionRequest.send_email(
+                    "recipient@example.invalid", actor="codex"
+                )
+            )
 
         self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
         self.assertIn("critical flag missing", result.reason)
         self.assertIn(token.token_id, result.reason)
 
-    def test_critical_actions_require_strong_approval_unless_delegated_critical_true(self) -> None:
+    def test_critical_actions_require_strong_approval_unless_delegated_critical_true(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
             store.create(
@@ -206,7 +218,11 @@ class DelegationTests(unittest.TestCase):
                 self.policy,
                 approvals=NoTtyApprovalProvider(),
                 delegation_store=store,
-            ).evaluate(AgentActionRequest.send_email("recipient@example.invalid", actor="codex"))
+            ).evaluate(
+                AgentActionRequest.send_email(
+                    "recipient@example.invalid", actor="codex"
+                )
+            )
 
             critical_store = self._store(str(Path(tmpdir) / "critical"))
             critical_store.create(
@@ -217,8 +233,12 @@ class DelegationTests(unittest.TestCase):
                 reason="email approved",
                 critical=True,
             )
-            delegated = PermissionGateway(self.policy, delegation_store=critical_store).evaluate(
-                AgentActionRequest.send_email("recipient@example.invalid", actor="codex")
+            delegated = PermissionGateway(
+                self.policy, delegation_store=critical_store
+            ).evaluate(
+                AgentActionRequest.send_email(
+                    "recipient@example.invalid", actor="codex"
+                )
             )
 
         self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
@@ -249,7 +269,15 @@ class DelegationTests(unittest.TestCase):
                 )
                 tokens = self._store(tmpdir).list()
                 list_code = main(["delegate", "list", "--delegations-file", str(path)])
-                revoke_code = main(["delegate", "revoke", tokens[0].token_id, "--delegations-file", str(path)])
+                revoke_code = main(
+                    [
+                        "delegate",
+                        "revoke",
+                        tokens[0].token_id,
+                        "--delegations-file",
+                        str(path),
+                    ]
+                )
             revoked = self._store(tmpdir).list()[0]
 
         self.assertEqual(create_code, 0)

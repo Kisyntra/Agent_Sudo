@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.models import ActionRequest
@@ -16,7 +14,6 @@ config = {
 
 # 2. Simulate the registered hook handler (`agent_sudo_local`)
 class AgentSudoLocalHook:
-
     def __init__(self, policy_path: str | None = None) -> None:
         # Initializing the gate
         policy = load_default_policy()

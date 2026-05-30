@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -60,7 +59,7 @@ def send_approval_notification(approval: ApprovalRequest) -> bool:
             ["osascript", "-e", applescript],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
         return res.returncode == 0
     except Exception:
@@ -75,11 +74,20 @@ def open_approval_terminal_window(pending_approvals_file: Path | None = None) ->
     if sys.platform != "darwin":
         return False
 
-    cmd_parts = [sys.executable, "-m", "agent_sudo.gateway", "approval-helper", "--auto-opened"]
+    cmd_parts = [
+        sys.executable,
+        "-m",
+        "agent_sudo.gateway",
+        "approval-helper",
+        "--auto-opened",
+    ]
     if pending_approvals_file:
-        cmd_parts.extend(["--pending-approvals-file", str(pending_approvals_file.resolve())])
+        cmd_parts.extend(
+            ["--pending-approvals-file", str(pending_approvals_file.resolve())]
+        )
 
     import shlex
+
     shell_cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
     # Escape for AppleScript double-quotes
@@ -89,8 +97,8 @@ def open_approval_terminal_window(pending_approvals_file: Path | None = None) ->
     applescript = (
         f'tell application "Terminal"\n'
         f'    do script "clear; exec {escaped_shell_cmd}"\n'
-        f'    activate\n'
-        f'end tell'
+        f"    activate\n"
+        f"end tell"
     )
 
     try:
@@ -98,7 +106,7 @@ def open_approval_terminal_window(pending_approvals_file: Path | None = None) ->
             ["osascript", "-e", applescript],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
         return res.returncode == 0
     except Exception:

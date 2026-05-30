@@ -42,8 +42,16 @@ class PendingApprovalStore:
         self.audit_logger = audit_logger
         self.ttl_seconds = resolve_approval_ttl_seconds(ttl_seconds)
         self.now_func = now_func or (lambda: datetime.now(timezone.utc))
-        self.notify = notify if notify is not None else (os.environ.get("AGENT_SUDO_NOTIFY") == "1")
-        self.open_approval_terminal = open_approval_terminal if open_approval_terminal is not None else (os.environ.get("AGENT_SUDO_OPEN_APPROVAL_TERMINAL") == "1")
+        self.notify = (
+            notify
+            if notify is not None
+            else (os.environ.get("AGENT_SUDO_NOTIFY") == "1")
+        )
+        self.open_approval_terminal = (
+            open_approval_terminal
+            if open_approval_terminal is not None
+            else (os.environ.get("AGENT_SUDO_OPEN_APPROVAL_TERMINAL") == "1")
+        )
 
     def create(
         self,
@@ -75,18 +83,24 @@ class PendingApprovalStore:
             try:
                 import sys
                 from agent_sudo.notifications import send_approval_notification
+
                 send_approval_notification(approval)
             except Exception as exc:
                 import sys
-                sys.stderr.write(f"Warning: failed to send desktop notification: {exc}\n")
+
+                sys.stderr.write(
+                    f"Warning: failed to send desktop notification: {exc}\n"
+                )
 
         if self.open_approval_terminal:
             try:
                 import sys
                 from agent_sudo.notifications import open_approval_terminal_window
+
                 open_approval_terminal_window(self.path)
             except Exception as exc:
                 import sys
+
                 sys.stderr.write(f"Warning: failed to open approval terminal: {exc}\n")
 
         return approval
@@ -104,7 +118,10 @@ class PendingApprovalStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _chmod_best_effort(self.path.parent, 0o700)
         self.path.write_text(
-            json.dumps([approval.to_dict() for approval in approvals], indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                [approval.to_dict() for approval in approvals], indent=2, sort_keys=True
+            )
+            + "\n",
             encoding="utf-8",
         )
         _chmod_best_effort(self.path, 0o600)
@@ -120,7 +137,11 @@ class PendingApprovalStore:
         return matching[-1] if matching else None
 
     def active_pending(self) -> list[ApprovalRequest]:
-        return [approval for approval in self.list() if approval.status == ApprovalStatus.PENDING]
+        return [
+            approval
+            for approval in self.list()
+            if approval.status == ApprovalStatus.PENDING
+        ]
 
     def approve(
         self,
@@ -138,12 +159,22 @@ class PendingApprovalStore:
                 continue
             target = approval
             if approval.status != ApprovalStatus.PENDING:
-                result = ApprovalResult(False, "APPROVAL_STORE", f"approval request is {approval.status.value}")
+                result = ApprovalResult(
+                    False,
+                    "APPROVAL_STORE",
+                    f"approval request is {approval.status.value}",
+                )
                 updated.append(approval)
                 continue
             if self._is_expired(approval):
-                expired = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
-                result = ApprovalResult(False, "APPROVAL_STORE", "approval request expired")
+                expired = replace(
+                    approval,
+                    status=ApprovalStatus.EXPIRED,
+                    reason="approval request expired",
+                )
+                result = ApprovalResult(
+                    False, "APPROVAL_STORE", "approval request expired"
+                )
                 updated.append(expired)
                 target = expired
                 self._record_state("approval_expired", expired)
@@ -155,21 +186,29 @@ class PendingApprovalStore:
                     self._record_attempt("approval_approve_failed", approval, result)
                     continue
             else:
-                result = ApprovalResult(True, "CLI_CONFIRM", "approval request approved")
-            approved = replace(approval, status=ApprovalStatus.APPROVED, reason=result.reason)
+                result = ApprovalResult(
+                    True, "CLI_CONFIRM", "approval request approved"
+                )
+            approved = replace(
+                approval, status=ApprovalStatus.APPROVED, reason=result.reason
+            )
             updated.append(approved)
             target = approved
             self._record_state("approval_approved", approved)
         self.save(updated)
         return target, result
 
-    def deny(self, approval_request_id: str, *, reason: str = "approval request denied") -> ApprovalRequest | None:
+    def deny(
+        self, approval_request_id: str, *, reason: str = "approval request denied"
+    ) -> ApprovalRequest | None:
         approvals = self.list()
         updated: list[ApprovalRequest] = []
         denied: ApprovalRequest | None = None
         for approval in approvals:
             if approval.approval_request_id == approval_request_id:
-                approval = replace(approval, status=ApprovalStatus.DENIED, reason=reason)
+                approval = replace(
+                    approval, status=ApprovalStatus.DENIED, reason=reason
+                )
                 denied = approval
                 self._record_state("approval_denied", approval)
             updated.append(approval)
@@ -185,10 +224,18 @@ class PendingApprovalStore:
             if consumed is None and approval.status == ApprovalStatus.APPROVED:
                 if _request_fingerprint(approval.action_request) == fingerprint:
                     if self._is_expired(approval):
-                        approval = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
+                        approval = replace(
+                            approval,
+                            status=ApprovalStatus.EXPIRED,
+                            reason="approval request expired",
+                        )
                         self._record_state("approval_expired", approval)
                     else:
-                        approval = replace(approval, status=ApprovalStatus.USED, reason="approval request used")
+                        approval = replace(
+                            approval,
+                            status=ApprovalStatus.USED,
+                            reason="approval request used",
+                        )
                         consumed = approval
                         self._record_state("approval_used", approval)
             updated.append(approval)
@@ -200,8 +247,15 @@ class PendingApprovalStore:
         changed = False
         updated: list[ApprovalRequest] = []
         for approval in approvals:
-            if approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED} and self._is_expired(approval):
-                approval = replace(approval, status=ApprovalStatus.EXPIRED, reason="approval request expired")
+            if approval.status in {
+                ApprovalStatus.PENDING,
+                ApprovalStatus.APPROVED,
+            } and self._is_expired(approval):
+                approval = replace(
+                    approval,
+                    status=ApprovalStatus.EXPIRED,
+                    reason="approval request expired",
+                )
                 changed = True
                 self._record_state("approval_expired", approval)
             updated.append(approval)
@@ -211,9 +265,13 @@ class PendingApprovalStore:
 
     def _record_state(self, event_type: str, approval: ApprovalRequest) -> None:
         if self.audit_logger is not None:
-            self.audit_logger.record_event(event_type, {"approval_request": approval.to_dict()})
+            self.audit_logger.record_event(
+                event_type, {"approval_request": approval.to_dict()}
+            )
 
-    def _record_attempt(self, event_type: str, approval: ApprovalRequest, result: ApprovalResult) -> None:
+    def _record_attempt(
+        self, event_type: str, approval: ApprovalRequest, result: ApprovalResult
+    ) -> None:
         if self.audit_logger is not None:
             self.audit_logger.record_event(
                 event_type,
@@ -247,10 +305,16 @@ def resolve_approval_ttl_seconds(value: int | str | None = None) -> int:
     return min(MAX_APPROVAL_TTL_SECONDS, max(MIN_APPROVAL_TTL_SECONDS, ttl))
 
 
-def resolve_approval_identifier(identifier: str, approvals: list[ApprovalRequest]) -> str | None:
+def resolve_approval_identifier(
+    identifier: str, approvals: list[ApprovalRequest]
+) -> str | None:
     if identifier.isdecimal():
         index = int(identifier)
-        active = [approval for approval in approvals if approval.status == ApprovalStatus.PENDING]
+        active = [
+            approval
+            for approval in approvals
+            if approval.status == ApprovalStatus.PENDING
+        ]
         if 1 <= index <= len(active):
             return active[index - 1].approval_request_id
     for approval in approvals:
@@ -259,8 +323,12 @@ def resolve_approval_identifier(identifier: str, approvals: list[ApprovalRequest
     return None
 
 
-def format_pending_approvals(approvals: list[ApprovalRequest], *, now: datetime | None = None) -> str:
-    active = [approval for approval in approvals if approval.status == ApprovalStatus.PENDING]
+def format_pending_approvals(
+    approvals: list[ApprovalRequest], *, now: datetime | None = None
+) -> str:
+    active = [
+        approval for approval in approvals if approval.status == ApprovalStatus.PENDING
+    ]
     if not active:
         return "No active pending approvals."
     actual_now = now or datetime.now(timezone.utc)
@@ -277,19 +345,46 @@ def format_pending_approvals(approvals: list[ApprovalRequest], *, now: datetime 
                     _clip(request.action, 18),
                     _clip(request.actor, 10),
                     approval.classification.value,
-                    _duration(max(0, int((actual_now - _parse_time(approval.created_at)).total_seconds()))),
-                    _duration(max(0, int((_parse_time(approval.expires_at) - actual_now).total_seconds()))),
+                    _duration(
+                        max(
+                            0,
+                            int(
+                                (
+                                    actual_now - _parse_time(approval.created_at)
+                                ).total_seconds()
+                            ),
+                        )
+                    ),
+                    _duration(
+                        max(
+                            0,
+                            int(
+                                (
+                                    _parse_time(approval.expires_at) - actual_now
+                                ).total_seconds()
+                            ),
+                        )
+                    ),
                 ]
             )
         )
     return "\n".join(rows)
 
 
-def expires_in_seconds(approval: ApprovalRequest, *, now: datetime | None = None) -> int:
+def expires_in_seconds(
+    approval: ApprovalRequest, *, now: datetime | None = None
+) -> int:
     actual_now = now or datetime.now(timezone.utc)
     if actual_now.tzinfo is None:
         actual_now = actual_now.replace(tzinfo=timezone.utc)
-    return max(0, int((_parse_time(approval.expires_at) - actual_now.astimezone(timezone.utc)).total_seconds()))
+    return max(
+        0,
+        int(
+            (
+                _parse_time(approval.expires_at) - actual_now.astimezone(timezone.utc)
+            ).total_seconds()
+        ),
+    )
 
 
 def approval_command(approval_request_id: str) -> str:

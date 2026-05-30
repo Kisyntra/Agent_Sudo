@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-from typing import Any
 
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.models import ActionRequest

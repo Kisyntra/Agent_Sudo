@@ -41,13 +41,17 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
     def _config_path(self, tmpdir: str, passphrase: str = "test-passphrase") -> Path:
         path = Path(tmpdir) / "config.json"
-        path.write_text(json.dumps(hash_passphrase(passphrase, salt=b"1" * 16)), encoding="utf-8")
+        path.write_text(
+            json.dumps(hash_passphrase(passphrase, salt=b"1" * 16)), encoding="utf-8"
+        )
         return path
 
     def test_non_interactive_mcp_critical_action_creates_pending_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
-            store = PendingApprovalStore(Path(tmpdir) / "pending.json", audit_logger=AuditLogger(audit_path))
+            store = PendingApprovalStore(
+                Path(tmpdir) / "pending.json", audit_logger=AuditLogger(audit_path)
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
@@ -59,13 +63,19 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             approvals = store.list()
 
         self.assertFalse(result.executed)
-        self.assertEqual(result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
         self.assertEqual(len(approvals), 1)
         self.assertEqual(approvals[0].status, ApprovalStatus.PENDING)
         self.assertEqual(store.ttl_seconds, DEFAULT_APPROVAL_TTL_SECONDS)
-        self.assertEqual(result.gateway_result.approval_request_id, approvals[0].approval_request_id)
+        self.assertEqual(
+            result.gateway_result.approval_request_id, approvals[0].approval_request_id
+        )
         self.assertIn("agent-sudo approve", result.gateway_result.approval_command)
-        self.assertEqual(result.gateway_result.approval_expires_at, approvals[0].expires_at)
+        self.assertEqual(
+            result.gateway_result.approval_expires_at, approvals[0].expires_at
+        )
         self.assertIsNotNone(result.gateway_result.approval_expires_in_seconds)
 
     def test_approval_list_shows_request(self) -> None:
@@ -81,7 +91,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             output = io.StringIO()
 
             with redirect_stdout(output):
-                code = main(["approvals", "list", "--pending-approvals-file", str(pending_path)])
+                code = main(
+                    ["approvals", "list", "--pending-approvals-file", str(pending_path)]
+                )
 
         self.assertEqual(code, 0)
         self.assertIn("run_shell_command", output.getvalue())
@@ -107,11 +119,15 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertIn("run_shell_command", output.getvalue())
         self.assertIn("CRITICAL", output.getvalue())
 
-    def test_approve_with_passphrase_marks_approved_retry_executes_once_then_blocks(self) -> None:
+    def test_approve_with_passphrase_marks_approved_retry_executes_once_then_blocks(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
             pending_path = Path(tmpdir) / "pending.json"
-            store = PendingApprovalStore(pending_path, audit_logger=AuditLogger(audit_path))
+            store = PendingApprovalStore(
+                pending_path, audit_logger=AuditLogger(audit_path)
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
@@ -125,7 +141,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                 getpass_func=lambda prompt: "test-passphrase",
                 stdin_is_tty=lambda: True,
             )
-            approved, approval_result = store.approve(approval_id, approval_provider=provider)
+            approved, approval_result = store.approve(
+                approval_id, approval_provider=provider
+            )
             retry = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             second_retry = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             audit_events = [
@@ -140,8 +158,12 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(retry.gateway_result.decision, Decision.ALLOW)
         self.assertEqual(retry.gateway_result.approval_method, "PENDING_APPROVAL")
         self.assertFalse(second_retry.executed)
-        self.assertEqual(second_retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
-        self.assertNotEqual(second_retry.gateway_result.approval_request_id, approval_id)
+        self.assertEqual(
+            second_retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
+        self.assertNotEqual(
+            second_retry.gateway_result.approval_request_id, approval_id
+        )
         self.assertIn("approval_created", audit_events)
         self.assertIn("approval_approved", audit_events)
         self.assertIn("approval_used", audit_events)
@@ -266,14 +288,18 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                 getpass_func=lambda prompt: "test-passphrase",
                 stdin_is_tty=lambda: True,
             )
-            store.approve(initial.gateway_result.approval_request_id, approval_provider=provider)
+            store.approve(
+                initial.gateway_result.approval_request_id, approval_provider=provider
+            )
             retry = dispatch_mcp_tool_call(retry_call, gateway)
             second_retry = dispatch_mcp_tool_call(retry_call, gateway)
 
         self.assertTrue(retry.executed)
         self.assertEqual(retry.gateway_result.decision, Decision.ALLOW)
         self.assertFalse(second_retry.executed)
-        self.assertEqual(second_retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            second_retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
 
     def test_denial_blocks_retry(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -291,14 +317,21 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         self.assertIsNotNone(denied)
         self.assertEqual(denied.status, ApprovalStatus.DENIED)
         self.assertFalse(retry.executed)
-        self.assertEqual(retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
-        self.assertNotEqual(retry.gateway_result.approval_request_id, initial.gateway_result.approval_request_id)
+        self.assertEqual(
+            retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
+        self.assertNotEqual(
+            retry.gateway_result.approval_request_id,
+            initial.gateway_result.approval_request_id,
+        )
 
     def test_expiration_blocks_retry(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             pending_path = Path(tmpdir) / "pending.json"
             now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-            store = PendingApprovalStore(pending_path, ttl_seconds=30, now_func=lambda: now)
+            store = PendingApprovalStore(
+                pending_path, ttl_seconds=30, now_func=lambda: now
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
@@ -311,15 +344,22 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
         self.assertFalse(initial.executed)
         self.assertFalse(retry.executed)
-        self.assertEqual(retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            retry.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
         self.assertEqual(approvals[0].status, ApprovalStatus.EXPIRED)
-        self.assertNotEqual(retry.gateway_result.approval_request_id, initial.gateway_result.approval_request_id)
+        self.assertNotEqual(
+            retry.gateway_result.approval_request_id,
+            initial.gateway_result.approval_request_id,
+        )
 
     def test_approval_remains_valid_for_configured_ttl(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             pending_path = Path(tmpdir) / "pending.json"
             now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-            store = PendingApprovalStore(pending_path, ttl_seconds=120, now_func=lambda: now)
+            store = PendingApprovalStore(
+                pending_path, ttl_seconds=120, now_func=lambda: now
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
@@ -332,17 +372,23 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                 stdin_is_tty=lambda: True,
             )
             now = now + timedelta(seconds=119)
-            approved, result = store.approve(initial.gateway_result.approval_request_id, approval_provider=provider)
+            approved, result = store.approve(
+                initial.gateway_result.approval_request_id, approval_provider=provider
+            )
 
         self.assertTrue(result.approved)
         self.assertIsNotNone(approved)
         self.assertEqual(approved.status, ApprovalStatus.APPROVED)
 
     def test_ttl_config_bounds(self) -> None:
-        self.assertEqual(resolve_approval_ttl_seconds(None), DEFAULT_APPROVAL_TTL_SECONDS)
+        self.assertEqual(
+            resolve_approval_ttl_seconds(None), DEFAULT_APPROVAL_TTL_SECONDS
+        )
         self.assertEqual(resolve_approval_ttl_seconds(1), MIN_APPROVAL_TTL_SECONDS)
         self.assertEqual(resolve_approval_ttl_seconds(9999), MAX_APPROVAL_TTL_SECONDS)
-        self.assertEqual(resolve_approval_ttl_seconds("not-an-int"), DEFAULT_APPROVAL_TTL_SECONDS)
+        self.assertEqual(
+            resolve_approval_ttl_seconds("not-an-int"), DEFAULT_APPROVAL_TTL_SECONDS
+        )
         with patch.dict("os.environ", {"AGENT_SUDO_APPROVAL_TTL_SECONDS": "240"}):
             self.assertEqual(resolve_approval_ttl_seconds(None), 240)
 
@@ -359,14 +405,19 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                     "jsonrpc": "2.0",
                     "id": "shell",
                     "method": "tools/call",
-                    "params": {"name": "run_shell_command", "arguments": {"command": "pwd"}},
+                    "params": {
+                        "name": "run_shell_command",
+                        "arguments": {"command": "pwd"},
+                    },
                 }
             )
             structured = response["result"]["structuredContent"]
 
         self.assertEqual(structured["status"], "approval_required")
         self.assertTrue(structured["approval_id"])
-        self.assertTrue(structured["approval_command"].startswith("agent-sudo approve "))
+        self.assertTrue(
+            structured["approval_command"].startswith("agent-sudo approve ")
+        )
         self.assertTrue(structured["expires_at"])
         self.assertIsNotNone(structured["expires_in_seconds"])
         self.assertIn("run_shell_command", structured["action_summary"])
@@ -413,12 +464,16 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                 getpass_func=lambda prompt: "test-passphrase",
                 stdin_is_tty=lambda: True,
             )
-            store.approve(initial.gateway_result.approval_request_id, approval_provider=provider)
+            store.approve(
+                initial.gateway_result.approval_request_id, approval_provider=provider
+            )
             # Consume
             dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
 
             # Lookup should ignore USED approval
-            match = store.find_matching(ActionRequest.from_dict(self._critical_tool_call()))
+            match = store.find_matching(
+                ActionRequest.from_dict(self._critical_tool_call())
+            )
             self.assertIsNone(match)
 
     def test_expired_approvals_ignored_during_matching(self) -> None:
@@ -435,9 +490,12 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             # Force set status to EXPIRED to test EXPIRED matching
             approvals = store.list(update_expired=False)
             from dataclasses import replace
+
             store.save([replace(a, status=ApprovalStatus.EXPIRED) for a in approvals])
 
-            match = store.find_matching(ActionRequest.from_dict(self._critical_tool_call()))
+            match = store.find_matching(
+                ActionRequest.from_dict(self._critical_tool_call())
+            )
             self.assertIsNone(match)
 
     def test_denied_approvals_ignored_during_matching(self) -> None:
@@ -452,7 +510,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             initial = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             store.deny(initial.gateway_result.approval_request_id)
 
-            match = store.find_matching(ActionRequest.from_dict(self._critical_tool_call()))
+            match = store.find_matching(
+                ActionRequest.from_dict(self._critical_tool_call())
+            )
             self.assertIsNone(match)
 
     def test_same_command_after_used_creates_new_approval(self) -> None:
@@ -480,7 +540,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             second = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             second_id = second.gateway_result.approval_request_id
 
-            self.assertEqual(second.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+            self.assertEqual(
+                second.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+            )
             self.assertNotEqual(first_id, second_id)
             self.assertTrue(second_id)
 
@@ -488,7 +550,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             pending_path = Path(tmpdir) / "pending.json"
             now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-            store = PendingApprovalStore(pending_path, ttl_seconds=30, now_func=lambda: now)
+            store = PendingApprovalStore(
+                pending_path, ttl_seconds=30, now_func=lambda: now
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=ApprovalProvider(stdin_is_tty=lambda: False),
@@ -504,7 +568,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             second = dispatch_mcp_tool_call(self._critical_tool_call(), gateway)
             second_id = second.gateway_result.approval_request_id
 
-            self.assertEqual(second.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+            self.assertEqual(
+                second.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+            )
             self.assertNotEqual(first_id, second_id)
             self.assertTrue(second_id)
 
@@ -532,10 +598,13 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
             approvals = store.list(update_expired=False)
             from dataclasses import replace
-            store.save([
-                replace(approvals[0], status=ApprovalStatus.EXPIRED),
-                replace(approvals[1], status=ApprovalStatus.USED),
-            ])
+
+            store.save(
+                [
+                    replace(approvals[0], status=ApprovalStatus.EXPIRED),
+                    replace(approvals[1], status=ApprovalStatus.USED),
+                ]
+            )
 
             match = store.find_matching(req)
             self.assertIsNone(match)
@@ -555,7 +624,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
                 reason="stale",
             )
             # 2. First active
-            active1 = store.create(
+            store.create(
                 action_request=req,
                 classification=Classification.CRITICAL,
                 decision=Decision.REQUIRE_STRONG_APPROVAL,
@@ -573,11 +642,14 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
             approvals = store.list(update_expired=False)
             from dataclasses import replace
-            store.save([
-                replace(approvals[0], status=ApprovalStatus.USED),
-                approvals[1],
-                approvals[2],
-            ])
+
+            store.save(
+                [
+                    replace(approvals[0], status=ApprovalStatus.USED),
+                    approvals[1],
+                    approvals[2],
+                ]
+            )
 
             match = store.find_matching(req)
             self.assertIsNotNone(match)
@@ -590,7 +662,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             config_path = self._config_path(tmpdir, passphrase="correct-passphrase")
             store = PendingApprovalStore(pending_path)
             req = ActionRequest.from_dict(self._critical_tool_call())
-            app = store.create(
+            store.create(
                 action_request=req,
                 classification=Classification.CRITICAL,
                 decision=Decision.REQUIRE_STRONG_APPROVAL,
@@ -603,6 +675,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             from agent_sudo.approvals import ApprovalProvider
 
             original_init = ApprovalProvider.__init__
+
             def custom_init(self, *args, **kwargs):
                 original_init(self, *args, **kwargs)
                 self.getpass_func = lambda prompt: "wrong-passphrase"
@@ -610,20 +683,29 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
             stdout = io.StringIO()
             stderr = io.StringIO()
-            with patch.object(ApprovalProvider, "__init__", custom_init), \
-                 redirect_stdout(stdout), \
-                 redirect_stderr(stderr):
-                code = main([
-                    "approve", "1",
-                    "--pending-approvals-file", str(pending_path),
-                    "--approval-config", str(config_path),
-                ])
+            with (
+                patch.object(ApprovalProvider, "__init__", custom_init),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                code = main(
+                    [
+                        "approve",
+                        "1",
+                        "--pending-approvals-file",
+                        str(pending_path),
+                        "--approval-config",
+                        str(config_path),
+                    ]
+                )
 
             self.assertEqual(code, 1)
             self.assertIn("Error: passphrase verification failed", stderr.getvalue())
-            self.assertEqual(stdout.getvalue().strip(), "") # No misleading JSON
+            self.assertEqual(stdout.getvalue().strip(), "")  # No misleading JSON
             # Verify status on disk remains PENDING
-            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.PENDING)
+            self.assertEqual(
+                store.list(update_expired=False)[0].status, ApprovalStatus.PENDING
+            )
 
     def test_approve_command_expired_visibility(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -634,11 +716,14 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             req = ActionRequest.from_dict(self._critical_tool_call())
 
             from datetime import datetime, timedelta, timezone
+
             now = datetime.now(timezone.utc)
             from agent_sudo.pending_approvals import _format_time
+
             # Directly inject an expired pending request on disk
             from agent_sudo.models import ApprovalRequest
             import uuid
+
             app = ApprovalRequest(
                 approval_request_id=str(uuid.uuid4()),
                 action_request=req,
@@ -657,6 +742,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             from agent_sudo.approvals import ApprovalProvider
 
             original_init = ApprovalProvider.__init__
+
             def custom_init(self, *args, **kwargs):
                 original_init(self, *args, **kwargs)
                 self.getpass_func = lambda prompt: "test-passphrase"
@@ -664,19 +750,28 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
             stdout = io.StringIO()
             stderr = io.StringIO()
-            with patch.object(ApprovalProvider, "__init__", custom_init), \
-                 redirect_stdout(stdout), \
-                 redirect_stderr(stderr):
-                code = main([
-                    "approve", app.approval_request_id,
-                    "--pending-approvals-file", str(pending_path),
-                    "--approval-config", str(config_path),
-                ])
+            with (
+                patch.object(ApprovalProvider, "__init__", custom_init),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                code = main(
+                    [
+                        "approve",
+                        app.approval_request_id,
+                        "--pending-approvals-file",
+                        str(pending_path),
+                        "--approval-config",
+                        str(config_path),
+                    ]
+                )
 
             self.assertEqual(code, 1)
             self.assertIn("Error: approval request is EXPIRED", stderr.getvalue())
-            self.assertEqual(stdout.getvalue().strip(), "") # No misleading JSON
-            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.EXPIRED)
+            self.assertEqual(stdout.getvalue().strip(), "")  # No misleading JSON
+            self.assertEqual(
+                store.list(update_expired=False)[0].status, ApprovalStatus.EXPIRED
+            )
 
     def test_approve_command_success_visibility(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -684,7 +779,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             config_path = self._config_path(tmpdir, passphrase="test-passphrase")
             store = PendingApprovalStore(pending_path)
             req = ActionRequest.from_dict(self._critical_tool_call())
-            app = store.create(
+            store.create(
                 action_request=req,
                 classification=Classification.CRITICAL,
                 decision=Decision.REQUIRE_STRONG_APPROVAL,
@@ -697,6 +792,7 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             from agent_sudo.approvals import ApprovalProvider
 
             original_init = ApprovalProvider.__init__
+
             def custom_init(self, *args, **kwargs):
                 original_init(self, *args, **kwargs)
                 self.getpass_func = lambda prompt: "test-passphrase"
@@ -704,14 +800,21 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
 
             stdout = io.StringIO()
             stderr = io.StringIO()
-            with patch.object(ApprovalProvider, "__init__", custom_init), \
-                 redirect_stdout(stdout), \
-                 redirect_stderr(stderr):
-                code = main([
-                    "approve", "1",
-                    "--pending-approvals-file", str(pending_path),
-                    "--approval-config", str(config_path),
-                ])
+            with (
+                patch.object(ApprovalProvider, "__init__", custom_init),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                code = main(
+                    [
+                        "approve",
+                        "1",
+                        "--pending-approvals-file",
+                        str(pending_path),
+                        "--approval-config",
+                        str(config_path),
+                    ]
+                )
 
             self.assertEqual(code, 0)
             self.assertEqual(stderr.getvalue().strip(), "")
@@ -719,7 +822,9 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             out_json = json.loads(stdout.getvalue().strip())
             self.assertEqual(out_json["status"], "APPROVED")
             # Verify status on disk persists as APPROVED
-            self.assertEqual(store.list(update_expired=False)[0].status, ApprovalStatus.APPROVED)
+            self.assertEqual(
+                store.list(update_expired=False)[0].status, ApprovalStatus.APPROVED
+            )
 
 
 if __name__ == "__main__":

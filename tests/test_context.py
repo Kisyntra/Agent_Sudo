@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -187,7 +186,7 @@ class RuntimeContextTests(unittest.TestCase):
         stderr = io.StringIO()
         with mock.patch("sys.stdout", stdout), mock.patch("sys.stderr", stderr):
             exit_code = main(["context"])
-        
+
         self.assertEqual(exit_code, 0)
         output_json = json.loads(stdout.getvalue())
         self.assertIn("cwd", output_json)
@@ -199,7 +198,7 @@ class RuntimeContextTests(unittest.TestCase):
     def test_mcp_get_runtime_context_tool(self) -> None:
         gateway = PermissionGateway(self.policy)
         mcp_gateway = MCPGateway(gateway)
-        
+
         result = mcp_gateway.dispatch(
             {
                 "actor": "mcp-client",
@@ -209,10 +208,10 @@ class RuntimeContextTests(unittest.TestCase):
                 "target": "get_runtime_context",
             }
         )
-        
+
         self.assertTrue(result.executed)
         self.assertEqual(result.gateway_result.decision, Decision.ALLOW)
-        
+
         # Parse stdout JSON
         ctx_dict = json.loads(result.stdout)
         self.assertIn("cwd", ctx_dict)
@@ -222,8 +221,10 @@ class RuntimeContextTests(unittest.TestCase):
         self.assertIn("running_from_root", ctx_dict)
 
     def test_no_configured_workspace_uses_cwd(self) -> None:
-        with mock.patch.dict(os.environ, {}), \
-             mock.patch("agent_sudo.context._load_config_workspace", return_value=None):
+        with (
+            mock.patch.dict(os.environ, {}),
+            mock.patch("agent_sudo.context._load_config_workspace", return_value=None),
+        ):
             ctx = detect_runtime_context()
             self.assertIsNone(ctx.configured_workspace)
             self.assertEqual(ctx.effective_workspace, ctx.cwd)
@@ -249,8 +250,20 @@ class RuntimeContextTests(unittest.TestCase):
             # Make a commit
             dummy_file = tmp_path / "dummy.txt"
             dummy_file.write_text("dummy", encoding="utf-8")
-            subprocess.run(["git", "add", "dummy.txt"], cwd=tmp_path, env=self.git_env, capture_output=True, check=True)
-            subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, env=self.git_env, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "add", "dummy.txt"],
+                cwd=tmp_path,
+                env=self.git_env,
+                capture_output=True,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmp_path,
+                env=self.git_env,
+                capture_output=True,
+                check=True,
+            )
 
             ctx = detect_runtime_context(workspace=tmp_path)
             self.assertEqual(ctx.configured_workspace, str(tmp_path))
@@ -291,6 +304,7 @@ class RuntimeContextTests(unittest.TestCase):
 
     def test_mcp_server_workspace_flag(self) -> None:
         from agent_sudo.mcp_server import build_server
+
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
 

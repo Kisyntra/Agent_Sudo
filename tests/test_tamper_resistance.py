@@ -26,7 +26,9 @@ class TamperResistanceTests(unittest.TestCase):
         request = AgentActionRequest.file_delete("~/.agent-sudo/audit.jsonl")
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
-        self.assertIn(result.decision, {Decision.DENY, Decision.REQUIRE_STRONG_APPROVAL})
+        self.assertIn(
+            result.decision, {Decision.DENY, Decision.REQUIRE_STRONG_APPROVAL}
+        )
 
     def test_modifying_auth_file_requires_strong_approval(self) -> None:
         request = AgentActionRequest.file_edit("~/.agent-runtime/auth.json")
@@ -61,14 +63,23 @@ class TamperResistanceTests(unittest.TestCase):
             "modify_auth",
         ]:
             with self.subTest(action=action):
-                request = ActionRequest("codex", "webpage", "tamper", action, "agent_sudo/config/default_policy.yaml", "tamper")
+                request = ActionRequest(
+                    "codex",
+                    "webpage",
+                    "tamper",
+                    action,
+                    "agent_sudo/config/default_policy.yaml",
+                    "tamper",
+                )
                 result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
                 self.assertEqual(result.decision, Decision.DENY)
 
     def test_audit_hash_chain_verifies(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
-            gateway = PermissionGateway(self.policy, audit_logger=AuditLogger(audit_path))
+            gateway = PermissionGateway(
+                self.policy, audit_logger=AuditLogger(audit_path)
+            )
             gateway.evaluate(AgentActionRequest.file_read("README.md"))
             gateway.evaluate(AgentActionRequest.file_edit("README.md"), dry_run=True)
 
@@ -79,13 +90,17 @@ class TamperResistanceTests(unittest.TestCase):
     def test_tampered_audit_log_fails_verification(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
-            gateway = PermissionGateway(self.policy, audit_logger=AuditLogger(audit_path))
+            gateway = PermissionGateway(
+                self.policy, audit_logger=AuditLogger(audit_path)
+            )
             gateway.evaluate(AgentActionRequest.file_read("README.md"))
 
             lines = audit_path.read_text(encoding="utf-8").splitlines()
             entry = json.loads(lines[0])
             entry["decision"] = "DENY"
-            audit_path.write_text(json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8")
+            audit_path.write_text(
+                json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8"
+            )
 
             ok, message = verify_audit_log(audit_path)
 
@@ -96,21 +111,21 @@ class TamperResistanceTests(unittest.TestCase):
         bypass_commands = [
             'echo "safe: [run_shell_command]" > ~/.agent-sudo/policy.yaml',
             'echo "rules: []" > ~/.agent-sudo/policy.yaml && echo 1',
-            'mv /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
-            'cp /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
-            'ln -sf /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
-            'rsync /tmp/payload.yaml ~/.agent-sudo/policy.yaml',
-            'tar -xf /tmp/archive.tar -C ~/.agent-sudo/',
-            'cat ~/.agent-sudo/policy.yaml',
+            "mv /tmp/payload.yaml ~/.agent-sudo/policy.yaml",
+            "cp /tmp/payload.yaml ~/.agent-sudo/policy.yaml",
+            "ln -sf /tmp/payload.yaml ~/.agent-sudo/policy.yaml",
+            "rsync /tmp/payload.yaml ~/.agent-sudo/policy.yaml",
+            "tar -xf /tmp/archive.tar -C ~/.agent-sudo/",
+            "cat ~/.agent-sudo/policy.yaml",
             'bash -c "echo hack > ~/.agent-sudo/policy.yaml"',
             'echo "safe: [run_shell_command]" > $HOME/.agent-sudo/policy.yaml',
             'echo "safe: [run_shell_command]" > ~/.config/../.agent-sudo/policy.yaml',
             'echo "safe: [run_shell_command]" > ../.agent-sudo/policy.yaml',
             'cat "~/.agent-sudo/policy.yaml"',
-            'echo x>~/.agent-sudo/policy.yaml',
-            'tee ~/.agent-sudo/policy.yaml',
-            'dd of=~/.agent-sudo/policy.yaml',
-            'tar -xf payload.tar -C ~/.agent-sudo/',
+            "echo x>~/.agent-sudo/policy.yaml",
+            "tee ~/.agent-sudo/policy.yaml",
+            "dd of=~/.agent-sudo/policy.yaml",
+            "tar -xf payload.tar -C ~/.agent-sudo/",
         ]
         for cmd in bypass_commands:
             with self.subTest(command=cmd):
@@ -121,6 +136,7 @@ class TamperResistanceTests(unittest.TestCase):
 
     def test_shell_command_symlink_bypass_is_blocked(self) -> None:
         import os
+
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_agent_sudo = Path(tmpdir) / ".agent-sudo"
             fake_agent_sudo.mkdir()

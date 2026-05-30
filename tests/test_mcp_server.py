@@ -25,7 +25,12 @@ class MCPServerSubprocessTests(unittest.TestCase):
             env = dict(os.environ)
             env["PYTHONPATH"] = str(ROOT)
             process = subprocess.Popen(
-                [sys.executable, str(ROOT / "scripts" / "agent-sudo-mcp"), "--audit-log", str(audit_path)],
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "agent-sudo-mcp"),
+                    "--audit-log",
+                    str(audit_path),
+                ],
                 cwd=ROOT,
                 env=env,
                 stdin=subprocess.PIPE,
@@ -42,18 +47,26 @@ class MCPServerSubprocessTests(unittest.TestCase):
                         "params": {
                             "protocolVersion": "2025-03-26",
                             "capabilities": {},
-                            "clientInfo": {"name": "agent-sudo-test-client", "version": "v0.2.0-beta"},
+                            "clientInfo": {
+                                "name": "agent-sudo-test-client",
+                                "version": "v0.2.0-beta",
+                            },
                         },
                     },
                 )
-                tools = _request(process, {"jsonrpc": "2.0", "id": "tools", "method": "tools/list"})
+                tools = _request(
+                    process, {"jsonrpc": "2.0", "id": "tools", "method": "tools/list"}
+                )
                 read_result = _request(
                     process,
                     {
                         "jsonrpc": "2.0",
                         "id": "read",
                         "method": "tools/call",
-                        "params": {"name": "read_file", "arguments": {"path": str(read_path)}},
+                        "params": {
+                            "name": "read_file",
+                            "arguments": {"path": str(read_path)},
+                        },
                     },
                 )
                 blocked_shell = _request(
@@ -62,10 +75,16 @@ class MCPServerSubprocessTests(unittest.TestCase):
                         "jsonrpc": "2.0",
                         "id": "blocked-shell",
                         "method": "tools/call",
-                        "params": {"name": "run_shell_command", "arguments": {"command": "rm -rf /"}},
+                        "params": {
+                            "name": "run_shell_command",
+                            "arguments": {"command": "rm -rf /"},
+                        },
                     },
                 )
-                audit_entries = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+                audit_entries = [
+                    json.loads(line)
+                    for line in audit_path.read_text(encoding="utf-8").splitlines()
+                ]
             finally:
                 if process.stdin:
                     process.stdin.close()
@@ -80,24 +99,41 @@ class MCPServerSubprocessTests(unittest.TestCase):
                     process.stderr.close()
 
         self.assertEqual(initialize["result"]["serverInfo"]["name"], "agent-sudo-mcp")
-        self.assertEqual(initialize["result"]["serverInfo"]["version"], __version_label__)
+        self.assertEqual(
+            initialize["result"]["serverInfo"]["version"], __version_label__
+        )
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
-        self.assertEqual(tool_names, {"read_file", "write_file", "run_shell_command", "get_runtime_context"})
+        self.assertEqual(
+            tool_names,
+            {"read_file", "write_file", "run_shell_command", "get_runtime_context"},
+        )
 
         read_payload = read_result["result"]
         self.assertFalse(read_payload.get("isError", False))
         self.assertEqual(read_payload["structuredContent"]["classification"], "SAFE")
-        self.assertEqual(read_payload["structuredContent"]["approval_decision"], "ALLOW")
-        self.assertTrue(read_payload["structuredContent"]["execution_result"]["executed"])
+        self.assertEqual(
+            read_payload["structuredContent"]["approval_decision"], "ALLOW"
+        )
+        self.assertTrue(
+            read_payload["structuredContent"]["execution_result"]["executed"]
+        )
         self.assertEqual(read_payload["content"][0]["text"], "server read ok\n")
 
         blocked_payload = blocked_shell["result"]
         self.assertTrue(blocked_payload["isError"])
-        self.assertEqual(blocked_payload["structuredContent"]["classification"], "BLOCKED")
-        self.assertEqual(blocked_payload["structuredContent"]["approval_decision"], "DENY")
-        self.assertFalse(blocked_payload["structuredContent"]["execution_result"]["executed"])
+        self.assertEqual(
+            blocked_payload["structuredContent"]["classification"], "BLOCKED"
+        )
+        self.assertEqual(
+            blocked_payload["structuredContent"]["approval_decision"], "DENY"
+        )
+        self.assertFalse(
+            blocked_payload["structuredContent"]["execution_result"]["executed"]
+        )
 
-        self.assertEqual([entry["decision"] for entry in audit_entries], ["ALLOW", "DENY"])
+        self.assertEqual(
+            [entry["decision"] for entry in audit_entries], ["ALLOW", "DENY"]
+        )
         self.assertEqual(audit_entries[0]["request"]["action"], "read_file")
         self.assertEqual(audit_entries[1]["request"]["action"], "run_shell_command")
 
@@ -107,7 +143,7 @@ class MCPServerSubprocessTests(unittest.TestCase):
 
         input_data = (
             b'{"jsonrpc":"2.0","id":1,"method":"foo"}\n'
-            b'\n'
+            b"\n"
             b'{"jsonrpc":"2.0","id":2,"method":"bar"}\n'
         )
         stream = io.BytesIO(input_data)
@@ -127,16 +163,24 @@ class MCPServerSubprocessTests(unittest.TestCase):
 
         out_stream = io.BytesIO()
         write_message(out_stream, {"jsonrpc": "2.0", "id": 3, "result": "ok"})
-        self.assertEqual(out_stream.getvalue(), b'{"id":3,"jsonrpc":"2.0","result":"ok"}\n')
+        self.assertEqual(
+            out_stream.getvalue(), b'{"id":3,"jsonrpc":"2.0","result":"ok"}\n'
+        )
 
 
-def _request(process: subprocess.Popen[bytes], message: dict[str, object]) -> dict[str, object]:
+def _request(
+    process: subprocess.Popen[bytes], message: dict[str, object]
+) -> dict[str, object]:
     if process.stdin is None or process.stdout is None:
         raise AssertionError("MCP subprocess pipes were not opened")
     _write_message(process.stdin, message)
     response = _read_message(process.stdout)
     if response is None:
-        stderr = process.stderr.read().decode("utf-8", errors="replace") if process.stderr else ""
+        stderr = (
+            process.stderr.read().decode("utf-8", errors="replace")
+            if process.stderr
+            else ""
+        )
         raise AssertionError(f"MCP subprocess closed without response: {stderr}")
     return response
 

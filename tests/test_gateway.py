@@ -19,26 +19,39 @@ class GatewayTests(unittest.TestCase):
         self.policy = load_default_policy()
 
     def test_safe_action_allows(self) -> None:
-        request = ActionRequest("codex", "user", "filesystem", "read_file", "README.md", "read")
+        request = ActionRequest(
+            "codex", "user", "filesystem", "read_file", "README.md", "read"
+        )
         result = PermissionGateway(self.policy).evaluate(request)
         self.assertEqual(result.classification, Classification.SAFE)
         self.assertEqual(result.decision, Decision.ALLOW)
 
     def test_sensitive_action_requires_approval_but_dry_run_skips_prompt(self) -> None:
-        request = ActionRequest("codex", "user", "filesystem", "write_file", "README.md", "write docs")
+        request = ActionRequest(
+            "codex", "user", "filesystem", "write_file", "README.md", "write docs"
+        )
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
         self.assertEqual(result.classification, Classification.SENSITIVE)
         self.assertEqual(result.decision, Decision.REQUIRE_APPROVAL)
         self.assertEqual(result.approval_method, "dry_run")
 
     def test_shell_is_critical_by_default(self) -> None:
-        request = ActionRequest("codex", "user", "shell", "run_shell_command", "pwd", "show current directory")
+        request = ActionRequest(
+            "codex",
+            "user",
+            "shell",
+            "run_shell_command",
+            "pwd",
+            "show current directory",
+        )
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
         self.assertEqual(result.classification, Classification.CRITICAL)
         self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
 
     def test_sensitive_action_denied_without_human_approval(self) -> None:
-        request = ActionRequest("codex", "user", "filesystem", "write_file", "README.md", "write docs")
+        request = ActionRequest(
+            "codex", "user", "filesystem", "write_file", "README.md", "write docs"
+        )
         gateway = PermissionGateway(self.policy, approvals=AutoDenyApprovalProvider())
         result = gateway.evaluate(request)
         self.assertEqual(result.decision, Decision.DENY)
@@ -72,10 +85,14 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(result.decision, Decision.DENY)
 
     def test_audit_writes_jsonl(self) -> None:
-        request = ActionRequest("codex", "user", "filesystem", "read_file", "README.md", "read")
+        request = ActionRequest(
+            "codex", "user", "filesystem", "read_file", "README.md", "read"
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
-            gateway = PermissionGateway(self.policy, audit_logger=AuditLogger(audit_path))
+            gateway = PermissionGateway(
+                self.policy, audit_logger=AuditLogger(audit_path)
+            )
             gateway.evaluate(request)
             lines = audit_path.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 1)
@@ -137,7 +154,9 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("AGENT_SUDO INTERACTIVE DEMO", buffer.getvalue())
         self.assertIn("Scenario 1: Safe Tool Execution (ALLOW)", buffer.getvalue())
-        self.assertIn("Scenario 2: Unsafe / Blocked Execution (DENY)", buffer.getvalue())
+        self.assertIn(
+            "Scenario 2: Unsafe / Blocked Execution (DENY)", buffer.getvalue()
+        )
         self.assertIn("Verifying the audit log integrity", buffer.getvalue())
 
 

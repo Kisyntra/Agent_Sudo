@@ -51,7 +51,10 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": "Command line to evaluate."},
+                "command": {
+                    "type": "string",
+                    "description": "Command line to evaluate.",
+                },
             },
             "required": ["command"],
         },
@@ -103,7 +106,9 @@ class AgentSudoMCPServer:
             Decision.REQUIRE_STRONG_APPROVAL,
         }
         transcript = {
-            "status": "approval_required" if approval_required else ("executed" if execution.executed else "blocked"),
+            "status": "approval_required"
+            if approval_required
+            else ("executed" if execution.executed else "blocked"),
             "incoming_mcp_request": message,
             "normalized_action_request": execution.request.to_dict(),
             "classification": execution.gateway_result.classification.value,
@@ -124,12 +129,20 @@ class AgentSudoMCPServer:
                 "reason": execution.reason,
             },
         }
-        is_error = execution.gateway_result.decision != Decision.ALLOW or not execution.executed
+        is_error = (
+            execution.gateway_result.decision != Decision.ALLOW
+            or not execution.executed
+        )
         return {
             "content": [
                 {
                     "type": "text",
-                    "text": _tool_text(execution.executed, execution.stdout, execution.stderr, execution.reason),
+                    "text": _tool_text(
+                        execution.executed,
+                        execution.stdout,
+                        execution.stderr,
+                        execution.reason,
+                    ),
                 }
             ],
             "structuredContent": transcript,
@@ -207,15 +220,33 @@ def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=SERVER_NAME)
-    parser.add_argument("--version", action="version", version=f"{SERVER_NAME} {__version_label__}")
+    parser.add_argument(
+        "--version", action="version", version=f"{SERVER_NAME} {__version_label__}"
+    )
     parser.add_argument("--policy", type=Path, help="Path to policy YAML")
-    parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/mcp-audit.jsonl"))
+    parser.add_argument(
+        "--audit-log", type=Path, default=Path(".agent-sudo/mcp-audit.jsonl")
+    )
     parser.add_argument("--delegations-file", type=Path)
-    parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
-    parser.add_argument("--approval-ttl-seconds", type=int, help="Pending approval TTL, clamped to 30-600 seconds")
+    parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
+    parser.add_argument(
+        "--approval-ttl-seconds",
+        type=int,
+        help="Pending approval TTL, clamped to 30-600 seconds",
+    )
     parser.add_argument("--workspace", help="Path to configured workspace root")
-    parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
-    parser.add_argument("--open-approval-terminal", action="store_true", help="Automatically open Terminal.app for pending approvals")
+    parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Enable desktop notifications for pending approvals",
+    )
+    parser.add_argument(
+        "--open-approval-terminal",
+        action="store_true",
+        help="Automatically open Terminal.app for pending approvals",
+    )
     return parser
 
 
@@ -239,7 +270,11 @@ def _response(request_id: object, result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _error(request_id: object, code: int, message: str) -> dict[str, Any]:
-    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "error": {"code": code, "message": message},
+    }
 
 
 def _tool_text(executed: bool, stdout: str, stderr: str, reason: str) -> str:

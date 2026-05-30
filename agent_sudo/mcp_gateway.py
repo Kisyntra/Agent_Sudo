@@ -28,7 +28,9 @@ class MCPGateway:
         self.write_root = write_root
         self.workspace = workspace
 
-    def dispatch(self, tool_call: dict[str, Any], *, dry_run: bool = False) -> ExecutionResult:
+    def dispatch(
+        self, tool_call: dict[str, Any], *, dry_run: bool = False
+    ) -> ExecutionResult:
         request = from_mcp_tool_call(tool_call)
         gateway_result = self.gateway.evaluate(request, dry_run=dry_run)
         if dry_run:
@@ -71,8 +73,11 @@ class MCPGateway:
             reason=f"demo MCP gateway does not implement action {request.action!r}",
         )
 
-    def _get_runtime_context(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
+    def _get_runtime_context(
+        self, request: ActionRequest, gateway_result: GatewayResult
+    ) -> ExecutionResult:
         from agent_sudo.context import detect_runtime_context
+
         try:
             ctx = detect_runtime_context(workspace=self.workspace)
             stdout_content = json.dumps(ctx.to_dict(), sort_keys=True)
@@ -94,12 +99,23 @@ class MCPGateway:
                 reason=f"failed to get runtime context: {exc}",
             )
 
-    def _read_file(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
+    def _read_file(
+        self, request: ActionRequest, gateway_result: GatewayResult
+    ) -> ExecutionResult:
         try:
             content = Path(request.target).expanduser().read_text(encoding="utf-8")
         except OSError as exc:
-            return ExecutionResult(request, gateway_result, False, None, stderr=str(exc), reason="read failed")
-        return ExecutionResult(request, gateway_result, True, 0, stdout=content, reason="executed")
+            return ExecutionResult(
+                request,
+                gateway_result,
+                False,
+                None,
+                stderr=str(exc),
+                reason="read failed",
+            )
+        return ExecutionResult(
+            request, gateway_result, True, 0, stdout=content, reason="executed"
+        )
 
     def _write_file(
         self,
@@ -112,8 +128,18 @@ class MCPGateway:
             resolved_root = self.write_root.resolve()
             resolved_target = target.resolve()
         except OSError as exc:
-            return ExecutionResult(request, gateway_result, False, None, stderr=str(exc), reason="invalid path")
-        if resolved_target != resolved_root and resolved_root not in resolved_target.parents:
+            return ExecutionResult(
+                request,
+                gateway_result,
+                False,
+                None,
+                stderr=str(exc),
+                reason="invalid path",
+            )
+        if (
+            resolved_target != resolved_root
+            and resolved_root not in resolved_target.parents
+        ):
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
@@ -126,14 +152,37 @@ class MCPGateway:
             resolved_target.parent.mkdir(parents=True, exist_ok=True)
             resolved_target.write_text(content, encoding="utf-8")
         except OSError as exc:
-            return ExecutionResult(request, gateway_result, False, None, stderr=str(exc), reason="write failed")
-        return ExecutionResult(request, gateway_result, True, 0, stdout=str(resolved_target), reason="executed")
+            return ExecutionResult(
+                request,
+                gateway_result,
+                False,
+                None,
+                stderr=str(exc),
+                reason="write failed",
+            )
+        return ExecutionResult(
+            request,
+            gateway_result,
+            True,
+            0,
+            stdout=str(resolved_target),
+            reason="executed",
+        )
 
-    def _run_shell_command(self, request: ActionRequest, gateway_result: GatewayResult) -> ExecutionResult:
+    def _run_shell_command(
+        self, request: ActionRequest, gateway_result: GatewayResult
+    ) -> ExecutionResult:
         try:
             argv = shlex.split(request.target)
         except ValueError as exc:
-            return ExecutionResult(request, gateway_result, False, None, stderr=str(exc), reason="invalid shell syntax")
+            return ExecutionResult(
+                request,
+                gateway_result,
+                False,
+                None,
+                stderr=str(exc),
+                reason="invalid shell syntax",
+            )
         if not _demo_shell_allowed(argv):
             return ExecutionResult(
                 request=request,
@@ -165,7 +214,12 @@ def dispatch_mcp_tool_call(
 
 
 def _content_from_tool_call(tool_call: dict[str, Any]) -> str:
-    params = tool_call.get("parameters") or tool_call.get("params") or tool_call.get("arguments") or tool_call
+    params = (
+        tool_call.get("parameters")
+        or tool_call.get("params")
+        or tool_call.get("arguments")
+        or tool_call
+    )
     if not isinstance(params, dict):
         return ""
     value = params.get("content")

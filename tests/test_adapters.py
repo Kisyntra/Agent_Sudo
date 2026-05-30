@@ -40,7 +40,9 @@ class RecordingExecutor:
         gateway_result: GatewayResult,
     ) -> ExecutionResult:
         self.calls.append(request)
-        return ExecutionResult(request, gateway_result, True, 0, stdout="ok", reason="executed")
+        return ExecutionResult(
+            request, gateway_result, True, 0, stdout="ok", reason="executed"
+        )
 
 
 class AdapterTests(unittest.TestCase):
@@ -75,7 +77,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(request.target, "agent_sudo/gateway.py")
 
     def test_unknown_tool_requires_approval(self) -> None:
-        request = from_codex_tool_call({"recipient_name": "mystery.tool", "parameters": {"target": "unknown"}})
+        request = from_codex_tool_call(
+            {"recipient_name": "mystery.tool", "parameters": {"target": "unknown"}}
+        )
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
         self.assertEqual(request.action, "unknown_tool_call")

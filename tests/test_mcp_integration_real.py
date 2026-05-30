@@ -7,8 +7,12 @@ from pathlib import Path
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.audit import AuditLogger
 from agent_sudo.gateway import PermissionGateway
-from agent_sudo.mcp_validation import discover_hermes_mcp, jsonrpc_tool_call, run_jsonrpc_case
-from agent_sudo.models import ActionRequest, ApprovalResult, Decision
+from agent_sudo.mcp_validation import (
+    discover_hermes_mcp,
+    jsonrpc_tool_call,
+    run_jsonrpc_case,
+)
+from agent_sudo.models import ActionRequest, ApprovalResult
 from agent_sudo.policy import load_default_policy
 
 
@@ -48,7 +52,9 @@ class RealMCPIntegrationValidationTests(unittest.TestCase):
         self.assertEqual(transcript["execution_result"]["stdout"], "read ok\n")
         self.assertEqual(transcript["audit_entry"]["decision"], "ALLOW")
 
-    def test_case_b_write_file_requires_approval_and_succeeds_when_approved(self) -> None:
+    def test_case_b_write_file_requires_approval_and_succeeds_when_approved(
+        self,
+    ) -> None:
         target = Path("/tmp/agent-sudo-demo/test.txt")
         if target.exists():
             target.unlink()
@@ -60,7 +66,11 @@ class RealMCPIntegrationValidationTests(unittest.TestCase):
                 audit_logger=AuditLogger(audit_path),
             )
             transcript = run_jsonrpc_case(
-                jsonrpc_tool_call("case-b", "write_file", {"path": str(target), "content": "write ok\n"}),
+                jsonrpc_tool_call(
+                    "case-b",
+                    "write_file",
+                    {"path": str(target), "content": "write ok\n"},
+                ),
                 policy=self.policy,
                 audit_path=audit_path,
                 gateway=gateway,
@@ -77,7 +87,11 @@ class RealMCPIntegrationValidationTests(unittest.TestCase):
     def test_case_c_write_file_to_ssh_config_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             transcript = run_jsonrpc_case(
-                jsonrpc_tool_call("case-c", "write_file", {"path": "~/.ssh/config", "content": "blocked\n"}),
+                jsonrpc_tool_call(
+                    "case-c",
+                    "write_file",
+                    {"path": "~/.ssh/config", "content": "blocked\n"},
+                ),
                 policy=self.policy,
                 audit_path=Path(tmpdir) / "audit.jsonl",
             )
@@ -113,7 +127,9 @@ class RealMCPIntegrationValidationTests(unittest.TestCase):
                 audit_logger=AuditLogger(Path(tmpdir) / "audit.jsonl"),
             )
             transcript = run_jsonrpc_case(
-                jsonrpc_tool_call("case-e", "run_shell_command", {"command": "rm -rf /"}),
+                jsonrpc_tool_call(
+                    "case-e", "run_shell_command", {"command": "rm -rf /"}
+                ),
                 policy=self.policy,
                 audit_path=Path(tmpdir) / "audit.jsonl",
                 gateway=gateway,

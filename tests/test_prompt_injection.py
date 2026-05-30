@@ -12,7 +12,9 @@ class PromptInjectionDefenseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load_default_policy()
 
-    def test_external_webpage_asking_agent_to_ignore_instructions_is_blocked(self) -> None:
+    def test_external_webpage_asking_agent_to_ignore_instructions_is_blocked(
+        self,
+    ) -> None:
         request = ActionRequest(
             actor="codex",
             source="webpage",
@@ -39,21 +41,27 @@ class PromptInjectionDefenseTests(unittest.TestCase):
         self.assertEqual(result.decision, Decision.DENY)
 
     def test_user_direct_read_action_still_allowed(self) -> None:
-        request = AgentActionRequest.file_read("README.md", source_trust=TrustLevel.USER_DIRECT)
+        request = AgentActionRequest.file_read(
+            "README.md", source_trust=TrustLevel.USER_DIRECT
+        )
 
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
         self.assertEqual(result.decision, Decision.ALLOW)
 
     def test_unknown_trust_sensitive_action_requires_approval(self) -> None:
-        request = AgentActionRequest.file_edit("README.md", source="unknown", source_trust=TrustLevel.UNKNOWN)
+        request = AgentActionRequest.file_edit(
+            "README.md", source="unknown", source_trust=TrustLevel.UNKNOWN
+        )
 
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 
         self.assertEqual(result.decision, Decision.REQUIRE_APPROVAL)
 
     def test_unknown_trust_safe_action_requires_approval(self) -> None:
-        request = AgentActionRequest.file_read("README.md", source="unknown", source_trust=TrustLevel.UNKNOWN)
+        request = AgentActionRequest.file_read(
+            "README.md", source="unknown", source_trust=TrustLevel.UNKNOWN
+        )
 
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
 

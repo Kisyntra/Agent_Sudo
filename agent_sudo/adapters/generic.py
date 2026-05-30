@@ -11,9 +11,13 @@ def from_generic_tool_call(tool_call: dict[str, Any]) -> ActionRequest:
     return normalize_tool_call(tool_call, default_actor="generic-agent")
 
 
-def execute_generic_tool_call(tool_call: dict[str, Any], executor: SafeToolExecutor) -> ExecutionResult:
+def execute_generic_tool_call(
+    tool_call: dict[str, Any], executor: SafeToolExecutor
+) -> ExecutionResult:
     return executor.execute(from_generic_tool_call(tool_call))
 
 
-def dry_run_generic_tool_call(tool_call: dict[str, Any], executor: SafeToolExecutor) -> ExecutionResult:
+def dry_run_generic_tool_call(
+    tool_call: dict[str, Any], executor: SafeToolExecutor
+) -> ExecutionResult:
     return executor.dry_run(from_generic_tool_call(tool_call))

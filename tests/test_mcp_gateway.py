@@ -127,7 +127,9 @@ class MCPGatewayTests(unittest.TestCase):
         )
 
         self.assertFalse(result.executed)
-        self.assertEqual(result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
 
 
 if __name__ == "__main__":

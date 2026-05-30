@@ -15,7 +15,6 @@ from agent_sudo.audit import AuditLogger
 
 
 class SpecHelpersTests(unittest.TestCase):
-
     def test_canonical_json_sorting(self) -> None:
         # Key sorting should be alphabetical at all levels of nesting
         record = {
@@ -27,7 +26,7 @@ class SpecHelpersTests(unittest.TestCase):
             "c": [
                 {"x": 4, "d": 5},
                 6,
-            ]
+            ],
         }
         res_bytes = canonicalize_record(record)
         res_str = res_bytes.decode("utf-8")
@@ -60,8 +59,15 @@ class SpecHelpersTests(unittest.TestCase):
 
         # Calculate manually to verify exact match
         import hashlib
-        clean = {"timestamp": "2026-05-28T06:00:00Z", "event_type": "test_event", "previous_hash": previous_hash}
-        canonical_bytes = json.dumps(clean, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+        clean = {
+            "timestamp": "2026-05-28T06:00:00Z",
+            "event_type": "test_event",
+            "previous_hash": previous_hash,
+        }
+        canonical_bytes = json.dumps(
+            clean, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
         concatenated = previous_hash.encode("utf-8") + canonical_bytes
         expected = hashlib.sha256(concatenated).hexdigest()
         self.assertEqual(entry_hash, expected)
@@ -204,21 +210,31 @@ class SpecHelpersTests(unittest.TestCase):
         # Verify that the reference_log.jsonl file under docs/interop/ verifies successfully
         proj_root = Path(__file__).parent.parent
         log_path = proj_root / "docs" / "interop" / "reference_log.jsonl"
-        self.assertTrue(log_path.exists(), f"reference_log.jsonl not found at {log_path}")
+        self.assertTrue(
+            log_path.exists(), f"reference_log.jsonl not found at {log_path}"
+        )
 
         result = verify_jsonl_file(log_path)
-        self.assertTrue(result.success, f"reference_log.jsonl verification failed: {result.reason}")
+        self.assertTrue(
+            result.success, f"reference_log.jsonl verification failed: {result.reason}"
+        )
 
         # Verify reference_record.json contents and hash
         record_path = proj_root / "docs" / "interop" / "reference_record.json"
-        self.assertTrue(record_path.exists(), f"reference_record.json not found at {record_path}")
+        self.assertTrue(
+            record_path.exists(), f"reference_record.json not found at {record_path}"
+        )
         with record_path.open("r", encoding="utf-8") as f:
             record = json.load(f)
-        
+
         # Strip entry_hash to calculate it canonically
-        expected_entry_hash = "788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171"
+        expected_entry_hash = (
+            "788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171"
+        )
         self.assertEqual(record.get("entry_hash"), expected_entry_hash)
-        computed_hash = compute_entry_hash(record.get("previous_hash", "0" * 64), record)
+        computed_hash = compute_entry_hash(
+            record.get("previous_hash", "0" * 64), record
+        )
         self.assertEqual(computed_hash, expected_entry_hash)
 
 

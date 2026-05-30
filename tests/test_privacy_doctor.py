@@ -4,8 +4,6 @@ import io
 import json
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,7 +31,9 @@ class PrivacyDoctorTests(unittest.TestCase):
         self.sensitive_user = "leovenky"
         self.sensitive_path = f"/Users/{self.sensitive_user}/.agent-sudo/config.json"
 
-    def test_passphrase_reset_audit_event_does_not_contain_raw_absolute_home_path(self) -> None:
+    def test_passphrase_reset_audit_event_does_not_contain_raw_absolute_home_path(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
             config_path = tmp_path / "config.json"
@@ -63,7 +63,9 @@ class PrivacyDoctorTests(unittest.TestCase):
             self.assertEqual(last_entry["event_type"], "passphrase_reset")
             # Should have redacted path
             self.assertIn("config_path_redacted", last_entry)
-            self.assertEqual(last_entry["config_path_redacted"], "~/.agent-sudo/config.json")
+            self.assertEqual(
+                last_entry["config_path_redacted"], "~/.agent-sudo/config.json"
+            )
             # Should NOT contain raw absolute path or any mention of tmpdir
             self.assertNotIn("config_path", last_entry)
             self.assertNotIn(tmpdir, json.dumps(last_entry))
@@ -71,12 +73,14 @@ class PrivacyDoctorTests(unittest.TestCase):
     def test_personal_data_scan_ignores_agent_sudo_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
-            
+
             # Create a .agent-sudo/audit.jsonl with personal data
             agent_sudo_dir = tmp_path / ".agent-sudo"
             agent_sudo_dir.mkdir()
             audit_file = agent_sudo_dir / "audit.jsonl"
-            audit_content = json.dumps({"event_type": "passphrase_reset", "config_path": self.sensitive_path})
+            audit_content = json.dumps(
+                {"event_type": "passphrase_reset", "config_path": self.sensitive_path}
+            )
             audit_file.write_text(audit_content, encoding="utf-8")
 
             # Create an untracked build dir and dist dir
@@ -108,7 +112,7 @@ class PrivacyDoctorTests(unittest.TestCase):
     def test_doctor_does_not_fail_due_to_agent_sudo_audit_logs(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
-            
+
             # Write a script mock in tmpdir to satisfy doctor requirements
             script_dir = tmp_path / "scripts"
             script_dir.mkdir()
@@ -119,12 +123,16 @@ class PrivacyDoctorTests(unittest.TestCase):
             agent_sudo_dir = tmp_path / ".agent-sudo"
             agent_sudo_dir.mkdir()
             audit_file = agent_sudo_dir / "audit.jsonl"
-            audit_content = json.dumps({"event_type": "passphrase_reset", "config_path": self.sensitive_path})
+            audit_content = json.dumps(
+                {"event_type": "passphrase_reset", "config_path": self.sensitive_path}
+            )
             audit_file.write_text(audit_content, encoding="utf-8")
 
             # Run doctor
             checks = run_doctor(repo_root=tmp_path)
-            personal_check = [c for c in checks if c.name == "no personal data in repo"][0]
+            personal_check = [
+                c for c in checks if c.name == "no personal data in repo"
+            ][0]
             self.assertTrue(personal_check.ok)
 
     @mock.patch("agent_sudo.upgrade.get_git_root")
@@ -145,7 +153,9 @@ class PrivacyDoctorTests(unittest.TestCase):
             agent_sudo_dir = tmp_path / ".agent-sudo"
             agent_sudo_dir.mkdir()
             audit_file = agent_sudo_dir / "audit.jsonl"
-            audit_content = json.dumps({"event_type": "passphrase_reset", "config_path": self.sensitive_path})
+            audit_content = json.dumps(
+                {"event_type": "passphrase_reset", "config_path": self.sensitive_path}
+            )
             audit_file.write_text(audit_content, encoding="utf-8")
 
             # Setup subprocess mock
@@ -158,7 +168,9 @@ class PrivacyDoctorTests(unittest.TestCase):
                 if command[:2] == ["git", "fetch"]:
                     return mock.MagicMock(returncode=0, stdout="", stderr="")
                 if command == ["git", "tag"]:
-                    return mock.MagicMock(returncode=0, stdout="v0.4.0-rc12\n", stderr="")
+                    return mock.MagicMock(
+                        returncode=0, stdout="v0.4.0-rc12\n", stderr=""
+                    )
                 if command[:3] == ["git", "status", "--porcelain"]:
                     return mock.MagicMock(returncode=0, stdout="", stderr="")
                 if command[:2] == ["git", "pull"]:
@@ -172,5 +184,5 @@ class PrivacyDoctorTests(unittest.TestCase):
             # Run upgrade
             with mock.patch("sys.stdout", new_callable=io.StringIO):
                 code = handle_upgrade()
-            
+
             self.assertEqual(code, 0)

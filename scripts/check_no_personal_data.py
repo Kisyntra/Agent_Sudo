@@ -42,7 +42,9 @@ def compile_patterns() -> list[tuple[str, re.Pattern[str]]]:
         patterns.append(("sensitive marker", re.compile(marker, re.IGNORECASE)))
 
     for marker in load_extra_markers():
-        patterns.append(("private marker", re.compile(re.escape(marker), re.IGNORECASE)))
+        patterns.append(
+            ("private marker", re.compile(re.escape(marker), re.IGNORECASE))
+        )
 
     return patterns
 

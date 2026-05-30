@@ -30,7 +30,9 @@ class RecordingExecutor:
         gateway_result: GatewayResult,
     ) -> ExecutionResult:
         self.calls.append(request)
-        return ExecutionResult(request, gateway_result, True, 0, stdout="ok", reason="executed")
+        return ExecutionResult(
+            request, gateway_result, True, 0, stdout="ok", reason="executed"
+        )
 
 
 class ApprovalHardeningTests(unittest.TestCase):
@@ -39,7 +41,9 @@ class ApprovalHardeningTests(unittest.TestCase):
 
     def _config_path(self, tmpdir: str, passphrase: str = "test-passphrase") -> Path:
         path = Path(tmpdir) / "config.json"
-        path.write_text(json.dumps(hash_passphrase(passphrase, salt=b"0" * 16)), encoding="utf-8")
+        path.write_text(
+            json.dumps(hash_passphrase(passphrase, salt=b"0" * 16)), encoding="utf-8"
+        )
         return path
 
     def test_critical_approval_lockout_after_failed_attempts(self) -> None:
@@ -55,10 +59,18 @@ class ApprovalHardeningTests(unittest.TestCase):
             )
             gateway = PermissionGateway(self.policy, approvals=provider)
 
-            first = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
-            second = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
-            third = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
-            locked = gateway.evaluate(AgentActionRequest.send_email("recipient@example.invalid"))
+            first = gateway.evaluate(
+                AgentActionRequest.send_email("recipient@example.invalid")
+            )
+            second = gateway.evaluate(
+                AgentActionRequest.send_email("recipient@example.invalid")
+            )
+            third = gateway.evaluate(
+                AgentActionRequest.send_email("recipient@example.invalid")
+            )
+            locked = gateway.evaluate(
+                AgentActionRequest.send_email("recipient@example.invalid")
+            )
 
         self.assertEqual(first.decision, Decision.DENY)
         self.assertEqual(second.decision, Decision.DENY)
@@ -73,10 +85,14 @@ class ApprovalHardeningTests(unittest.TestCase):
         inner = RecordingExecutor()
         executor = SafeToolExecutor(gateway, inner)
 
-        result = executor.execute(AgentActionRequest.send_email("recipient@example.invalid"))
+        result = executor.execute(
+            AgentActionRequest.send_email("recipient@example.invalid")
+        )
 
         self.assertFalse(result.executed)
-        self.assertEqual(result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
         self.assertEqual(result.gateway_result.approval_method, "PASSPHRASE_CONFIRM")
         self.assertTrue(result.gateway_result.approval_attempts[0]["pending"])
         self.assertEqual(len(inner.calls), 0)
@@ -110,8 +126,12 @@ class ApprovalHardeningTests(unittest.TestCase):
         self.assertEqual(result.approval_method, "PASSPHRASE_CONFIRM")
 
     def test_sensitive_action_can_use_cli_confirm(self) -> None:
-        provider = ApprovalProvider(input_func=lambda prompt: "yes", stdin_is_tty=lambda: True)
-        result = PermissionGateway(self.policy, approvals=provider).evaluate(AgentActionRequest.file_edit("README.md"))
+        provider = ApprovalProvider(
+            input_func=lambda prompt: "yes", stdin_is_tty=lambda: True
+        )
+        result = PermissionGateway(self.policy, approvals=provider).evaluate(
+            AgentActionRequest.file_edit("README.md")
+        )
 
         self.assertEqual(result.decision, Decision.ALLOW)
         self.assertEqual(result.approval_method, "CLI_CONFIRM")
@@ -142,7 +162,9 @@ class ApprovalHardeningTests(unittest.TestCase):
     def test_approval_attempts_appear_in_audit_log(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
-            provider = ApprovalProvider(input_func=lambda prompt: "yes", stdin_is_tty=lambda: True)
+            provider = ApprovalProvider(
+                input_func=lambda prompt: "yes", stdin_is_tty=lambda: True
+            )
             gateway = PermissionGateway(
                 self.policy,
                 approvals=provider,
