@@ -34,7 +34,7 @@ def get_init_version() -> tuple[str, str]:
         print("Error: agent_sudo/__init__.py not found.", file=sys.stderr)
         sys.exit(1)
     content = init_path.read_text(encoding="utf-8")
-    
+
     version = ""
     version_label = ""
     for line in content.splitlines():
@@ -42,28 +42,28 @@ def get_init_version() -> tuple[str, str]:
             version = line.split("=")[1].strip().strip('"').strip("'")
         elif line.startswith("__version_label__ ="):
             version_label = line.split("=")[1].strip().strip('"').strip("'")
-            
+
     return version, version_label
 
 
 def validate_versions(expected_version: str | None = None) -> str:
     pyproject_ver = get_pyproject_version()
     init_ver, init_label = get_init_version()
-    
+
     print(f"Checking version consistency:")
     print(f"  pyproject.toml version: {pyproject_ver}")
     print(f"  agent_sudo/__init__.py __version__: {init_ver}")
     print(f"  agent_sudo/__init__.py __version_label__: {init_label}")
-    
+
     if pyproject_ver != init_ver:
         print("Error: Version in pyproject.toml and agent_sudo/__init__.py mismatch!", file=sys.stderr)
         sys.exit(1)
-        
+
     expected_label = f"v{init_ver}"
     if init_label != expected_label:
         print(f"Error: __version_label__ ({init_label}) must match 'v{init_ver}'!", file=sys.stderr)
         sys.exit(1)
-        
+
     # Check against CLI expected version if passed
     if expected_version:
         clean_expected = expected_version.lstrip("v")
@@ -75,7 +75,7 @@ def validate_versions(expected_version: str | None = None) -> str:
     # Verify tag matches if running in CI tag push trigger
     github_ref = os.environ.get("GITHUB_REF", "")
     github_ref_name = os.environ.get("GITHUB_REF_NAME", "")
-    
+
     if github_ref.startswith("refs/tags/"):
         tag = github_ref_name
         expected_tag = f"v{init_ver}"
@@ -83,7 +83,7 @@ def validate_versions(expected_version: str | None = None) -> str:
         if tag != expected_tag:
             print(f"Error: Git tag ({tag}) does not match expected release tag ({expected_tag})!", file=sys.stderr)
             sys.exit(1)
-            
+
     return init_ver
 
 
@@ -92,17 +92,17 @@ def audit_readme() -> None:
     if not readme_path.exists():
         print("Error: README.md not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     content = readme_path.read_text(encoding="utf-8")
     print("Auditing README.md installation commands...")
-    
+
     # Search for legacy install references in commands
     # e.g., 'pip install agent-sudo', 'pipx install agent-sudo'
     bad_install_patterns = [
         r"pip\s+install\s+agent-sudo(?!\-mcp)",
         r"pipx\s+install\s+agent-sudo(?!\-mcp)",
     ]
-    
+
     for pattern in bad_install_patterns:
         matches = list(re.finditer(pattern, content))
         if matches:
@@ -112,7 +112,7 @@ def audit_readme() -> None:
                 snippet = content[start:end].replace("\n", " ")
                 print(f"Error: Found legacy install command reference in README.md: '{snippet}'", file=sys.stderr)
             sys.exit(1)
-            
+
     print("README.md check passed.")
 
 
@@ -121,13 +121,13 @@ def verify_interop_assets() -> None:
     if not interop_path.exists():
         print(f"Error: Interop reference log not found at {interop_path}", file=sys.stderr)
         sys.exit(1)
-        
+
     print(f"Verifying cryptographic hash chain of {interop_path}...")
     res = verify_jsonl_file(interop_path)
     if not res.success:
         print(f"Error: Interoperability reference validation failed: {res}", file=sys.stderr)
         sys.exit(1)
-        
+
     print("Interop reference log verification passed.")
 
 

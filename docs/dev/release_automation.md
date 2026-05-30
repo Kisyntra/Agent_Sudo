@@ -1,7 +1,7 @@
 # Release Automation Guide (Phase 1 — Dry-Run Only)
 
 > [!IMPORTANT]
-> This guide describes **Phase 1 Dry-Run Release Automation**. 
+> This guide describes **Phase 1 Dry-Run Release Automation**.
 > * PyPI Trusted Publishing/OIDC setup is designated as **future work**.
 > * The final publishing steps (both PyPI upload and GitHub Release creation) remain strictly **manual** and are commented out in our workflows until explicitly approved for deployment.
 

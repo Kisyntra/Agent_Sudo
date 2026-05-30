@@ -88,10 +88,10 @@ jobs:
 
           # 1. Check version output
           agent-sudo --version
-          
+
           # 2. Run doctor diagnostics
           agent-sudo doctor
-          
+
           # 3. Execute built-in demo
           agent-sudo demo
 
@@ -140,7 +140,7 @@ jobs:
           echo "=========================================================="
 
       # Actual publish steps are commented out below for review.
-      # To enable after review, configure trusted publishing on PyPI, 
+      # To enable after review, configure trusted publishing on PyPI,
       # verify OIDC permissions, and uncomment the steps below.
       #
       # - name: Publish to PyPI
