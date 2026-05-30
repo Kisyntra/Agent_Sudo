@@ -34,6 +34,13 @@ This dashboard tracks active ecosystem integrations, community implementations, 
 *   **Last Activity**: May 2026 (Opened issue #5730; learned repository bot filters).
 *   **Link**: [Outreach Playbook](outreach_playbook.md) • [PydanticAI Issue #5730](https://github.com/pydantic/pydantic-ai/issues/5730)
 
+### 5. LangGraph (Official Example Integration)
+*   **Current Status**: ✅ **Published Example**
+*   **Next Milestone**: Monitor user adoption and community feedback on state interrupt patterns.
+*   **Owner**: Sri Ram Prakhya
+*   **Last Activity**: May 2026 (Published complete integration example and walkthrough docs).
+*   **Link**: [LangGraph Integration Guide](../examples/langgraph.md) • [examples/langgraph_integration.py](../../examples/langgraph_integration.py)
+
 ---
 
 ## Registry Listings & Submissions

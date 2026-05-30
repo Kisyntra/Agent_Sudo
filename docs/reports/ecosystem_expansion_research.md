@@ -1,6 +1,6 @@
 # Ecosystem Expansion Research Report
 
-This report evaluates and ranks potential adoption targets for `Agent_Sudo` across AI agent frameworks, runtime sandboxes, and developer tooling. 
+This report evaluates and ranks potential adoption targets for `Agent_Sudo` across AI agent frameworks, runtime sandboxes, and developer tooling.
 
 ---
 
@@ -17,7 +17,7 @@ Each candidate project is scored (1–10) across three dimensions:
 
 | Rank | Project Name | Repository | Stars | Category | Strategic Fit | Technical Fit | Outreach Readiness | Recommendation |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
-| **1** | **LangGraph** | `langchain-ai/langgraph` | ~33.4k | Stateful Agent Orchestration | 10 | 9 | 8 | **Build Example** |
+| **1** | **LangGraph** | `langchain-ai/langgraph` | ~33.4k | Stateful Agent Orchestration | 10 | 9 | 8 | ✅ **Build Example (Completed)** |
 | **2** | **E2B** | `e2b-dev/E2B` | ~12.4k | Isolated Sandbox Runtime | 9 | 10 | 8 | **Build Example** |
 | **3** | **Cline** | `cline/cline` | ~62.5k | VS Code Coding Assistant | 10 | 8 | 7 | **Research** |
 | **4** | **OpenHands** | `All-Hands-AI/OpenHands` | ~75.4k | Autonomous Coding Agent | 9 | 8 | 6 | **Research** |

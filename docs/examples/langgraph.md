@@ -45,8 +45,8 @@ policy = Policy(
     blocked_actions={"_exfiltrate_data"},
 )
 gateway = PermissionGateway(
-    policy=policy, 
-    audit_logger=audit_logger, 
+    policy=policy,
+    audit_logger=audit_logger,
     pending_approval_store=pending_store
 )
 
