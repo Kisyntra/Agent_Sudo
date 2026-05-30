@@ -126,6 +126,16 @@ Verify how `Agent_Sudo` classifies tool risk and makes gateway decisions using o
 agent-sudo demo
 ```
 
+### Flagship Demo: Stop Prompt-Injection Exfiltration
+
+See provenance-based blocking in ~60 seconds. An agent reads a poisoned web page that tells it to exfiltrate your `.env`; Agent_Sudo **denies** it (untrusted origin) while **allowing** the user's own work — and writes a tamper-evident audit log.
+
+```bash
+cd examples/exfil_demo && python demo.py
+```
+
+Walkthrough and expected output: [`examples/exfil_demo/`](examples/exfil_demo/).
+
 ---
 
 ## 5-Minute Quickstart
