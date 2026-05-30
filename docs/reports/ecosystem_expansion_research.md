@@ -76,3 +76,5 @@ Each candidate project is scored (1–10) across three dimensions:
     Create a LangGraph custom tool wrapper or state node listener that integrates Agent_Sudo to enforce pre-tool approvals without disrupting state memory.
 3.  **Track MCP Observability (Langfuse / FastMCP):**
     Research integrating Agent_Sudo's cryptographically verified audit trail format with observability frameworks like Langfuse, positioning Agent_Sudo as the security compliance recorder.
+4.  **Track Memory Governance for Stateful Agents (v0.5.0 Candidate):**
+    Research policy controls and redaction schemas (`REDACT` decision support) on agent memory channels (e.g. Mem0 vector queries, LangGraph state variables) to prevent persistent memory poisoning and exfiltration.
