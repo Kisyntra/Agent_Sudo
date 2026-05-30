@@ -141,7 +141,9 @@ def evaluate_all(gateway: PermissionGateway) -> list[tuple[dict, object]]:
 
 
 def main(audit_path: Path = DEFAULT_AUDIT_PATH) -> None:
-    print(f"\n{_BOLD}=== Agent_Sudo: provenance-based exfiltration prevention ==={_RESET}\n")
+    print(
+        f"\n{_BOLD}=== Agent_Sudo: provenance-based exfiltration prevention ==={_RESET}\n"
+    )
     # The agent "fetches" the poisoned page before acting on scenarios 2 and 3.
     _ = POISONED_PAGE.read_text(encoding="utf-8")
 
@@ -155,7 +157,9 @@ def main(audit_path: Path = DEFAULT_AUDIT_PATH) -> None:
         print(f"    {_DIM}action {_RESET} {req.tool}:{req.action} -> {req.target}")
         print(f"    {color}{_BOLD}{name}{_RESET}  - {result.reason}\n")
 
-    print(f"  {_DIM}Audit log written to {audit_path.name}. Prove it is untampered:{_RESET}")
+    print(
+        f"  {_DIM}Audit log written to {audit_path.name}. Prove it is untampered:{_RESET}"
+    )
     print(f"    {_BOLD}agent-sudo verify-audit {audit_path}{_RESET}\n")
 
 

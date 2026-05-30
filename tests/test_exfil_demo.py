@@ -61,7 +61,9 @@ class ExfilDemoSmokeTest(unittest.TestCase):
         # Same tool/action/target; only the origin differs -> different verdict.
         r1 = next(s["request"] for s, _ in self.results if s["key"] == "user_read")
         r3 = next(s["request"] for s, _ in self.results if s["key"] == "external_read")
-        self.assertEqual((r1.tool, r1.action, r1.target), (r3.tool, r3.action, r3.target))
+        self.assertEqual(
+            (r1.tool, r1.action, r1.target), (r3.tool, r3.action, r3.target)
+        )
         self.assertNotEqual(
             r1.provenance.origin_type,
             r3.provenance.origin_type,
@@ -72,7 +74,11 @@ class ExfilDemoSmokeTest(unittest.TestCase):
         )
 
     def test_audit_log_has_three_entries_and_verifies(self) -> None:
-        lines = [ln for ln in self.audit_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        lines = [
+            ln
+            for ln in self.audit_path.read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
         self.assertEqual(len(lines), 3)
         ok, message = verify_audit_log(self.audit_path)
         self.assertTrue(ok, msg=message)
