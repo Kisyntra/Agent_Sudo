@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.4.0
+
+First stable public release of the `agent-sudo` local permission gateway for AI agent tool execution.
+
+- Consolidates release candidate iterations (rc1 through rc14) into the first stable production-ready release.
+- Features robust security boundaries, including:
+  - Deep-scanning of shell command arguments to block path traversal, nested subshells, symlinks, and utility bypasses targeting protected configurations.
+  - PBKDF2-HMAC-SHA256 passphrase-based confirmation gating for sensitive and critical actions.
+  - Tamper-resistant, cryptographically secured SHA-256 hash-chained JSONL audit logs.
+  - Scoped, TTL-limited, and use-quota restricted temporary delegation tokens.
+- Introduces native macOS user notifications and apple-script based auto-opening Terminal approval-helper utilities.
+- Implements standard stdio Model Context Protocol (MCP) server integration (`agent-sudo-mcp`) out of the box with Claude Desktop and Cursor.
+- Includes a complete python packaging structure with zero external runtime dependencies.
+
 ## v0.4.0-rc14
 
 Release candidate addressing critical shell command policy bypass vulnerabilities.

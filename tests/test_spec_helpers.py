@@ -216,7 +216,7 @@ class SpecHelpersTests(unittest.TestCase):
             record = json.load(f)
         
         # Strip entry_hash to calculate it canonically
-        expected_entry_hash = "99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7"
+        expected_entry_hash = "788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171"
         self.assertEqual(record.get("entry_hash"), expected_entry_hash)
         computed_hash = compute_entry_hash(record.get("previous_hash", "0" * 64), record)
         self.assertEqual(computed_hash, expected_entry_hash)

@@ -1,7 +1,7 @@
 # Agent_Sudo Interoperability Test Kit
 
 > [!NOTE]
-> **Specification Version**: `v0.4.0-rc14` (Pre-v1 Draft)  
+> **Specification Version**: `v0.4.0` (Pre-v1 Draft)  
 > **Status**: Draft. This test kit reflects the current pre-v1 spec draft semantics and may evolve during the formal Spec Review process. Do not treat these details as finalized.
 
 This Interoperability Test Kit is designed to help developer teams build compatible client/emitter implementations of the `Agent_Sudo` audit log (such as LexFlow or external agent runtimes) in JS, TS, Go, Rust, or other languages.
@@ -20,10 +20,10 @@ This test kit includes two companion reference files:
 
 | Target Reference File | Record # | Event Type | Expected `previous_hash` | Expected `entry_hash` | Verification Outcome |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`reference_record.json`** | 1 | `gateway_decision` | `0000000000000000000000000000000000000000000000000000000000000000` | `99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7` | **Valid** (as a single line JSONL) |
-| **`reference_log.jsonl`** | 1 | `gateway_decision` | `0000000000000000000000000000000000000000000000000000000000000000` | `99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7` | **Valid** |
-| **`reference_log.jsonl`** | 2 | `gateway_decision` | `99724c0c0b82a195d11f26b15932ba5a1e97b5b4ee90d788f24b0731fe3f59f7` | `d953c8b80660097f517d9b9b1896b573568287aa85760101ca99a74bd8440515` | **Valid** |
-| **`reference_log.jsonl`** | 3 | `gateway_decision` | `d953c8b80660097f517d9b9b1896b573568287aa85760101ca99a74bd8440515` | `2ee9da6026826fcbb4d8c377b830159a2364c349ca5121085e109ede8e2375c8` | **Valid** |
+| **`reference_record.json`** | 1 | `gateway_decision` | `0000000000000000000000000000000000000000000000000000000000000000` | `788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171` | **Valid** (as a single line JSONL) |
+| **`reference_log.jsonl`** | 1 | `gateway_decision` | `0000000000000000000000000000000000000000000000000000000000000000` | `788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171` | **Valid** |
+| **`reference_log.jsonl`** | 2 | `gateway_decision` | `788e65ed4b7ec79f408e5633d1ba3df29eebf13f437aa4980f0d8b7bf5926171` | `e8a76304f8fd12d536e44ca05c73e998bbd95bccfe52fa9b9f1dcf1c5b187e4f` | **Valid** |
+| **`reference_log.jsonl`** | 3 | `gateway_decision` | `e8a76304f8fd12d536e44ca05c73e998bbd95bccfe52fa9b9f1dcf1c5b187e4f` | `6e034df129a770b3000e24cf48e3428724f9c80e828eba64bf50fa19c9d21d51` | **Valid** |
 
 ---
 

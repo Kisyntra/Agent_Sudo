@@ -71,7 +71,7 @@ Fill in all schema-required fields. Use `null` or `""` for optional values, and 
 const record = {
   timestamp: "2026-05-29T15:53:00Z", // strict ASCII UTC, no milliseconds
   event_type: "gateway_decision",
-  schema_version: "agent-sudo/0.4.0-rc14",
+  schema_version: "agent-sudo/0.4.0",
   request: {
     actor: "agent-name",
     source: "source-name",

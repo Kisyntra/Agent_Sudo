@@ -9,7 +9,7 @@ This guide details how to integrate and use the `Agent_Sudo` plugin within the `
 The `Agent_Sudo` plugin integration allows `agent-runtimes` developers to leverage local policy evaluation, user-in-the-loop approvals, and secure audit verification directly within their agent tool execution pipelines.
 
 * **Compatibility Level**: **Level 2 (In-Process Hook Capability)**.
-* **Release Status**: Standardized starting with `agent-sudo>=0.4.0rc14` and `agent-runtimes` PR #98.
+* **Release Status**: Standardized starting with `agent-sudo>=0.4.0` and `agent-runtimes` PR #98.
 
 ---
 

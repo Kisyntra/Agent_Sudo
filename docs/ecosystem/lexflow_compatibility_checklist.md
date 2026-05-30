@@ -7,7 +7,7 @@ Use this checklist to verify that the LexFlow TypeScript audit log emitter match
 ## 1. Schema Fields & Taxonomy Checklist
 
 *   [ ] **`event_type`**: The record uses `tool_execution` for all MCP/tool execution log entries.
-*   [ ] **`schema_version`**: The top-level key `schema_version` is present and set to `agent-sudo/0.4.0-rc14` (or matching tag).
+*   [ ] **`schema_version`**: The top-level key `schema_version` is present and set to `agent-sudo/0.4.0` (or matching tag).
 *   [ ] **`approval_command`**: Field is omitted or set to `null` if the execution occurs in-process without CLI approval paths.
 *   [ ] **`approval_expires_at`**: Set as a standard ISO 8601 absolute timestamp. Relative `expires_in_seconds` is excluded or marked optional.
 *   [ ] **`payload_summary`**: Normalized to a clean, truncated text string summarizing arguments (e.g., max 128 characters).

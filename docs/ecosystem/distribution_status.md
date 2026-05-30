@@ -7,7 +7,7 @@ This document reviews the current distribution channels, active bottlenecks, upc
 ## 1. Current Reach
 
 *   **GitHub**: `Kisyntra/Agent_Sudo` is the repository home. It hosts the core permission gateway, CLI tool, standard spec schemas, and documentation.
-*   **PyPI**: Registered as `agent-sudo` (v0.4.0-rc14), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
+*   **PyPI**: Registered as `agent-sudo` (v0.4.0), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
 *   **Glama.ai**: ✅ **Active**. Live and verified listing page at [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo).
 *   **awesome-mcp-servers**: [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) is currently open, containing the description and Glama badge.
 *   **Official MCP Registry**: Metadata schema initialized and reverse DNS registration plan formulated. Publication is staged for implementation.
