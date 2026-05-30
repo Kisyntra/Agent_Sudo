@@ -5,6 +5,10 @@ Your agent reads a web page. The page hides an instruction:
 Docker container, the outbound request goes through. Agent_Sudo blocks it,
 because the action's **provenance is untrusted external content**, not you.
 
+![Agent_Sudo exfiltration-prevention demo](../../assets/demo/exfil-demo.gif)
+
+> Recording source & instructions: [`recording/`](recording/).
+
 ```bash
 pip install agent-sudo-mcp
 git clone https://github.com/Kisyntra/Agent_Sudo
