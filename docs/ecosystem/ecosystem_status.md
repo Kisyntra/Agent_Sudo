@@ -37,8 +37,8 @@ For code-first SDKs, developers can wrap individual tool functions with standard
 
 ### 3. Graph Nodes / Interceptors (e.g., `LangGraph`)
 For graph-based state engines, validation happens either at the edge boundaries or by wrapping standard node runners.
-*   **Example location**: `examples/langgraph/`
-*   **How it works**: Tool nodes are wrapped in a safe executor layer that captures graph state and checks permissions before delegating to the base tools.
+*   **Example location**: [docs/examples/langgraph.md](../examples/langgraph.md) • [examples/langgraph_integration.py](../../examples/langgraph_integration.py)
+*   **How it works**: Tool nodes are wrapped in a safe decorator layer that evaluates policy rules, raises dynamic interrupts to halt the graph during pending approvals, and commits verified transactions to the cryptographic audit chain.
 
 ---
 

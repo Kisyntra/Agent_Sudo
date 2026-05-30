@@ -55,7 +55,7 @@ For developers building autonomous agents using frameworks like PydanticAI, Lang
 *   **Framework Examples**:
     *   [PydanticAI Gating Example](examples/pydantic_ai/)
     *   [OpenAI Agents SDK Gating Example](examples/openai_agents_sdk/)
-    *   [LangGraph Custom Node Integration](examples/langgraph/)
+    *   [LangGraph Integration Guide](docs/examples/langgraph.md) ([examples/langgraph_integration.py](examples/langgraph_integration.py))
     *   [agent-runtimes Hook Plugin Setup](examples/agent_runtimes/)
 
 ### 3. CLI / Security Operations
@@ -73,7 +73,7 @@ Agent_Sudo has pre-built example templates showing in-process integration for ma
 
 *   ✓ **[OpenAI Agents SDK](examples/openai_agents_sdk/)** — pre-wrapping assistant tool functions.
 *   ✓ **[PydanticAI](examples/pydantic_ai/)** — gating tool execution using standard Python decorators.
-*   ✓ **[LangGraph](examples/langgraph/)** — securing tool node execution and graph states.
+*   ✓ **[LangGraph](docs/examples/langgraph.md)** — securing tool node execution and graph states ([examples/langgraph_integration.py](examples/langgraph_integration.py)).
 *   ✓ **[agent-runtimes](examples/agent_runtimes/)** — registering the local tool hooks handler in config.
 
 ---
@@ -217,6 +217,7 @@ For a full compatibility matrix and integration details, see the [Ecosystem Stat
 | **First Run** | Getting started tutorial | [docs/first_run.md](docs/first_run.md) |
 | **Troubleshooting** | Diagnostics and resolution steps | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Ecosystem Status](docs/ecosystem/ecosystem_status.md) • [Outreach Playbook](docs/ecosystem/outreach_playbook.md) • [Adoption Dashboard](docs/ecosystem/adoption_dashboard.md) • [Discoverability Notes](docs/ecosystem/discoverability_notes.md) • [LexFlow Readiness](docs/ecosystem/lexflow_readiness.md) • [LexFlow Checklist](docs/ecosystem/lexflow_compatibility_checklist.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) • [agent-runtimes](docs/integrations/agent-runtimes.md) • [Hermes (Research)](docs/integrations/hermes-research.md) |
+| **Framework Integrations** | Direct SDK gating for agent frameworks | [LangGraph Integration Guide](docs/examples/langgraph.md) • [examples/langgraph_integration.py](examples/langgraph_integration.py) |
 | **Architecture** | Abstractions and core pipelines | [docs/architecture/overview.md](docs/architecture/overview.md) • [Layered Architecture](docs/architecture/layered_architecture.md) • [Enforcement Model](docs/architecture/enforcement_model.md) |
 | **Specifications** | Language-agnostic standard models | [spec/runtime_compatibility_levels.md](spec/runtime_compatibility_levels.md) • [Universal Schema](spec/universal_schema.md) • [Policy & Audit](spec/policy_audit_schema.md) • [Interoperability Test Kit](docs/interop/interoperability_test_kit.md) |
 | **Security** | Threat modeling and limits | [docs/architecture/security_model.md](docs/architecture/security_model.md) |
