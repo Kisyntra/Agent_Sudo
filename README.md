@@ -5,10 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/agent-sudo/"><img src="https://img.shields.io/pypi/v/agent-sudo.svg" alt="PyPI Version"></a>
   <a href="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo"><img src="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo/badges/score.svg" alt="Glama MCP Server Score"></a>
-  <a href="https://github.com/Kisyntra"><img src="https://img.shields.io/badge/organization-Kisyntra-blue.svg" alt="GitHub Organization"></a>
-  <a href="docs/integrations/mcp_server_setup.md"><img src="https://img.shields.io/badge/docs-MCP_Server_Setup-green.svg" alt="MCP Server Setup Guide"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
@@ -16,7 +13,7 @@
 
 ## Discoverability & Registry Status
 
-*   📦 **PyPI Package**: Available at [pypi.org/project/agent-sudo](https://pypi.org/project/agent-sudo/)
+*   📦 **PyPI Package**: Planned for public release
 *   🌐 **Glama Registry Listing**: Live listing at [glama.ai/mcp/servers/Kisyntra/Agent_Sudo](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)
 *   🛠️ **MCP Server Integration**: Read the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md)
 *   🏢 **GitHub Organization**: Part of the [Kisyntra](https://github.com/Kisyntra) ecosystem
