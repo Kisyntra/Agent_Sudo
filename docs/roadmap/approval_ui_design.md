@@ -210,7 +210,7 @@ For `SENSITIVE` classifications, the helper prompts the user with standard **App
 ## 6. UX Flow
 
 ### First-Time Onboarding
-1. The user installs `agent-sudo` and runs `agent-sudo doctor`.
+1. The user installs `agent-sudo-mcp` and runs `agent-sudo doctor`.
 2. The doctor reports:
    ```text
    WARN: approval config exists - not initialized: run agent-sudo init-approval

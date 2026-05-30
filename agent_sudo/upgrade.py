@@ -142,7 +142,7 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
     git_root = get_git_root()
     if not git_root:
         print("This installation is not inside a git repository.", file=sys.stderr)
-        print("\nTo upgrade agent-sudo manually, please run:\n  pip install --upgrade agent-sudo", file=sys.stderr)
+        print("\nTo upgrade agent-sudo manually, please run:\n  pip install --upgrade agent-sudo-mcp", file=sys.stderr)
         return 1
 
     # Show warning about local state preservation

@@ -36,7 +36,7 @@ class UpgradeTests(unittest.TestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("This installation is not inside a git repository.", err.getvalue())
-        self.assertIn("pip install --upgrade agent-sudo", err.getvalue())
+        self.assertIn("pip install --upgrade agent-sudo-mcp", err.getvalue())
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")

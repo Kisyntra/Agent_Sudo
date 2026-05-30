@@ -75,7 +75,7 @@ python3 -m pip install -e .
 ### Standard package upgrade via PyPI
 If you installed the package via a standard release package:
 ```bash
-python3 -m pip install --upgrade agent-sudo
+python3 -m pip install --upgrade agent-sudo-mcp
 ```
 
 ---

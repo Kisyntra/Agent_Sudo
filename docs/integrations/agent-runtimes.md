@@ -9,16 +9,16 @@ This guide details how to integrate and use the `Agent_Sudo` plugin within the `
 The `Agent_Sudo` plugin integration allows `agent-runtimes` developers to leverage local policy evaluation, user-in-the-loop approvals, and secure audit verification directly within their agent tool execution pipelines.
 
 * **Compatibility Level**: **Level 2 (In-Process Hook Capability)**.
-* **Release Status**: Standardized starting with `agent-sudo>=0.4.0` and `agent-runtimes` PR #98.
+* **Release Status**: Standardized starting with `agent-sudo-mcp>=0.4.0` and `agent-runtimes` PR #98.
 
 ---
 
 ## 2. Installation
 
-`agent-sudo` is registered as an optional dependency in the `agent-runtimes` package. To enable in-process local policy checks, install the runtime with the matching plugin package extra:
+`agent-sudo-mcp` is registered as an optional dependency in the `agent-runtimes` package. To enable in-process local policy checks, install the runtime with the matching plugin package extra:
 
 ```bash
-pip install agent-runtimes[agent-sudo]
+pip install agent-runtimes[agent-sudo-mcp]
 ```
 
 ---

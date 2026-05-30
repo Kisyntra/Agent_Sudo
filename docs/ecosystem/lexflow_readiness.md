@@ -13,7 +13,7 @@ This report assesses the readiness of `LexFlow` as the first independent externa
 
 ## 2. Expected CI Validation Path
 1.  **Log Generation**: LexFlow generates tool execution logs under `~/.lexflow/mcp.log` during test suites.
-2.  **Verifier Invocation**: LexFlow's test suite pip-installs `agent-sudo` (or uses `pipx`) and runs:
+2.  **Verifier Invocation**: LexFlow's test suite pip-installs `agent-sudo-mcp` (or uses `pipx`) and runs:
     ```bash
     agent-sudo verify-audit ~/.lexflow/mcp.log
     ```
