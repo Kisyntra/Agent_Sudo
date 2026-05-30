@@ -1,0 +1,27 @@
+# Agent_Sudo demo policy — pinned so the exfiltration demo is fully deterministic.
+# Uses the small list-only YAML shape understood by agent_sudo.policy.load_policy.
+#
+# Classification -> Decision mapping (see agent_sudo/policy.py):
+#   SAFE      -> ALLOW
+#   SENSITIVE -> REQUIRE_APPROVAL
+#   CRITICAL  -> REQUIRE_STRONG_APPROVAL
+#   BLOCKED   -> DENY
+
+safe:
+  - read_file
+  - search_files
+  - summarize
+
+sensitive:
+  - write_file
+  - edit_file
+
+critical:
+  - run_shell_command
+  - send_email
+  - external_post
+
+blocked:
+  - exfiltrate_secrets
+  - disable_audit
+  - bypass_policy
