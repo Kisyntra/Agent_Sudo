@@ -59,7 +59,8 @@ class DelegationStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _chmod_best_effort(self.path.parent, 0o700)
         self.path.write_text(
-            json.dumps([token.to_dict() for token in tokens], indent=2, sort_keys=True) + "\n",
+            json.dumps([token.to_dict() for token in tokens], indent=2, sort_keys=True)
+            + "\n",
             encoding="utf-8",
         )
         _chmod_best_effort(self.path, 0o600)
@@ -110,15 +111,24 @@ class DelegationStore:
 
             # 5. actor mismatch
             if token.actor != request.actor:
-                mismatches.append(f"actor mismatch: expected actor '{token.actor}', actual actor '{request.actor}'")
+                mismatches.append(
+                    f"actor mismatch: expected actor '{token.actor}', actual actor '{request.actor}'"
+                )
 
             # 6. action mismatch
-            if request.action not in token.allowed_actions and request.action not in token.denied_actions:
-                mismatches.append(f"action mismatch: expected action in {token.allowed_actions}, actual action '{request.action}'")
+            if (
+                request.action not in token.allowed_actions
+                and request.action not in token.denied_actions
+            ):
+                mismatches.append(
+                    f"action mismatch: expected action in {token.allowed_actions}, actual action '{request.action}'"
+                )
 
             # 7. path mismatch
             if not _path_matches(request.target, token.allowed_paths):
-                mismatches.append(f"path mismatch: expected path scope in {token.allowed_paths}, actual target '{request.target}'")
+                mismatches.append(
+                    f"path mismatch: expected path scope in {token.allowed_paths}, actual target '{request.target}'"
+                )
 
             # 8. critical flag missing
             if classification == Classification.CRITICAL and not token.critical:
@@ -131,7 +141,11 @@ class DelegationStore:
             if not mismatches:
                 if consume:
                     self._increment_usage(token.token_id)
-                return True, f"delegated by {token.token_id}: {token.reason}", "DELEGATION"
+                return (
+                    True,
+                    f"delegated by {token.token_id}: {token.reason}",
+                    "DELEGATION",
+                )
 
         # Check if any token has only "critical flag missing" as mismatch
         for token, mismatches in evaluated:
@@ -143,14 +157,19 @@ class DelegationStore:
         diagnostics = []
         for token, mismatches in evaluated:
             mismatches_str = ", ".join(mismatches)
-            diagnostics.append(f"delegation token {token.token_id} mismatched: {mismatches_str}")
+            diagnostics.append(
+                f"delegation token {token.token_id} mismatched: {mismatches_str}"
+            )
 
         reason = "; ".join(diagnostics)
         return False, reason, "DELEGATION"
 
     def _increment_usage(self, token_id: str) -> None:
         tokens = self.list()
-        updated = [replace(token, uses=token.uses + 1) if token.token_id == token_id else token for token in tokens]
+        updated = [
+            replace(token, uses=token.uses + 1) if token.token_id == token_id else token
+            for token in tokens
+        ]
         self.save(updated)
 
 

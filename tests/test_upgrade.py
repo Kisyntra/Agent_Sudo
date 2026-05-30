@@ -35,7 +35,9 @@ class UpgradeTests(unittest.TestCase):
             code = main(["upgrade-local", "--check"])
 
         self.assertEqual(code, 1)
-        self.assertIn("This installation is not inside a git repository.", err.getvalue())
+        self.assertIn(
+            "This installation is not inside a git repository.", err.getvalue()
+        )
         self.assertIn("pip install --upgrade agent-sudo-mcp", err.getvalue())
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
@@ -71,11 +73,16 @@ class UpgradeTests(unittest.TestCase):
             code = main(["upgrade-local", "--check"])
 
         self.assertEqual(code, 0)
-        self.assertIn("Local state, audit logs, and delegations under ~/.agent-sudo will be preserved", out.getvalue())
+        self.assertIn(
+            "Local state, audit logs, and delegations under ~/.agent-sudo will be preserved",
+            out.getvalue(),
+        )
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")
-    def test_upgrade_cleans_egg_info_and_proceeds(self, mock_run, mock_get_git_root) -> None:
+    def test_upgrade_cleans_egg_info_and_proceeds(
+        self, mock_run, mock_get_git_root
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             git_root = Path(tmpdir)
             artifact = git_root / "agent_sudo.egg-info"
@@ -90,14 +97,18 @@ class UpgradeTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertFalse(artifact.exists())
-            self.assertIn("Found generated artifacts that can be safely removed", out.getvalue())
+            self.assertIn(
+                "Found generated artifacts that can be safely removed", out.getvalue()
+            )
             self.assertIn("- agent_sudo.egg-info/", out.getvalue())
             self.assertIn("Proceeding with upgrade", out.getvalue())
             self.assertTrue(_command_was_run(mock_run, ["git", "pull"]))
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")
-    def test_upgrade_cleans_cache_and_build_artifacts_and_proceeds(self, mock_run, mock_get_git_root) -> None:
+    def test_upgrade_cleans_cache_and_build_artifacts_and_proceeds(
+        self, mock_run, mock_get_git_root
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             git_root = Path(tmpdir)
             artifacts = [
@@ -134,7 +145,9 @@ class UpgradeTests(unittest.TestCase):
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")
-    def test_upgrade_blocks_unknown_untracked_file(self, mock_run, mock_get_git_root) -> None:
+    def test_upgrade_blocks_unknown_untracked_file(
+        self, mock_run, mock_get_git_root
+    ) -> None:
         mock_get_git_root.return_value = Path("/tmp/mock-repo")
         mock_run.side_effect = _mock_upgrade_run("?? notes.txt\n")
 
@@ -149,9 +162,13 @@ class UpgradeTests(unittest.TestCase):
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")
-    def test_mixed_generated_and_real_untracked_files_block(self, mock_run, mock_get_git_root) -> None:
+    def test_mixed_generated_and_real_untracked_files_block(
+        self, mock_run, mock_get_git_root
+    ) -> None:
         mock_get_git_root.return_value = Path("/tmp/mock-repo")
-        mock_run.side_effect = _mock_upgrade_run("?? agent_sudo.egg-info/\n?? notes.txt\n")
+        mock_run.side_effect = _mock_upgrade_run(
+            "?? agent_sudo.egg-info/\n?? notes.txt\n"
+        )
 
         err = io.StringIO()
         with redirect_stdout(io.StringIO()), redirect_stderr(err):
@@ -166,7 +183,9 @@ class UpgradeTests(unittest.TestCase):
 
     @unittest.mock.patch("agent_sudo.upgrade.get_git_root")
     @unittest.mock.patch("agent_sudo.upgrade.subprocess.run")
-    def test_allow_dirty_still_proceeds_without_cleaning(self, mock_run, mock_get_git_root) -> None:
+    def test_allow_dirty_still_proceeds_without_cleaning(
+        self, mock_run, mock_get_git_root
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             git_root = Path(tmpdir)
             artifact = git_root / "agent_sudo.egg-info"
@@ -174,7 +193,9 @@ class UpgradeTests(unittest.TestCase):
             unknown = git_root / "notes.txt"
             unknown.write_text("keep me\n", encoding="utf-8")
             mock_get_git_root.return_value = git_root
-            mock_run.side_effect = _mock_upgrade_run("?? agent_sudo.egg-info/\n?? notes.txt\n")
+            mock_run.side_effect = _mock_upgrade_run(
+                "?? agent_sudo.egg-info/\n?? notes.txt\n"
+            )
 
             with redirect_stdout(io.StringIO()):
                 code = main(["upgrade-local", "--allow-dirty"])
@@ -201,7 +222,9 @@ class UpgradeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_home = Path(tmpdir)
             with unittest.mock.patch("pathlib.Path.home", return_value=fake_home):
-                with unittest.mock.patch("agent_sudo.upgrade.get_git_root") as mock_git_root:
+                with unittest.mock.patch(
+                    "agent_sudo.upgrade.get_git_root"
+                ) as mock_git_root:
                     mock_git_root.return_value = None
                     err = io.StringIO()
                     with redirect_stderr(err):
@@ -222,9 +245,13 @@ def _mock_upgrade_run(status_stdout: str):
         if command[:2] == ["git", "fetch"]:
             return unittest.mock.MagicMock(returncode=0, stdout="", stderr="")
         if command == ["git", "tag"]:
-            return unittest.mock.MagicMock(returncode=0, stdout="v0.4.0-rc12\n", stderr="")
+            return unittest.mock.MagicMock(
+                returncode=0, stdout="v0.4.0-rc12\n", stderr=""
+            )
         if command[:3] == ["git", "status", "--porcelain"]:
-            return unittest.mock.MagicMock(returncode=0, stdout=status_stdout, stderr="")
+            return unittest.mock.MagicMock(
+                returncode=0, stdout=status_stdout, stderr=""
+            )
         if command[:2] == ["git", "pull"]:
             return unittest.mock.MagicMock(returncode=0, stdout="", stderr="")
         if command[-4:] == ["-m", "pip", "install", "-e"] or "pip" in command:

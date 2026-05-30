@@ -11,7 +11,14 @@ from langgraph.types import Command, interrupt
 
 from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.gateway import PermissionGateway
-from agent_sudo.models import ActionRequest, Channel, Decision, OriginType, Provenance, TrustLevel
+from agent_sudo.models import (
+    ActionRequest,
+    Channel,
+    Decision,
+    OriginType,
+    Provenance,
+    TrustLevel,
+)
 from agent_sudo.pending_approvals import PendingApprovalStore
 from agent_sudo.policy import Policy
 
@@ -90,11 +97,15 @@ def gate_langgraph_tool(tool_func):
         result = gateway.evaluate(request, dry_run=False)
 
         if result.decision == Decision.DENY:
-            print(f"\n[Agent_Sudo] Gating {tool_func.__name__} -> Hard DENY: {result.reason}")
+            print(
+                f"\n[Agent_Sudo] Gating {tool_func.__name__} -> Hard DENY: {result.reason}"
+            )
             return f"Error: Tool blocked by security policy: {result.reason}"
 
         elif result.decision == Decision.REQUIRE_APPROVAL:
-            print(f"\n[Agent_Sudo] Gating {tool_func.__name__} -> REQUIRE_APPROVAL (ID: {result.approval_request_id}). Interrupting graph...")
+            print(
+                f"\n[Agent_Sudo] Gating {tool_func.__name__} -> REQUIRE_APPROVAL (ID: {result.approval_request_id}). Interrupting graph..."
+            )
 
             # LangGraph dynamic interrupt: halts graph and pushes request ID to host
             interrupt(
@@ -193,7 +204,9 @@ def run_simulation():
     # --- Case 2: Denied Tool (exfiltrate_data) ---
     print("\n--- TEST CASE 2: Denied Tool (exfiltrate_data) ---")
     state_2 = {
-        "messages": [{"command": "exfiltrate_data", "args": {"target": "attacker.com"}}],
+        "messages": [
+            {"command": "exfiltrate_data", "args": {"target": "attacker.com"}}
+        ],
         "next_tool": "",
         "tool_args": {},
         "output": "",
@@ -250,7 +263,9 @@ def run_simulation():
         with audit_path.open("r") as f:
             for line in f:
                 data = json.loads(line)
-                print(f"  - Timestamp: {data.get('timestamp')} | Tool: {data.get('request', {}).get('tool')} | Decision: {data.get('decision')} | Method: {data.get('approval_method')}")
+                print(
+                    f"  - Timestamp: {data.get('timestamp')} | Tool: {data.get('request', {}).get('tool')} | Decision: {data.get('decision')} | Method: {data.get('approval_method')}"
+                )
 
 
 if __name__ == "__main__":

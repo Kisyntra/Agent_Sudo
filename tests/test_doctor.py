@@ -7,7 +7,12 @@ import unittest.mock
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from agent_sudo.doctor import DoctorCheck, doctor_exit_code, format_doctor_checks, run_doctor
+from agent_sudo.doctor import (
+    DoctorCheck,
+    doctor_exit_code,
+    format_doctor_checks,
+    run_doctor,
+)
 from agent_sudo.gateway import main
 
 
@@ -28,7 +33,9 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(doctor_exit_code(checks), 1)
 
     def test_doctor_format_contains_status(self) -> None:
-        text = format_doctor_checks([DoctorCheck("approval config exists", False, "not initialized")])
+        text = format_doctor_checks(
+            [DoctorCheck("approval config exists", False, "not initialized")]
+        )
 
         self.assertIn("WARN: approval config exists", text)
 

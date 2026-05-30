@@ -83,11 +83,17 @@ class Provenance:
         if not isinstance(delegation_chain, list):
             raise ValueError("provenance.delegation_chain must be a list")
         return cls(
-            origin_type=OriginType(str(data.get("origin_type", OriginType.UNKNOWN.value))),
+            origin_type=OriginType(
+                str(data.get("origin_type", OriginType.UNKNOWN.value))
+            ),
             channel=Channel(str(data.get("channel", Channel.UNKNOWN.value))),
             authenticated=bool(data.get("authenticated", False)),
             authentication_method=AuthenticationMethod(
-                str(data.get("authentication_method", AuthenticationMethod.UNKNOWN.value))
+                str(
+                    data.get(
+                        "authentication_method", AuthenticationMethod.UNKNOWN.value
+                    )
+                )
             ),
             session_id=str(data.get("session_id", "")),
             request_id=str(data.get("request_id", "")),
@@ -127,7 +133,9 @@ class ActionRequest:
         if missing:
             raise ValueError(f"missing required request fields: {', '.join(missing)}")
         risk_hints = data.get("risk_hints", [])
-        if not isinstance(risk_hints, list) or not all(isinstance(item, str) for item in risk_hints):
+        if not isinstance(risk_hints, list) or not all(
+            isinstance(item, str) for item in risk_hints
+        ):
             raise ValueError("risk_hints must be a list of strings")
         provenance_data = data.get("provenance")
         provenance = Provenance.from_dict(provenance_data)

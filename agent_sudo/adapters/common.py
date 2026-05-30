@@ -14,7 +14,9 @@ from agent_sudo.models import (
 )
 
 
-def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> ActionRequest:
+def normalize_tool_call(
+    tool_call: dict[str, Any], *, default_actor: str
+) -> ActionRequest:
     actor = str(tool_call.get("actor", default_actor))
     source = str(tool_call.get("source", "unknown"))
     provenance = _provenance(tool_call, source)
@@ -25,7 +27,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
     normalized = _normalize_token(f"{tool} {action}")
     risk_hints = _risk_hints(tool_call, params)
 
-    if tool == "get_runtime_context" or action == "get_runtime_context" or normalized.strip() == "get_runtime_context":
+    if (
+        tool == "get_runtime_context"
+        or action == "get_runtime_context"
+        or normalized.strip() == "get_runtime_context"
+    ):
         return ActionRequest(
             actor=actor,
             source=source,
@@ -59,7 +65,9 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_shell(normalized):
         return AgentActionRequest.shell_command(
-            _first_string(params, ["cmd", "command", "shell_command", "target"], fallback=action),
+            _first_string(
+                params, ["cmd", "command", "shell_command", "target"], fallback=action
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -68,7 +76,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_read_file(normalized):
         return AgentActionRequest.file_read(
-            _first_string(params, ["path", "file", "filename", "target"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["path", "file", "filename", "target"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -78,7 +90,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_file_delete(normalized):
         return AgentActionRequest.file_delete(
-            _first_string(params, ["path", "file", "filename", "target"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["path", "file", "filename", "target"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -88,7 +104,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_file_edit(normalized):
         return AgentActionRequest.file_edit(
-            _first_string(params, ["path", "file", "filename", "target"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["path", "file", "filename", "target"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -98,7 +118,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_file_write(normalized):
         return AgentActionRequest.file_write(
-            _first_string(params, ["path", "file", "filename", "target"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["path", "file", "filename", "target"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -118,7 +142,9 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_send_email(normalized):
         return AgentActionRequest.send_email(
-            _first_string(params, ["to", "recipient", "target"], fallback=_target(tool_call)),
+            _first_string(
+                params, ["to", "recipient", "target"], fallback=_target(tool_call)
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -128,7 +154,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_send_message(normalized):
         return AgentActionRequest.send_message(
-            _first_string(params, ["to", "channel", "target", "recipient"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["to", "channel", "target", "recipient"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -138,7 +168,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_auth_edit(normalized):
         return AgentActionRequest.modify_auth(
-            _first_string(params, ["target", "path", "account", "resource"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["target", "path", "account", "resource"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -148,7 +182,11 @@ def normalize_tool_call(tool_call: dict[str, Any], *, default_actor: str) -> Act
 
     if _is_cron(normalized):
         return AgentActionRequest.create_cron(
-            _first_string(params, ["target", "schedule", "command", "cmd"], fallback=_target(tool_call)),
+            _first_string(
+                params,
+                ["target", "schedule", "command", "cmd"],
+                fallback=_target(tool_call),
+            ),
             actor=actor,
             source=source,
             source_trust=source_trust,
@@ -202,7 +240,9 @@ def _params(tool_call: dict[str, Any]) -> dict[str, Any]:
     return tool_call
 
 
-def _first_string(params: dict[str, Any], keys: list[str], *, fallback: str = "") -> str:
+def _first_string(
+    params: dict[str, Any], keys: list[str], *, fallback: str = ""
+) -> str:
     for key in keys:
         value = params.get(key)
         if value is not None:
@@ -220,7 +260,11 @@ def _target(tool_call: dict[str, Any]) -> str:
 
 
 def _summary(tool_call: dict[str, Any], fallback: str) -> str:
-    value = tool_call.get("payload_summary") or tool_call.get("summary") or tool_call.get("description")
+    value = (
+        tool_call.get("payload_summary")
+        or tool_call.get("summary")
+        or tool_call.get("description")
+    )
     return str(value) if value else fallback
 
 
@@ -233,7 +277,9 @@ def _risk_hints(tool_call: dict[str, Any], params: dict[str, Any]) -> list[str]:
     return []
 
 
-def _source_trust(tool_call: dict[str, Any], source: str, provenance: Provenance) -> TrustLevel:
+def _source_trust(
+    tool_call: dict[str, Any], source: str, provenance: Provenance
+) -> TrustLevel:
     raw = tool_call.get("source_trust")
     if isinstance(raw, str):
         return TrustLevel(raw)
@@ -246,7 +292,10 @@ def _source_trust(tool_call: dict[str, Any], source: str, provenance: Provenance
     normalized_source = source.lower()
     if normalized_source in {"user", "human", "user_direct"}:
         return TrustLevel.USER_DIRECT
-    if any(token in normalized_source for token in {"web", "email", "document", "external", "slack", "browser"}):
+    if any(
+        token in normalized_source
+        for token in {"web", "email", "document", "external", "slack", "browser"}
+    ):
         return TrustLevel.EXTERNAL_CONTENT
     return TrustLevel.UNKNOWN
 
@@ -259,7 +308,9 @@ def _provenance(tool_call: dict[str, Any], source: str) -> Provenance:
         origin_type=_origin_type(tool_call, source),
         channel=_channel(tool_call, source),
         authenticated=bool(tool_call.get("authenticated", False)),
-        authentication_method=AuthenticationMethod(str(tool_call.get("authentication_method", "unknown"))),
+        authentication_method=AuthenticationMethod(
+            str(tool_call.get("authentication_method", "unknown"))
+        ),
         session_id=str(tool_call.get("session_id", "")),
         request_id=str(tool_call.get("request_id", "")),
         parent_request_id=str(tool_call.get("parent_request_id", "")),
@@ -276,7 +327,10 @@ def _origin_type(tool_call: dict[str, Any], source: str) -> OriginType:
         return OriginType.USER_DIRECT
     if "api" in normalized_source:
         return OriginType.EXTERNAL_API
-    if any(token in normalized_source for token in {"web", "email", "document", "external", "browser"}):
+    if any(
+        token in normalized_source
+        for token in {"web", "email", "document", "external", "browser"}
+    ):
         return OriginType.EXTERNAL_CONTENT
     if "agent" in normalized_source:
         return OriginType.AGENT_INTERNAL
@@ -306,7 +360,9 @@ def _channel(tool_call: dict[str, Any], source: str) -> Channel:
 
 
 def _browser_target(params: dict[str, Any], tool_call: dict[str, Any]) -> str:
-    explicit = _first_string(params, ["target", "element", "element_index", "selector", "ref"], fallback="")
+    explicit = _first_string(
+        params, ["target", "element", "element_index", "selector", "ref"], fallback=""
+    )
     if explicit:
         return explicit
     if "x" in params and "y" in params:
@@ -327,7 +383,10 @@ def _normalize_token(value: str) -> str:
 
 
 def _is_shell(value: str) -> bool:
-    return any(token in value for token in {"terminal", "shell", "exec_command", "run_shell_command", "bash"})
+    return any(
+        token in value
+        for token in {"terminal", "shell", "exec_command", "run_shell_command", "bash"}
+    )
 
 
 def _is_read_file(value: str) -> bool:
@@ -339,7 +398,16 @@ def _is_file_write(value: str) -> bool:
 
 
 def _is_file_edit(value: str) -> bool:
-    return any(token in value for token in {"edit_file", "apply_patch", "patch", "update_file", "replace_file"})
+    return any(
+        token in value
+        for token in {
+            "edit_file",
+            "apply_patch",
+            "patch",
+            "update_file",
+            "replace_file",
+        }
+    )
 
 
 def _is_file_delete(value: str) -> bool:
@@ -347,7 +415,9 @@ def _is_file_delete(value: str) -> bool:
 
 
 def _is_browser_click(value: str) -> bool:
-    return "browser_click" in value or ("click" in value and ("browser" in value or "computer_use" in value))
+    return "browser_click" in value or (
+        "click" in value and ("browser" in value or "computer_use" in value)
+    )
 
 
 def _is_send_email(value: str) -> bool:
@@ -359,10 +429,13 @@ def _is_send_message(value: str) -> bool:
 
 
 def _is_auth_edit(value: str) -> bool:
-    return any(token in value for token in {"modify_auth", "auth", "credential", "token", "secret"}) and any(
-        verb in value for verb in {"modify", "edit", "write", "update", "set"}
-    )
+    return any(
+        token in value
+        for token in {"modify_auth", "auth", "credential", "token", "secret"}
+    ) and any(verb in value for verb in {"modify", "edit", "write", "update", "set"})
 
 
 def _is_cron(value: str) -> bool:
-    return any(token in value for token in {"cron", "cronjob", "create_cron", "scheduled_task"})
+    return any(
+        token in value for token in {"cron", "cronjob", "create_cron", "scheduled_task"}
+    )

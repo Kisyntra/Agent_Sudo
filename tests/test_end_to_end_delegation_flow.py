@@ -46,11 +46,16 @@ class EndToEndDelegationFlowTests(unittest.TestCase):
             delegated = dispatch_mcp_tool_call(tool_call, gateway)
             exhausted = dispatch_mcp_tool_call(tool_call, gateway)
 
-            audit_entries = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+            audit_entries = [
+                json.loads(line)
+                for line in audit_path.read_text(encoding="utf-8").splitlines()
+            ]
 
         self.assertFalse(initial.executed)
         self.assertEqual(initial.gateway_result.classification.value, "CRITICAL")
-        self.assertEqual(initial.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+        self.assertEqual(
+            initial.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
+        )
 
         self.assertTrue(delegated.executed)
         self.assertEqual(delegated.gateway_result.classification.value, "CRITICAL")

@@ -12,7 +12,15 @@ from agent_sudo.audit import AuditLogger, verify_audit_log
 from agent_sudo.classifier import ActionClassifier
 from agent_sudo.delegations import DelegationStore, DELEGATIONS_PATH
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
-from agent_sudo.models import ActionRequest, ApprovalStatus, Classification, Decision, GatewayResult, OriginType, TrustLevel
+from agent_sudo.models import (
+    ActionRequest,
+    ApprovalStatus,
+    Classification,
+    Decision,
+    GatewayResult,
+    OriginType,
+    TrustLevel,
+)
 from agent_sudo.pending_approvals import (
     PENDING_APPROVALS_PATH,
     PendingApprovalStore,
@@ -40,7 +48,9 @@ class PermissionGateway:
         self.delegation_store = delegation_store
         self.pending_approval_store = pending_approval_store
 
-    def evaluate(self, request: ActionRequest, *, dry_run: bool = False) -> GatewayResult:
+    def evaluate(
+        self, request: ActionRequest, *, dry_run: bool = False
+    ) -> GatewayResult:
         classification = self.classifier.classify(request)
         policy_result = self.policy.decision_for(classification)
         decision = policy_result.decision
@@ -52,13 +62,21 @@ class PermissionGateway:
         approval_expires_at = ""
         approval_expires_in_seconds: int | None = None
 
-        if dry_run and decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}:
+        if dry_run and decision in {
+            Decision.REQUIRE_APPROVAL,
+            Decision.REQUIRE_STRONG_APPROVAL,
+        }:
             approval_method = "dry_run"
             reason = f"{reason}; approval skipped in dry-run"
-        elif decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL} and self.delegation_store:
-            delegated, delegation_reason, delegation_method = self.delegation_store.authorize(
-                request,
-                classification=classification,
+        elif (
+            decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}
+            and self.delegation_store
+        ):
+            delegated, delegation_reason, delegation_method = (
+                self.delegation_store.authorize(
+                    request,
+                    classification=classification,
+                )
             )
             if delegated is True:
                 decision = Decision.ALLOW
@@ -114,7 +132,10 @@ class PermissionGateway:
                     )
                 if delegation_method == "DELEGATION":
                     reason = f"{delegation_reason}; {reason}"
-        elif decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL} and self.pending_approval_store:
+        elif (
+            decision in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}
+            and self.pending_approval_store
+        ):
             pending_decision = self._evaluate_pending_approval(request)
             if pending_decision is not None:
                 (
@@ -212,38 +233,87 @@ class PermissionGateway:
             approval_method = approval.method
             approval_attempts.append(approval.to_dict())
             if approval.pending:
-                approval_id, command, reason, expires_at, expires_in = self._create_pending_approval(
-                    request,
-                    classification,
-                    decision,
-                    approval_method,
-                    approval.reason,
+                approval_id, command, reason, expires_at, expires_in = (
+                    self._create_pending_approval(
+                        request,
+                        classification,
+                        decision,
+                        approval_method,
+                        approval.reason,
+                    )
                 )
                 decision = Decision.REQUIRE_APPROVAL
-                return decision, approval_method, reason, approval_attempts, approval_id, command, expires_at, expires_in
+                return (
+                    decision,
+                    approval_method,
+                    reason,
+                    approval_attempts,
+                    approval_id,
+                    command,
+                    expires_at,
+                    expires_in,
+                )
             else:
                 decision = Decision.ALLOW if approval.approved else Decision.DENY
             reason = approval.reason
-            return decision, approval_method, reason, approval_attempts, "", "", "", None
+            return (
+                decision,
+                approval_method,
+                reason,
+                approval_attempts,
+                "",
+                "",
+                "",
+                None,
+            )
         if decision == Decision.REQUIRE_STRONG_APPROVAL:
             approval = self.approvals.approve_critical(request)
             approval_method = approval.method
             approval_attempts.append(approval.to_dict())
             if approval.pending:
-                approval_id, command, reason, expires_at, expires_in = self._create_pending_approval(
-                    request,
-                    classification,
-                    decision,
-                    approval_method,
-                    approval.reason,
+                approval_id, command, reason, expires_at, expires_in = (
+                    self._create_pending_approval(
+                        request,
+                        classification,
+                        decision,
+                        approval_method,
+                        approval.reason,
+                    )
                 )
                 decision = Decision.REQUIRE_STRONG_APPROVAL
-                return decision, approval_method, reason, approval_attempts, approval_id, command, expires_at, expires_in
+                return (
+                    decision,
+                    approval_method,
+                    reason,
+                    approval_attempts,
+                    approval_id,
+                    command,
+                    expires_at,
+                    expires_in,
+                )
             else:
                 decision = Decision.ALLOW if approval.approved else Decision.DENY
             reason = approval.reason
-            return decision, approval_method, reason, approval_attempts, "", "", "", None
-        return decision, "none", "approval not required", approval_attempts, "", "", "", None
+            return (
+                decision,
+                approval_method,
+                reason,
+                approval_attempts,
+                "",
+                "",
+                "",
+                None,
+            )
+        return (
+            decision,
+            "none",
+            "approval not required",
+            approval_attempts,
+            "",
+            "",
+            "",
+            None,
+        )
 
     def _evaluate_pending_approval(
         self,
@@ -295,7 +365,11 @@ class PermissionGateway:
         required_approval_method: str,
         reason: str,
     ) -> tuple[str, str, str, str, int | None]:
-        config_path = self.approvals.config_path if hasattr(self.approvals, "config_path") else CONFIG_PATH
+        config_path = (
+            self.approvals.config_path
+            if hasattr(self.approvals, "config_path")
+            else CONFIG_PATH
+        )
         if not config_path.exists():
             sys.stderr.write(
                 "approval system not initialized\n\n"
@@ -322,10 +396,15 @@ class PermissionGateway:
         )
 
 
-def _external_content_requires_delegation(request: ActionRequest, decision: Decision) -> bool:
+def _external_content_requires_delegation(
+    request: ActionRequest, decision: Decision
+) -> bool:
     if decision not in {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}:
         return False
-    return request.source_trust == TrustLevel.EXTERNAL_CONTENT or request.provenance.origin_type == OriginType.EXTERNAL_CONTENT
+    return (
+        request.source_trust == TrustLevel.EXTERNAL_CONTENT
+        or request.provenance.origin_type == OriginType.EXTERNAL_CONTENT
+    )
 
 
 def load_requests(path: Path) -> list[ActionRequest]:
@@ -338,47 +417,83 @@ def load_requests(path: Path) -> list[ActionRequest]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agent-sudo")
-    parser.add_argument("--version", action="version", version=f"agent-sudo {__version_label__}")
+    parser.add_argument(
+        "--version", action="version", version=f"agent-sudo {__version_label__}"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    check_parser = subparsers.add_parser("check", help="Classify requests and show policy decisions")
+    check_parser = subparsers.add_parser(
+        "check", help="Classify requests and show policy decisions"
+    )
     check_parser.add_argument("request_file", type=Path)
     check_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
-    run_parser = subparsers.add_parser("run", help="Evaluate requests with approvals and audit logging")
+    run_parser = subparsers.add_parser(
+        "run", help="Evaluate requests with approvals and audit logging"
+    )
     run_parser.add_argument("request_file", type=Path)
     run_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
-    run_parser.add_argument("--dry-run", action="store_true", help="Skip approval prompts")
+    run_parser.add_argument(
+        "--dry-run", action="store_true", help="Skip approval prompts"
+    )
     run_parser.add_argument(
         "--audit-log",
         type=Path,
         default=Path(".agent-sudo/audit.jsonl"),
         help="Audit JSONL path",
     )
-    run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
-    run_parser.add_argument("--open-approval-terminal", action="store_true", help="Automatically open Terminal.app for pending approvals")
+    run_parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Enable desktop notifications for pending approvals",
+    )
+    run_parser.add_argument(
+        "--open-approval-terminal",
+        action="store_true",
+        help="Automatically open Terminal.app for pending approvals",
+    )
 
-    hermes_parser = subparsers.add_parser("hermes-check", help="Normalize and check an agent native tool call")
+    hermes_parser = subparsers.add_parser(
+        "hermes-check", help="Normalize and check an agent native tool call"
+    )
     hermes_parser.add_argument("tool_call_file", type=Path)
     hermes_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
-    codex_parser = subparsers.add_parser("codex-check", help="Normalize and check a Codex native tool call")
+    codex_parser = subparsers.add_parser(
+        "codex-check", help="Normalize and check a Codex native tool call"
+    )
     codex_parser.add_argument("tool_call_file", type=Path)
     codex_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
-    generic_check_parser = subparsers.add_parser("generic-check", help="Normalize and check a universal tool call")
+    generic_check_parser = subparsers.add_parser(
+        "generic-check", help="Normalize and check a universal tool call"
+    )
     generic_check_parser.add_argument("tool_call_file", type=Path)
     generic_check_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
-    generic_run_parser = subparsers.add_parser("generic-run", help="Evaluate a universal tool call")
+    generic_run_parser = subparsers.add_parser(
+        "generic-run", help="Evaluate a universal tool call"
+    )
     generic_run_parser.add_argument("tool_call_file", type=Path)
     generic_run_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     generic_run_parser.add_argument("--dry-run", action="store_true")
-    generic_run_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
-    generic_run_parser.add_argument("--notify", action="store_true", help="Enable desktop notifications for pending approvals")
-    generic_run_parser.add_argument("--open-approval-terminal", action="store_true", help="Automatically open Terminal.app for pending approvals")
+    generic_run_parser.add_argument(
+        "--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl")
+    )
+    generic_run_parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Enable desktop notifications for pending approvals",
+    )
+    generic_run_parser.add_argument(
+        "--open-approval-terminal",
+        action="store_true",
+        help="Automatically open Terminal.app for pending approvals",
+    )
 
-    verify_parser = subparsers.add_parser("verify-audit", help="Verify audit JSONL hash chain")
+    verify_parser = subparsers.add_parser(
+        "verify-audit", help="Verify audit JSONL hash chain"
+    )
     verify_parser.add_argument("audit_log", type=Path)
 
     init_parser = subparsers.add_parser(
@@ -395,72 +510,136 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     init_parser.add_argument("--config", type=Path, default=CONFIG_PATH)
-    init_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    init_parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
     init_parser.add_argument("--delegations-file", type=Path, default=DELEGATIONS_PATH)
-    init_parser.add_argument("--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl"))
+    init_parser.add_argument(
+        "--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl")
+    )
     init_parser.add_argument("--force", action="store_true")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
-    subparsers.add_parser("demo", help="Run a built-in interactive demo of Agent_Sudo gateway decisions")
+    subparsers.add_parser(
+        "demo", help="Run a built-in interactive demo of Agent_Sudo gateway decisions"
+    )
 
-    approvals_parser = subparsers.add_parser("approvals", help="Manage pending approval requests")
-    approvals_subparsers = approvals_parser.add_subparsers(dest="approvals_command", required=True)
-    approvals_list = approvals_subparsers.add_parser("list", help="List pending approval requests")
-    approvals_list.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    approvals_parser = subparsers.add_parser(
+        "approvals", help="Manage pending approval requests"
+    )
+    approvals_subparsers = approvals_parser.add_subparsers(
+        dest="approvals_command", required=True
+    )
+    approvals_list = approvals_subparsers.add_parser(
+        "list", help="List pending approval requests"
+    )
+    approvals_list.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
 
-    pending_parser = subparsers.add_parser("pending", help="List active pending approval requests")
-    pending_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    pending_parser = subparsers.add_parser(
+        "pending", help="List active pending approval requests"
+    )
+    pending_parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
 
-    approve_parser = subparsers.add_parser("approve", help="Approve a pending approval request")
+    approve_parser = subparsers.add_parser(
+        "approve", help="Approve a pending approval request"
+    )
     approve_parser.add_argument("approval_request_id")
-    approve_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    approve_parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
     approve_parser.add_argument("--audit-log", type=Path)
     approve_parser.add_argument("--approval-config", type=Path)
 
     deny_parser = subparsers.add_parser("deny", help="Deny a pending approval request")
     deny_parser.add_argument("approval_request_id")
-    deny_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    deny_parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
     deny_parser.add_argument("--audit-log", type=Path)
 
-    helper_parser = subparsers.add_parser("approval-helper", help="Guided terminal approval helper for pending requests")
-    helper_parser.add_argument("--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH)
+    helper_parser = subparsers.add_parser(
+        "approval-helper", help="Guided terminal approval helper for pending requests"
+    )
+    helper_parser.add_argument(
+        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+    )
     helper_parser.add_argument("--approval-config", type=Path, default=CONFIG_PATH)
     helper_parser.add_argument("--audit-log", type=Path)
-    helper_parser.add_argument("--watch", action="store_true", help="Continuously poll and watch for new requests")
-    helper_parser.add_argument("--auto-opened", action="store_true", help="Minimal display mode with auto-close logic for auto-opened terminals")
+    helper_parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Continuously poll and watch for new requests",
+    )
+    helper_parser.add_argument(
+        "--auto-opened",
+        action="store_true",
+        help="Minimal display mode with auto-close logic for auto-opened terminals",
+    )
 
-    setup_parser = subparsers.add_parser("setup", help="Print dry-run setup checklist for an agent runtime")
-    setup_parser.add_argument("agent", choices=["hermes", "codex", "claude-desktop", "openclaw"])
+    setup_parser = subparsers.add_parser(
+        "setup", help="Print dry-run setup checklist for an agent runtime"
+    )
+    setup_parser.add_argument(
+        "agent", choices=["hermes", "codex", "claude-desktop", "openclaw"]
+    )
 
-    delegate_parser = subparsers.add_parser("delegate", help="Manage scoped delegation tokens")
-    delegate_subparsers = delegate_parser.add_subparsers(dest="delegate_command", required=True)
+    delegate_parser = subparsers.add_parser(
+        "delegate", help="Manage scoped delegation tokens"
+    )
+    delegate_subparsers = delegate_parser.add_subparsers(
+        dest="delegate_command", required=True
+    )
 
-    delegate_create = delegate_subparsers.add_parser("create", help="Create a scoped delegation token")
+    delegate_create = delegate_subparsers.add_parser(
+        "create", help="Create a scoped delegation token"
+    )
     delegate_create.add_argument("--actor", required=True)
-    delegate_create.add_argument("--allow-action", action="append", required=True, dest="allowed_actions")
-    delegate_create.add_argument("--allow-path", action="append", required=True, dest="allowed_paths")
-    delegate_create.add_argument("--deny-action", action="append", default=[], dest="denied_actions")
+    delegate_create.add_argument(
+        "--allow-action", action="append", required=True, dest="allowed_actions"
+    )
+    delegate_create.add_argument(
+        "--allow-path", action="append", required=True, dest="allowed_paths"
+    )
+    delegate_create.add_argument(
+        "--deny-action", action="append", default=[], dest="denied_actions"
+    )
     delegate_create.add_argument("--ttl-seconds", type=int, default=7200)
     delegate_create.add_argument("--max-uses", type=int, default=1)
     delegate_create.add_argument("--reason", default="")
     delegate_create.add_argument("--critical", action="store_true")
     delegate_create.add_argument("--delegations-file", type=Path)
 
-    delegate_list = delegate_subparsers.add_parser("list", help="List delegation tokens")
+    delegate_list = delegate_subparsers.add_parser(
+        "list", help="List delegation tokens"
+    )
     delegate_list.add_argument("--delegations-file", type=Path)
 
-    delegate_revoke = delegate_subparsers.add_parser("revoke", help="Revoke a delegation token")
+    delegate_revoke = delegate_subparsers.add_parser(
+        "revoke", help="Revoke a delegation token"
+    )
     delegate_revoke.add_argument("token_id")
     delegate_revoke.add_argument("--delegations-file", type=Path)
 
-    upgrade_parser = subparsers.add_parser("upgrade-local", help="Safe local upgrade of agent-sudo")
-    upgrade_parser.add_argument("--check", action="store_true", help="Check for available upgrades without updating")
+    upgrade_parser = subparsers.add_parser(
+        "upgrade-local", help="Safe local upgrade of agent-sudo"
+    )
+    upgrade_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check for available upgrades without updating",
+    )
     upgrade_parser.add_argument(
         "--allow-dirty",
         action="store_true",
         help="Allow upgrading even with user changes; generated artifacts are cleaned automatically without this flag",
     )
 
-    context_parser = subparsers.add_parser("context", help="Detect and return the runtime workspace context as JSON")
+    context_parser = subparsers.add_parser(
+        "context", help="Detect and return the runtime workspace context as JSON"
+    )
     context_parser.add_argument("--workspace", help="Path to configured workspace root")
 
     return parser
@@ -468,20 +647,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run_built_in_demo() -> int:
     import tempfile
-    
+
     print("=" * 60)
     print("                AGENT_SUDO INTERACTIVE DEMO                 ")
     print("=" * 60)
     print("Agent_Sudo is a local permission gateway for AI agents.")
     print("This demo evaluates three simulated tool calls using the default policy.\n")
-    
+
     policy = load_default_policy()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         audit_path = Path(tmpdir) / "demo_audit.jsonl"
         audit_logger = AuditLogger(audit_path)
         gateway = PermissionGateway(policy, audit_logger=audit_logger)
-        
+
         # 1. ALLOW Scenario
         print("--- Scenario 1: Safe Tool Execution (ALLOW) ---")
         safe_req = ActionRequest(
@@ -490,19 +669,19 @@ def run_built_in_demo() -> int:
             tool="filesystem",
             action="read_file",
             target="README.md",
-            payload_summary="Read the project README to understand repository structure."
+            payload_summary="Read the project README to understand repository structure.",
         )
         print("Simulating agent requesting tool call:")
         print(f"  Actor: {safe_req.actor}")
         print(f"  Tool: {safe_req.tool} | Action: {safe_req.action}")
         print(f"  Target: {safe_req.target}")
-        
+
         result_safe = gateway.evaluate(safe_req, dry_run=True)
         print(f"\nGateway Decision: [ {result_safe.decision.value} ]")
         print(f"  Classification: {result_safe.classification.value}")
         print(f"  Reason: {result_safe.reason}")
         print("✓ Success: The agent is allowed to perform this operation.\n")
-        
+
         # 2. DENY Scenario
         print("--- Scenario 2: Unsafe / Blocked Execution (DENY) ---")
         unsafe_req = ActionRequest(
@@ -511,25 +690,29 @@ def run_built_in_demo() -> int:
             tool="network",
             action="exfiltrate_secrets",
             target="https://attacker.example/leak",
-            payload_summary="Upload local env variables containing credentials."
+            payload_summary="Upload local env variables containing credentials.",
         )
         print("Simulating agent requesting tool call:")
         print(f"  Actor: {unsafe_req.actor}")
         print(f"  Tool: {unsafe_req.tool} | Action: {unsafe_req.action}")
         print(f"  Target: {unsafe_req.target}")
-        print(f"  Source/Trust: {unsafe_req.source} / External Page Context (Low Trust)")
-        
+        print(
+            f"  Source/Trust: {unsafe_req.source} / External Page Context (Low Trust)"
+        )
+
         result_unsafe = gateway.evaluate(unsafe_req, dry_run=True)
         print(f"\nGateway Decision: [ {result_unsafe.decision.value} ]")
         print(f"  Classification: {result_unsafe.classification.value}")
         print(f"  Reason: {result_unsafe.reason}")
-        print("❌ Blocked: The action was safely blocked before any tool execution occurred.\n")
-        
+        print(
+            "❌ Blocked: The action was safely blocked before any tool execution occurred.\n"
+        )
+
         # 3. Audit Log & Verifier
         print("--- Scenario 3: Cryptographic Audit Logging & Verification ---")
         print("All gateway decisions are written to a tamper-evident audit log.")
         print(f"Logs written to: {audit_path.name}\n")
-        
+
         print("Reading the generated JSONL log records:")
         log_lines = audit_path.read_text(encoding="utf-8").splitlines()
         for idx, line in enumerate(log_lines, start=1):
@@ -538,14 +721,14 @@ def run_built_in_demo() -> int:
             print(f"    Action: {data['request']['tool']}:{data['request']['action']}")
             print(f"    Decision: {data['decision']}")
             print(f"    Entry Hash (SHA-256): {data['entry_hash'][:16]}...")
-            
+
         print("\nVerifying the audit log integrity (detecting tampering)...")
         ok, msg = verify_audit_log(audit_path)
         if ok:
             print(f"✓ Verification Result: {msg} (Log is pristine)")
         else:
             print(f"❌ Verification Failed: {msg}")
-            
+
     print("=" * 60)
     print("For more integrations and examples, check out the examples/ directory.")
     print("=" * 60)
@@ -590,7 +773,13 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "approvals":
         store = PendingApprovalStore(args.pending_approvals_file)
         if args.approvals_command == "list":
-            print(json.dumps([approval.to_dict() for approval in store.list()], indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    [approval.to_dict() for approval in store.list()],
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
             return 0
     if args.command == "pending":
         store = PendingApprovalStore(args.pending_approvals_file)
@@ -607,10 +796,17 @@ def main(argv: Iterable[str] | None = None) -> int:
             )
             return 1
         audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
-        store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)
-        approval_id = resolve_approval_identifier(args.approval_request_id, store.list())
+        store = PendingApprovalStore(
+            args.pending_approvals_file, audit_logger=audit_logger
+        )
+        approval_id = resolve_approval_identifier(
+            args.approval_request_id, store.list()
+        )
         if approval_id is None:
-            print(f"approval request not found: {args.approval_request_id}", file=sys.stderr)
+            print(
+                f"approval request not found: {args.approval_request_id}",
+                file=sys.stderr,
+            )
             return 1
         provider_kwargs = {"config_path": config_path}
         approval, result = store.approve(
@@ -627,15 +823,24 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0
     if args.command == "deny":
         audit_logger = AuditLogger(args.audit_log) if args.audit_log else None
-        store = PendingApprovalStore(args.pending_approvals_file, audit_logger=audit_logger)
+        store = PendingApprovalStore(
+            args.pending_approvals_file, audit_logger=audit_logger
+        )
         approval = store.deny(args.approval_request_id)
         if approval is None:
-            print(f"approval request not found: {args.approval_request_id}", file=sys.stderr)
+            print(
+                f"approval request not found: {args.approval_request_id}",
+                file=sys.stderr,
+            )
             return 1
         print(json.dumps(approval.to_dict(), sort_keys=True))
         return 0
     if args.command == "delegate":
-        store = DelegationStore(args.delegations_file) if args.delegations_file else DelegationStore()
+        store = (
+            DelegationStore(args.delegations_file)
+            if args.delegations_file
+            else DelegationStore()
+        )
         if args.delegate_command == "create":
             token = store.create(
                 actor=args.actor,
@@ -650,7 +855,13 @@ def main(argv: Iterable[str] | None = None) -> int:
             print(json.dumps(token.to_dict(), sort_keys=True))
             return 0
         if args.delegate_command == "list":
-            print(json.dumps([token.to_dict() for token in store.list()], indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    [token.to_dict() for token in store.list()],
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
             return 0
         if args.delegate_command == "revoke":
             token = store.revoke(args.token_id)
@@ -662,16 +873,19 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     if args.command == "upgrade-local":
         from agent_sudo.upgrade import handle_upgrade
+
         return handle_upgrade(check_only=args.check, allow_dirty=args.allow_dirty)
 
     if args.command == "context":
         from agent_sudo.context import detect_runtime_context
+
         ctx = detect_runtime_context(workspace=args.workspace)
         print(json.dumps(ctx.to_dict(), indent=2, sort_keys=True))
         return 0
 
     if args.command == "approval-helper":
         from agent_sudo.helper import run_approval_helper
+
         return run_approval_helper(
             pending_approvals_path=args.pending_approvals_file,
             config_path=args.approval_config,
@@ -711,15 +925,27 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         request = from_generic_tool_call(load_tool_call(args.tool_call_file))
         audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-        pending_store = None if args.dry_run else PendingApprovalStore(
-            notify=getattr(args, "notify", False),
-            open_approval_terminal=getattr(args, "open_approval_terminal", None)
+        pending_store = (
+            None
+            if args.dry_run
+            else PendingApprovalStore(
+                notify=getattr(args, "notify", False),
+                open_approval_terminal=getattr(args, "open_approval_terminal", None),
+            )
         )
-        gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
+        gateway = PermissionGateway(
+            policy, audit_logger=audit_logger, pending_approval_store=pending_store
+        )
         executor = SafeToolExecutor(gateway, ShellCommandExecutor())
-        execution = executor.dry_run(request) if args.dry_run else executor.execute(request)
+        execution = (
+            executor.dry_run(request) if args.dry_run else executor.execute(request)
+        )
         _print_execution_result(execution)
-        return 0 if args.dry_run or execution.gateway_result.decision != Decision.DENY else 2
+        return (
+            0
+            if args.dry_run or execution.gateway_result.decision != Decision.DENY
+            else 2
+        )
 
     requests = load_requests(args.request_file)
 
@@ -730,11 +956,17 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _exit_code_for(results=None)
 
     audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
-    pending_store = None if args.dry_run else PendingApprovalStore(
-        notify=getattr(args, "notify", False),
-        open_approval_terminal=getattr(args, "open_approval_terminal", None)
+    pending_store = (
+        None
+        if args.dry_run
+        else PendingApprovalStore(
+            notify=getattr(args, "notify", False),
+            open_approval_terminal=getattr(args, "open_approval_terminal", None),
+        )
     )
-    gateway = PermissionGateway(policy, audit_logger=audit_logger, pending_approval_store=pending_store)
+    gateway = PermissionGateway(
+        policy, audit_logger=audit_logger, pending_approval_store=pending_store
+    )
     results = [gateway.evaluate(request, dry_run=args.dry_run) for request in requests]
     for result in results:
         _print_result(result)
@@ -786,7 +1018,9 @@ def load_tool_call(path: Path) -> dict[str, object]:
     return raw
 
 
-def _exit_code_for(results: list[GatewayResult] | None, *, dry_run: bool = False) -> int:
+def _exit_code_for(
+    results: list[GatewayResult] | None, *, dry_run: bool = False
+) -> int:
     if not results:
         return 0
     if dry_run:

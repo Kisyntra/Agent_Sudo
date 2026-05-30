@@ -9,7 +9,6 @@ from typing import Any
 from agent_sudo.audit import AuditLogger
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.mcp_gateway import MCPGateway
-from agent_sudo.models import GatewayResult
 from agent_sudo.policy import Policy
 
 
@@ -24,11 +23,15 @@ def discover_hermes_mcp() -> dict[str, Any]:
         "notes": [],
     }
     if hermes:
-        completed = subprocess.run([hermes, "mcp", "list"], capture_output=True, text=True, check=False)
+        completed = subprocess.run(
+            [hermes, "mcp", "list"], capture_output=True, text=True, check=False
+        )
         result["hermes_mcp_list_exit_code"] = completed.returncode
         result["hermes_mcp_list"] = _redact_user_paths(completed.stdout.strip())
     if cua_driver:
-        completed = subprocess.run([cua_driver, "list-tools"], capture_output=True, text=True, check=False)
+        completed = subprocess.run(
+            [cua_driver, "list-tools"], capture_output=True, text=True, check=False
+        )
         result["servers"].append(
             {
                 "name": "cua-driver",
@@ -36,7 +39,9 @@ def discover_hermes_mcp() -> dict[str, Any]:
                 "tool_sample": completed.stdout.splitlines()[:8],
             }
         )
-        result["notes"].append("cua-driver is a real Hermes-configured MCP server, but it does not expose file or shell tools.")
+        result["notes"].append(
+            "cua-driver is a real Hermes-configured MCP server, but it does not expose file or shell tools."
+        )
     return result
 
 
@@ -72,14 +77,18 @@ def run_jsonrpc_case(
     gateway: PermissionGateway | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    actual_gateway = gateway or PermissionGateway(policy, audit_logger=AuditLogger(audit_path))
+    actual_gateway = gateway or PermissionGateway(
+        policy, audit_logger=AuditLogger(audit_path)
+    )
     mcp_gateway = MCPGateway(actual_gateway)
     incoming = message
     normalized = tool_call_from_jsonrpc(incoming)
     execution = mcp_gateway.dispatch(normalized, dry_run=dry_run)
     approval_required = execution.gateway_result.decision.name.startswith("REQUIRE_")
     return {
-        "status": "approval_required" if approval_required else ("executed" if execution.executed else "blocked"),
+        "status": "approval_required"
+        if approval_required
+        else ("executed" if execution.executed else "blocked"),
         "incoming_mcp_request": incoming,
         "normalized_action_request": execution.request.to_dict(),
         "classification": execution.gateway_result.classification.value,
@@ -103,7 +112,9 @@ def run_jsonrpc_case(
     }
 
 
-def jsonrpc_tool_call(case_id: str, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+def jsonrpc_tool_call(
+    case_id: str, name: str, arguments: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "jsonrpc": "2.0",
         "id": case_id,
@@ -133,7 +144,9 @@ def _tool_for(name: str) -> str:
 def _last_audit_entry(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
-    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [
+        line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     if not lines:
         return None
     return json.loads(lines[-1])

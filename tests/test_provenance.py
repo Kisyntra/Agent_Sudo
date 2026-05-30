@@ -86,7 +86,9 @@ class ProvenanceTests(unittest.TestCase):
             "README.md",
             source="unknown",
             source_trust="UNKNOWN",
-            provenance=Provenance(origin_type=OriginType.UNKNOWN, channel=Channel.UNKNOWN),
+            provenance=Provenance(
+                origin_type=OriginType.UNKNOWN, channel=Channel.UNKNOWN
+            ),
         )
 
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
@@ -125,7 +127,9 @@ class ProvenanceTests(unittest.TestCase):
             gateway.evaluate(request)
             entry = json.loads(audit_path.read_text(encoding="utf-8").splitlines()[0])
 
-        self.assertEqual(entry["request"]["provenance"]["delegation_chain"], [token.token_id])
+        self.assertEqual(
+            entry["request"]["provenance"]["delegation_chain"], [token.token_id]
+        )
 
     def test_parent_request_id_and_request_id_logged(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -142,11 +146,15 @@ class ProvenanceTests(unittest.TestCase):
                     parent_request_id="request-parent",
                 ),
             )
-            PermissionGateway(self.policy, audit_logger=AuditLogger(audit_path)).evaluate(request)
+            PermissionGateway(
+                self.policy, audit_logger=AuditLogger(audit_path)
+            ).evaluate(request)
             entry = json.loads(audit_path.read_text(encoding="utf-8").splitlines()[0])
 
         self.assertEqual(entry["request"]["provenance"]["request_id"], "request-child")
-        self.assertEqual(entry["request"]["provenance"]["parent_request_id"], "request-parent")
+        self.assertEqual(
+            entry["request"]["provenance"]["parent_request_id"], "request-parent"
+        )
 
     def test_generic_adapter_preserves_provenance(self) -> None:
         request = from_generic_tool_call(

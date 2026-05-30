@@ -142,17 +142,36 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
     git_root = get_git_root()
     if not git_root:
         print("This installation is not inside a git repository.", file=sys.stderr)
-        print("\nTo upgrade agent-sudo manually, please run:\n  pip install --upgrade agent-sudo-mcp", file=sys.stderr)
+        print(
+            "\nTo upgrade agent-sudo manually, please run:\n  pip install --upgrade agent-sudo-mcp",
+            file=sys.stderr,
+        )
         return 1
 
     # Show warning about local state preservation
-    print("NOTE: Local state, audit logs, and delegations under ~/.agent-sudo will be preserved.")
+    print(
+        "NOTE: Local state, audit logs, and delegations under ~/.agent-sudo will be preserved."
+    )
 
     # Get current branch and commit
-    branch_cmd = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=git_root, capture_output=True, text=True)
-    commit_cmd = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=git_root, capture_output=True, text=True)
-    current_branch = branch_cmd.stdout.strip() if branch_cmd.returncode == 0 else "unknown"
-    current_commit = commit_cmd.stdout.strip() if commit_cmd.returncode == 0 else "unknown"
+    branch_cmd = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=git_root,
+        capture_output=True,
+        text=True,
+    )
+    commit_cmd = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=git_root,
+        capture_output=True,
+        text=True,
+    )
+    current_branch = (
+        branch_cmd.stdout.strip() if branch_cmd.returncode == 0 else "unknown"
+    )
+    current_commit = (
+        commit_cmd.stdout.strip() if commit_cmd.returncode == 0 else "unknown"
+    )
 
     print(f"Current installed version: {__version_label__}")
     print(f"Current Git branch: {current_branch}")
@@ -160,7 +179,9 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
 
     # Fetch latest tags
     print("Fetching tags from origin...")
-    fetch_cmd = subprocess.run(["git", "fetch", "--tags"], cwd=git_root, capture_output=True, text=True)
+    fetch_cmd = subprocess.run(
+        ["git", "fetch", "--tags"], cwd=git_root, capture_output=True, text=True
+    )
     if fetch_cmd.returncode != 0:
         print("Warning: Failed to fetch tags from origin.", file=sys.stderr)
 
@@ -201,8 +222,13 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
             print("  git status --short", file=sys.stderr)
             print("  git stash push -u -m agent-sudo-upgrade-safety", file=sys.stderr)
             print("Then rerun: agent-sudo upgrade-local", file=sys.stderr)
-            print("Generated artifacts listed above can also be removed manually if you prefer.", file=sys.stderr)
-            print("Pass --allow-dirty only if you understand the risk.", file=sys.stderr)
+            print(
+                "Generated artifacts listed above can also be removed manually if you prefer.",
+                file=sys.stderr,
+            )
+            print(
+                "Pass --allow-dirty only if you understand the risk.", file=sys.stderr
+            )
             return 1
 
     # Pull current branch
@@ -214,7 +240,9 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
 
     # Reinstall
     print("Reinstalling agent-sudo in editable mode...")
-    reinstall_cmd = subprocess.run([sys.executable, "-m", "pip", "install", "-e", "."], cwd=git_root)
+    reinstall_cmd = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-e", "."], cwd=git_root
+    )
     if reinstall_cmd.returncode != 0:
         print("Error: pip installation failed.", file=sys.stderr)
         return 1
@@ -229,12 +257,18 @@ def handle_upgrade(*, check_only: bool = False, allow_dirty: bool = False) -> in
         print(f"Warning: Verification failed ({exc}).", file=sys.stderr)
         # Fallback to sys.executable verification
         try:
-            subprocess.run([sys.executable, "-m", "agent_sudo.gateway", "--version"], check=True)
-            subprocess.run([sys.executable, "-m", "agent_sudo.gateway", "doctor"], check=True)
+            subprocess.run(
+                [sys.executable, "-m", "agent_sudo.gateway", "--version"], check=True
+            )
+            subprocess.run(
+                [sys.executable, "-m", "agent_sudo.gateway", "doctor"], check=True
+            )
         except subprocess.CalledProcessError:
             print("Error: Post-upgrade verification failed.", file=sys.stderr)
             return 1
 
     print("\nUpgrade completed successfully!")
-    print("\nReminder:\n  Restart Claude Desktop / Cursor / Hermes / OpenClaw after upgrading MCP server.")
+    print(
+        "\nReminder:\n  Restart Claude Desktop / Cursor / Hermes / OpenClaw after upgrading MCP server."
+    )
     return 0

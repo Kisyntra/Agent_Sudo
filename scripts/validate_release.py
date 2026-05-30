@@ -50,18 +50,24 @@ def validate_versions(expected_version: str | None = None) -> str:
     pyproject_ver = get_pyproject_version()
     init_ver, init_label = get_init_version()
 
-    print(f"Checking version consistency:")
+    print("Checking version consistency:")
     print(f"  pyproject.toml version: {pyproject_ver}")
     print(f"  agent_sudo/__init__.py __version__: {init_ver}")
     print(f"  agent_sudo/__init__.py __version_label__: {init_label}")
 
     if pyproject_ver != init_ver:
-        print("Error: Version in pyproject.toml and agent_sudo/__init__.py mismatch!", file=sys.stderr)
+        print(
+            "Error: Version in pyproject.toml and agent_sudo/__init__.py mismatch!",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     expected_label = f"v{init_ver}"
     if init_label != expected_label:
-        print(f"Error: __version_label__ ({init_label}) must match 'v{init_ver}'!", file=sys.stderr)
+        print(
+            f"Error: __version_label__ ({init_label}) must match 'v{init_ver}'!",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Check against CLI expected version if passed
@@ -69,7 +75,10 @@ def validate_versions(expected_version: str | None = None) -> str:
         clean_expected = expected_version.lstrip("v")
         print(f"  Expected version input: {expected_version}")
         if init_ver != clean_expected:
-            print(f"Error: Package version ({init_ver}) does not match expected version ({clean_expected})!", file=sys.stderr)
+            print(
+                f"Error: Package version ({init_ver}) does not match expected version ({clean_expected})!",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     # Verify tag matches if running in CI tag push trigger
@@ -81,7 +90,10 @@ def validate_versions(expected_version: str | None = None) -> str:
         expected_tag = f"v{init_ver}"
         print(f"  GitHub Action tag context: {tag}")
         if tag != expected_tag:
-            print(f"Error: Git tag ({tag}) does not match expected release tag ({expected_tag})!", file=sys.stderr)
+            print(
+                f"Error: Git tag ({tag}) does not match expected release tag ({expected_tag})!",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     return init_ver
@@ -110,7 +122,10 @@ def audit_readme() -> None:
                 start = max(0, match.start() - 20)
                 end = min(len(content), match.end() + 20)
                 snippet = content[start:end].replace("\n", " ")
-                print(f"Error: Found legacy install command reference in README.md: '{snippet}'", file=sys.stderr)
+                print(
+                    f"Error: Found legacy install command reference in README.md: '{snippet}'",
+                    file=sys.stderr,
+                )
             sys.exit(1)
 
     print("README.md check passed.")
@@ -119,21 +134,30 @@ def audit_readme() -> None:
 def verify_interop_assets() -> None:
     interop_path = Path("docs/interop/reference_log.jsonl")
     if not interop_path.exists():
-        print(f"Error: Interop reference log not found at {interop_path}", file=sys.stderr)
+        print(
+            f"Error: Interop reference log not found at {interop_path}", file=sys.stderr
+        )
         sys.exit(1)
 
     print(f"Verifying cryptographic hash chain of {interop_path}...")
     res = verify_jsonl_file(interop_path)
     if not res.success:
-        print(f"Error: Interoperability reference validation failed: {res}", file=sys.stderr)
+        print(
+            f"Error: Interoperability reference validation failed: {res}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print("Interop reference log verification passed.")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate release versions and assets.")
-    parser.add_argument("--version", help="Expected version to validate against (e.g. 0.4.0)")
+    parser = argparse.ArgumentParser(
+        description="Validate release versions and assets."
+    )
+    parser.add_argument(
+        "--version", help="Expected version to validate against (e.g. 0.4.0)"
+    )
     args = parser.parse_args()
 
     version = validate_versions(expected_version=args.version)

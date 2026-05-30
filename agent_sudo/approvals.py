@@ -4,7 +4,6 @@ import getpass
 import hashlib
 import hmac
 import json
-import os
 import secrets
 import sys
 import time
@@ -56,7 +55,9 @@ class ApprovalProvider:
         return ApprovalResult(
             approved=approved,
             method="CLI_CONFIRM",
-            reason="approved by CLI confirmation" if approved else "rejected by CLI confirmation",
+            reason="approved by CLI confirmation"
+            if approved
+            else "rejected by CLI confirmation",
         )
 
     def approve_critical(self, request: ActionRequest) -> ApprovalResult:
@@ -97,7 +98,9 @@ class ApprovalProvider:
         return ApprovalResult(
             approved=approved,
             method="PASSPHRASE_CONFIRM",
-            reason="passphrase verified" if approved else f"passphrase verification failed ({failed_attempts} failed attempts)",
+            reason="passphrase verified"
+            if approved
+            else f"passphrase verification failed ({failed_attempts} failed attempts)",
         )
 
     def _locked_until(self) -> float:
@@ -121,7 +124,9 @@ class ApprovalProvider:
         return failed_attempts, locked_until
 
     def _reset_lockout_state(self) -> None:
-        _write_lockout_state(self.lockout_path, {"failed_attempts": 0, "locked_until": 0})
+        _write_lockout_state(
+            self.lockout_path, {"failed_attempts": 0, "locked_until": 0}
+        )
 
 
 class AutoDenyApprovalProvider(ApprovalProvider):
@@ -146,10 +151,14 @@ def init_approval_config(
         input_func = input
     if getpass_func is None:
         import getpass
+
         getpass_func = getpass.getpass
 
     from agent_sudo.delegations import DELEGATIONS_PATH, DelegationStore
-    from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore
+    from agent_sudo.pending_approvals import (
+        PENDING_APPROVALS_PATH,
+        PendingApprovalStore,
+    )
     from agent_sudo.audit import AuditLogger
 
     actual_delegations_path = delegations_path or DELEGATIONS_PATH
@@ -158,7 +167,9 @@ def init_approval_config(
     is_reset = config_path.exists()
 
     if is_reset and not force:
-        print("Resetting the approval passphrase will revoke delegations and cancel pending approvals.")
+        print(
+            "Resetting the approval passphrase will revoke delegations and cancel pending approvals."
+        )
         answer = input_func("Do you want to proceed? [y/N] ").strip().lower()
         if answer not in {"y", "yes"}:
             raise ValueError("passphrase reset aborted by user")
@@ -183,6 +194,7 @@ def init_approval_config(
             for token in tokens:
                 if not token.revoked:
                     from dataclasses import replace
+
                     token = replace(token, revoked=True)
                     revoked_delegations_count += 1
                 updated_tokens.append(token)
@@ -198,11 +210,17 @@ def init_approval_config(
 
         if approvals:
             from agent_sudo.models import ApprovalStatus
+
             updated_approvals = []
             for approval in approvals:
                 if approval.status in {ApprovalStatus.PENDING, ApprovalStatus.APPROVED}:
                     from dataclasses import replace
-                    approval = replace(approval, status=ApprovalStatus.DENIED, reason="passphrase was reset")
+
+                    approval = replace(
+                        approval,
+                        status=ApprovalStatus.DENIED,
+                        reason="passphrase was reset",
+                    )
                     canceled_approvals_count += 1
                 updated_approvals.append(approval)
             if canceled_approvals_count > 0:
@@ -224,16 +242,22 @@ def init_approval_config(
         pass
 
     config = hash_passphrase(first)
-    config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    config_path.write_text(
+        json.dumps(config, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
     try:
         config_path.chmod(0o600)
     except PermissionError:
         pass
 
 
-def hash_passphrase(passphrase: str, *, salt: bytes | None = None) -> dict[str, str | int]:
+def hash_passphrase(
+    passphrase: str, *, salt: bytes | None = None
+) -> dict[str, str | int]:
     actual_salt = salt or secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), actual_salt, PBKDF2_ITERATIONS)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", passphrase.encode("utf-8"), actual_salt, PBKDF2_ITERATIONS
+    )
     return {
         "approval_hash_algorithm": "pbkdf2_hmac_sha256",
         "approval_hash_iterations": PBKDF2_ITERATIONS,
@@ -248,7 +272,9 @@ def verify_passphrase(passphrase: str, config: dict[str, object]) -> bool:
     iterations = int(config["approval_hash_iterations"])
     salt = bytes.fromhex(str(config["approval_hash_salt"]))
     expected = str(config["approval_hash"])
-    actual = hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, iterations).hex()
+    actual = hashlib.pbkdf2_hmac(
+        "sha256", passphrase.encode("utf-8"), salt, iterations
+    ).hex()
     return hmac.compare_digest(actual, expected)
 
 
@@ -276,7 +302,9 @@ def _write_lockout_state(path: Path, state: dict[str, object]) -> None:
         path.parent.chmod(0o700)
     except PermissionError:
         pass
-    path.write_text(json.dumps(state, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(state, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
     try:
         path.chmod(0o600)
     except PermissionError:

@@ -18,7 +18,9 @@ class Policy:
         if classification == Classification.SAFE:
             return PolicyResult(Decision.ALLOW, "SAFE actions are allowed by policy")
         if classification == Classification.SENSITIVE:
-            return PolicyResult(Decision.REQUIRE_APPROVAL, "SENSITIVE actions require CLI approval")
+            return PolicyResult(
+                Decision.REQUIRE_APPROVAL, "SENSITIVE actions require CLI approval"
+            )
         if classification == Classification.CRITICAL:
             return PolicyResult(
                 Decision.REQUIRE_STRONG_APPROVAL,

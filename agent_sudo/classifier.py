@@ -58,32 +58,51 @@ class ActionClassifier:
 
     def classify(self, request: ActionRequest) -> Classification:
         hints = {hint.strip().lower() for hint in request.risk_hints}
-        if request.action == "prompt_injection_attempt" or detect_prompt_injection(_injection_scan_text(request)):
+        if request.action == "prompt_injection_attempt" or detect_prompt_injection(
+            _injection_scan_text(request)
+        ):
             return Classification.BLOCKED
         if hints & BLOCKING_HINTS:
             return Classification.BLOCKED
-        if request.action == "run_shell_command" and is_blocked_shell_target(request.target):
+        if request.action == "run_shell_command" and is_blocked_shell_target(
+            request.target
+        ):
             return Classification.BLOCKED
         if request.action == "read_file" and is_blocked_read_target(request.target):
             return Classification.BLOCKED
         if request.action == "get_runtime_context":
             return Classification.SAFE
         action_classification = self.policy.classification_for_action(request.action)
-        if request.action in PATH_WRITE_ACTIONS and is_blocked_write_target(request.target):
+        if request.action in PATH_WRITE_ACTIONS and is_blocked_write_target(
+            request.target
+        ):
             return Classification.BLOCKED
-        if request.action in FILE_WRITE_ACTIONS and is_critical_write_target(request.target):
+        if request.action in FILE_WRITE_ACTIONS and is_critical_write_target(
+            request.target
+        ):
             if action_classification == Classification.BLOCKED:
                 return Classification.BLOCKED
             return Classification.CRITICAL
-        if request.action in PATH_WRITE_ACTIONS and is_forbidden_path_target(request.target):
+        if request.action in PATH_WRITE_ACTIONS and is_forbidden_path_target(
+            request.target
+        ):
             return Classification.BLOCKED
-        if request.action in {"write_file", "edit_file"} and not is_write_target_allowed(request.target):
+        if request.action in {
+            "write_file",
+            "edit_file",
+        } and not is_write_target_allowed(request.target):
             return Classification.BLOCKED
-        if is_protected_target(request.target) and request.action in PROTECTED_WRITE_ACTIONS:
+        if (
+            is_protected_target(request.target)
+            and request.action in PROTECTED_WRITE_ACTIONS
+        ):
             if action_classification == Classification.BLOCKED:
                 return Classification.BLOCKED
             return Classification.CRITICAL
-        if request.provenance.origin_type == OriginType.EXTERNAL_CONTENT and action_classification != Classification.BLOCKED:
+        if (
+            request.provenance.origin_type == OriginType.EXTERNAL_CONTENT
+            and action_classification != Classification.BLOCKED
+        ):
             return Classification.SENSITIVE
         if request.source_trust in {TrustLevel.EXTERNAL_CONTENT, TrustLevel.UNKNOWN}:
             if action_classification == Classification.SAFE:
@@ -94,7 +113,10 @@ class ActionClassifier:
                 return Classification.BLOCKED
             return Classification.CRITICAL
         if hints & SENSITIVE_HINTS:
-            if action_classification in {Classification.BLOCKED, Classification.CRITICAL}:
+            if action_classification in {
+                Classification.BLOCKED,
+                Classification.CRITICAL,
+            }:
                 return action_classification
             return Classification.SENSITIVE
         return action_classification
@@ -113,7 +135,10 @@ def is_protected_target(target: str) -> bool:
         return True
     if "audit" in normalized.lower() and normalized.endswith(".log"):
         return True
-    if normalized.startswith("agent_sudo/config/") or "/agent_sudo/config/" in normalized:
+    if (
+        normalized.startswith("agent_sudo/config/")
+        or "/agent_sudo/config/" in normalized
+    ):
         return True
     if normalized.startswith("agent_sudo/") and normalized.endswith(".py"):
         return True
@@ -130,7 +155,6 @@ def is_protected_target(target: str) -> bool:
 
 def is_forbidden_path_target(target: str) -> bool:
     normalized = _normalized_target(target)
-    lowered = normalized.lower()
     home = str(Path.home()).replace("\\", "/")
 
     if is_blocked_write_target(target):
@@ -190,7 +214,10 @@ def _normalized_target(target: str) -> str:
 
 
 def _looks_like_tamper_target(lowered: str) -> bool:
-    return any(marker in lowered for marker in {"audit", "policy", "default_policy.yaml", "default_policy.yml"})
+    return any(
+        marker in lowered
+        for marker in {"audit", "policy", "default_policy.yaml", "default_policy.yml"}
+    )
 
 
 def _looks_like_credential_path(lowered: str) -> bool:
@@ -207,7 +234,16 @@ def _looks_like_credential_path(lowered: str) -> bool:
     }
     if path_parts & sensitive_names:
         return True
-    return any(marker in lowered for marker in {"/auth/", "/credential/", "/credentials/", "/secret/", "/secrets/"})
+    return any(
+        marker in lowered
+        for marker in {
+            "/auth/",
+            "/credential/",
+            "/credentials/",
+            "/secret/",
+            "/secrets/",
+        }
+    )
 
 
 def _looks_like_launchd_plist(lowered: str) -> bool:
@@ -250,7 +286,16 @@ def _looks_like_mcp_config(lowered: str, name: str) -> bool:
         return True
     if "mcp" not in lowered or not name.endswith(config_suffixes):
         return False
-    return any(marker in lowered for marker in {"/mcp/", "mcp_config", "mcp-config", "mcp.settings", "mcp_settings"})
+    return any(
+        marker in lowered
+        for marker in {
+            "/mcp/",
+            "mcp_config",
+            "mcp-config",
+            "mcp.settings",
+            "mcp_settings",
+        }
+    )
 
 
 def _looks_like_runtime_config(lowered: str, name: str) -> bool:
@@ -270,7 +315,9 @@ def _looks_like_runtime_config(lowered: str, name: str) -> bool:
     }
     if "/.agent-runtime/" in lowered or lowered.endswith("/.agent-runtime"):
         return True
-    if name in config_names and any(marker in lowered for marker in {"runtime", "agent-runtime", ".codex", ".agent"}):
+    if name in config_names and any(
+        marker in lowered for marker in {"runtime", "agent-runtime", ".codex", ".agent"}
+    ):
         return True
     return False
 
@@ -278,13 +325,25 @@ def _looks_like_runtime_config(lowered: str, name: str) -> bool:
 def is_blocked_shell_target(command: str) -> bool:
     lowered = command.lower()
     parts = lowered.split()
-    if parts and parts[0] == "rm" and any("r" in flag and "f" in flag for flag in parts[1:] if flag.startswith("-")):
+    if (
+        parts
+        and parts[0] == "rm"
+        and any(
+            "r" in flag and "f" in flag for flag in parts[1:] if flag.startswith("-")
+        )
+    ):
         return True
-    if parts and parts[0] == "chmod" and any(marker in lowered for marker in {".ssh", "auth", "credential"}):
+    if (
+        parts
+        and parts[0] == "chmod"
+        and any(marker in lowered for marker in {".ssh", "auth", "credential"})
+    ):
         return True
     if any(marker in lowered for marker in {"id_rsa", ".ssh/", "private_key"}):
         return True
-    if "token" in lowered and any(marker in lowered for marker in {"http://", "https://", "curl", "wget"}):
+    if "token" in lowered and any(
+        marker in lowered for marker in {"http://", "https://", "curl", "wget"}
+    ):
         return True
 
     # Block commands targeting protected configuration directories or system/agent credentials
@@ -315,16 +374,16 @@ def is_blocked_shell_target(command: str) -> bool:
 
 
 def _has_protected_symlink(command: str, blocked_markers: set[str]) -> bool:
-    delimiters = ['\'', '"', '`', ';', '(', ')', '|', '&', '>', '<', '$', '=', ',']
+    delimiters = ["'", '"', "`", ";", "(", ")", "|", "&", ">", "<", "$", "=", ","]
     temp = command
     for d in delimiters:
-        temp = temp.replace(d, ' ')
+        temp = temp.replace(d, " ")
 
     words = temp.split()
     for word in words:
         try:
             # Clean trailing punctuation but keep slashes for absolute paths
-            cleaned = word.strip('.,:;?!')
+            cleaned = word.strip(".,:;?!")
             if not cleaned:
                 continue
             path = Path(cleaned).expanduser()
@@ -352,10 +411,16 @@ def is_blocked_read_target(target: str) -> bool:
     if normalized.startswith(f"{home}/.config/") or normalized == f"{home}/.config":
         return True
     # ~/.agent-sudo/**
-    if normalized.startswith(f"{home}/.agent-sudo/") or normalized == f"{home}/.agent-sudo":
+    if (
+        normalized.startswith(f"{home}/.agent-sudo/")
+        or normalized == f"{home}/.agent-sudo"
+    ):
         return True
     # ~/.agent-runtime/**
-    if normalized.startswith(f"{home}/.agent-runtime/") or normalized == f"{home}/.agent-runtime":
+    if (
+        normalized.startswith(f"{home}/.agent-runtime/")
+        or normalized == f"{home}/.agent-runtime"
+    ):
         return True
 
     # .env and .env.*
@@ -363,7 +428,15 @@ def is_blocked_read_target(target: str) -> bool:
         return True
 
     # Files containing: auth, token, credential, secret, private_key, config, api-key
-    keywords = {"auth", "token", "credential", "secret", "private_key", "config", "api" + "_" + "key"}
+    keywords = {
+        "auth",
+        "token",
+        "credential",
+        "secret",
+        "private_key",
+        "config",
+        "api" + "_" + "key",
+    }
     if any(kw in name or kw in lowered for kw in keywords):
         return True
 
@@ -371,4 +444,12 @@ def is_blocked_read_target(target: str) -> bool:
 
 
 def _injection_scan_text(request: ActionRequest) -> str:
-    return " ".join([request.source, request.tool, request.action, request.target, request.payload_summary])
+    return " ".join(
+        [
+            request.source,
+            request.tool,
+            request.action,
+            request.target,
+            request.payload_summary,
+        ]
+    )
