@@ -1,7 +1,7 @@
 # Agent_Sudo Interoperability Test Kit
 
 > [!NOTE]
-> **Specification Version**: `v0.4.0` (Pre-v1 Draft)  
+> **Specification Version**: `v0.4.0` (Pre-v1 Draft)
 > **Status**: Draft. This test kit reflects the current pre-v1 spec draft semantics and may evolve during the formal Spec Review process. Do not treat these details as finalized.
 
 This Interoperability Test Kit is designed to help developer teams build compatible client/emitter implementations of the `Agent_Sudo` audit log (such as LexFlow or external agent runtimes) in JS, TS, Go, Rust, or other languages.
