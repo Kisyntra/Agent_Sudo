@@ -19,7 +19,10 @@ differs -> different verdict. That is the whole product.
 
 Nothing is ever executed and no network call is made: Agent_Sudo gates the
 action *before* it runs. Every decision is written to a SHA-256 hash-chained
-audit log that ``agent-sudo verify-audit`` can prove is untampered.
+audit log that is *tamper-evident*: ``agent-sudo verify-audit`` detects any
+after-the-fact edit to the recorded chain. (It is not tamper-proof storage --
+a process with filesystem access could still delete or replace the whole log;
+see SECURITY.md.)
 
 Run:
     python demo.py
@@ -103,6 +106,11 @@ def scenarios() -> list[dict]:
             "key": "external_read",
             "label": "[3] SAME read_file as #1 — but it originates from the fetched page",
             "expected": "REQUIRE_APPROVAL",
+            # source_trust is held at USER_DIRECT (identical to scenario #1) on
+            # purpose: it isolates provenance.origin_type as the *only* field that
+            # differs from #1, so the verdict change is attributable solely to the
+            # origin_type branch in the classifier (not the independent
+            # source_trust branch). The smoke test asserts this isolation.
             "request": ActionRequest(
                 actor="demo-agent",
                 source="webpage_content",
@@ -111,7 +119,7 @@ def scenarios() -> list[dict]:
                 target="./README.md",
                 payload_summary="read the project readme as requested by fetched page content",
                 risk_hints=["read_access"],
-                source_trust=TrustLevel.EXTERNAL_CONTENT,
+                source_trust=TrustLevel.USER_DIRECT,
                 provenance=Provenance(
                     origin_type=OriginType.EXTERNAL_CONTENT,
                     channel=Channel.WEBPAGE,
@@ -158,7 +166,7 @@ def main(audit_path: Path = DEFAULT_AUDIT_PATH) -> None:
         print(f"    {color}{_BOLD}{name}{_RESET}  - {result.reason}\n")
 
     print(
-        f"  {_DIM}Audit log written to {audit_path.name}. Prove it is untampered:{_RESET}"
+        f"  {_DIM}Audit log written to {audit_path.name}. Verify the hash chain (tamper-evident):{_RESET}"
     )
     print(f"    {_BOLD}agent-sudo verify-audit {audit_path}{_RESET}\n")
 

@@ -58,12 +58,16 @@ class ExfilDemoSmokeTest(unittest.TestCase):
             )
 
     def test_provenance_is_the_only_difference_between_1_and_3(self) -> None:
-        # Same tool/action/target; only the origin differs -> different verdict.
+        # #1 and #3 must be identical in every classifier-relevant field EXCEPT
+        # provenance.origin_type -- including source_trust, which the classifier
+        # escalates on independently. Holding source_trust constant is what makes
+        # the differing verdict attributable solely to origin_type.
         r1 = next(s["request"] for s, _ in self.results if s["key"] == "user_read")
         r3 = next(s["request"] for s, _ in self.results if s["key"] == "external_read")
         self.assertEqual(
             (r1.tool, r1.action, r1.target), (r3.tool, r3.action, r3.target)
         )
+        self.assertEqual(r1.source_trust, r3.source_trust)  # control: held constant
         self.assertNotEqual(
             r1.provenance.origin_type,
             r3.provenance.origin_type,
@@ -72,6 +76,40 @@ class ExfilDemoSmokeTest(unittest.TestCase):
             self.by_key["user_read"].decision.name,
             self.by_key["external_read"].decision.name,
         )
+
+    def test_decision_depends_on_provenance_origin_type_specifically(self) -> None:
+        # Isolation guard: flip ONLY provenance.origin_type with source_trust held
+        # at USER_DIRECT. If the classifier's origin_type branch regressed, the
+        # EXTERNAL_CONTENT request would fall through to ALLOW (source_trust does
+        # not escalate USER_DIRECT), and this test would fail -- so it genuinely
+        # guards the provenance-based behavior the demo claims.
+        from agent_sudo.models import (
+            ActionRequest,
+            Channel,
+            OriginType,
+            Provenance,
+            TrustLevel,
+        )
+
+        def read_request(origin: OriginType) -> ActionRequest:
+            return ActionRequest(
+                actor="demo-agent",
+                source="probe",
+                tool="filesystem",
+                action="read_file",
+                target="./README.md",
+                payload_summary="read the project readme",
+                risk_hints=["read_access"],
+                source_trust=TrustLevel.USER_DIRECT,  # held constant
+                provenance=Provenance(origin_type=origin, channel=Channel.CLI),
+            )
+
+        user = self.gateway.evaluate(read_request(OriginType.USER_DIRECT), dry_run=True)
+        external = self.gateway.evaluate(
+            read_request(OriginType.EXTERNAL_CONTENT), dry_run=True
+        )
+        self.assertEqual(user.decision.name, "ALLOW")
+        self.assertEqual(external.decision.name, "REQUIRE_APPROVAL")
 
     def test_audit_log_has_three_entries_and_verifies(self) -> None:
         lines = [

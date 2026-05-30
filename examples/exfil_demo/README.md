@@ -21,11 +21,14 @@ You'll see three verdicts:
 | 2 | injected by the fetched page | `external_post → attacker.example` | **DENY** |
 | 3 | the fetched page | `read_file ./README.md` | **REQUIRE_APPROVAL** |
 
-Scenarios **1 and 3 are the same `read_file` call** — allowed when *you* ask,
-escalated to require approval when an untrusted web page asks. That difference
-is the whole product: Agent_Sudo decides on *where the instruction came from*,
-and writes a tamper-proof, hash-chained record of every decision that
-`agent-sudo verify-audit` can verify.
+Scenarios **1 and 3 are the same `read_file` call** — identical in every field
+except `provenance.origin_type` (both even share the same `source_trust`, so the
+origin is the *only* difference). It's allowed when *you* ask, and escalated to
+require approval when an untrusted web page asks. That difference is the whole
+product: Agent_Sudo decides on *where the instruction came from*, and writes a
+**tamper-evident**, hash-chained record of every decision that
+`agent-sudo verify-audit` can verify (it detects after-the-fact edits to the
+chain; it is not tamper-proof storage — see `SECURITY.md`).
 
 Nothing is executed and no network call is made — Agent_Sudo gates the action
 *before* it runs.
