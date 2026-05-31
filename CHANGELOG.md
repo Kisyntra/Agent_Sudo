@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Adds `agent-sudo audit list`, a human-readable view of the audit log. Renders each record as a table (time, decision, actor, action, target, reason) so users can review what an agent did without parsing raw JSONL or writing code. Supports `--limit N` (default 20; `0` for all) and `--json`, defaults to the MCP server log at `.agent-sudo/mcp-audit.jsonl`, and handles both gateway-decision records and approval lifecycle events. Complements the existing integrity-only `verify-audit`.
+- Adds `agent-sudo workspace set <path>` and `agent-sudo workspace show` so Claude Desktop users can persist the fixed workspace once in `~/.agent-sudo/config.json` and omit `--workspace` from the MCP server config.
+
 ## v0.4.0
 
 First stable public release of the `agent-sudo` local permission gateway for AI agent tool execution.

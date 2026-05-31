@@ -289,6 +289,136 @@ class RuntimeContextTests(unittest.TestCase):
                 self.assertEqual(ctx.effective_workspace, str(tmp_path))
                 self.assertTrue(ctx.workspace_detected)
 
+    def test_workspace_set_and_show_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            workspace_path = tmp_path / "workspace"
+            workspace_path.mkdir()
+
+            stdout = io.StringIO()
+            with mock.patch("sys.stdout", stdout):
+                exit_code = main(
+                    [
+                        "workspace",
+                        "set",
+                        str(workspace_path),
+                        "--config",
+                        str(config_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(f"workspace set to {workspace_path}", stdout.getvalue())
+            self.assertEqual(
+                json.loads(config_path.read_text(encoding="utf-8"))["workspace"],
+                str(workspace_path),
+            )
+
+            stdout = io.StringIO()
+            with mock.patch("sys.stdout", stdout):
+                exit_code = main(
+                    ["workspace", "show", "--config", str(config_path)]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(workspace_path))
+
+    def test_workspace_set_preserves_existing_config_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            workspace_path = tmp_path / "workspace"
+            workspace_path.mkdir()
+            config_path.write_text(
+                json.dumps({"approval_salt": "salt", "approval_hash": "hash"}),
+                encoding="utf-8",
+            )
+
+            with mock.patch("sys.stdout", io.StringIO()):
+                exit_code = main(
+                    [
+                        "workspace",
+                        "set",
+                        str(workspace_path),
+                        "--config",
+                        str(config_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["workspace"], str(workspace_path))
+            self.assertEqual(data["approval_salt"], "salt")
+            self.assertEqual(data["approval_hash"], "hash")
+
+    def test_workspace_set_rejects_invalid_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            stderr = io.StringIO()
+
+            with mock.patch("sys.stderr", stderr):
+                exit_code = main(
+                    [
+                        "workspace",
+                        "set",
+                        str(tmp_path / "missing"),
+                        "--config",
+                        str(config_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("workspace set failed", stderr.getvalue())
+            self.assertFalse(config_path.exists())
+
+    def test_workspace_set_rejects_malformed_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            workspace_path = tmp_path / "workspace"
+            workspace_path.mkdir()
+            config_path.write_text("not json", encoding="utf-8")
+            stderr = io.StringIO()
+
+            with mock.patch("sys.stderr", stderr):
+                exit_code = main(
+                    [
+                        "workspace",
+                        "set",
+                        str(workspace_path),
+                        "--config",
+                        str(config_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("workspace set failed", stderr.getvalue())
+            self.assertEqual(config_path.read_text(encoding="utf-8"), "not json")
+
+    def test_configured_workspace_file_is_used_when_no_flag_or_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            workspace_path = tmp_path / "workspace"
+            workspace_path.mkdir()
+            config_path = tmp_path / "config.json"
+            config_path.write_text(
+                json.dumps({"workspace": str(workspace_path)}),
+                encoding="utf-8",
+            )
+
+            with (
+                mock.patch.dict(os.environ, {}, clear=True),
+                mock.patch("agent_sudo.context.CONFIG_PATH", config_path),
+            ):
+                ctx = detect_runtime_context(cwd="/")
+
+            self.assertEqual(ctx.configured_workspace, str(workspace_path))
+            self.assertEqual(ctx.effective_workspace, str(workspace_path))
+            self.assertTrue(ctx.workspace_detected)
+            self.assertFalse(ctx.running_from_root)
+
     def test_cli_workspace_flag(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
