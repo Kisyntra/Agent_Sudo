@@ -47,7 +47,14 @@ For developers building autonomous agents using frameworks like PydanticAI, Lang
     gateway = PermissionGateway(load_default_policy())
 
     # Gate tool execution in your application
-    request = ActionRequest(actor="my-agent", source="user", tool="shell", action="run_command", target="rm -rf /")
+    request = ActionRequest(
+        actor="my-agent",
+        source="user",
+        tool="shell",
+        action="run_shell_command",
+        target="rm -rf /",
+        payload_summary="recursively delete the filesystem root",
+    )
     result = gateway.evaluate(request)
     if result.decision.name == "DENY":
         raise PermissionError(f"Blocked by Agent_Sudo: {result.reason}")
@@ -132,8 +139,11 @@ See provenance-based blocking in ~60 seconds. An agent reads a poisoned web page
 
 ![Agent_Sudo exfiltration-prevention demo](assets/demo/exfil-demo.gif)
 
+The demo lives in the repository (it is not part of the PyPI package), so clone first:
+
 ```bash
-cd examples/exfil_demo && python demo.py
+git clone https://github.com/Kisyntra/Agent_Sudo
+cd Agent_Sudo/examples/exfil_demo && python demo.py
 ```
 
 Walkthrough and expected output: [`examples/exfil_demo/`](examples/exfil_demo/).

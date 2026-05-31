@@ -28,8 +28,13 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
             "audit log writable", root / ".agent-sudo" / "doctor-audit.jsonl"
         ),
         _writable_file_check("delegation store writable", DELEGATIONS_PATH),
-        _personal_data_check(root),
     ]
+    # Contributor-only hygiene check: the personal-data scanner ships in the
+    # source tree (scripts/), not in the installed package. Only run it when
+    # working from a clone, so installed users aren't shown an irrelevant scan
+    # of their own working directory.
+    if (root / "scripts" / "check_no_personal_data.py").exists():
+        checks.append(_personal_data_check(root))
     return checks
 
 
