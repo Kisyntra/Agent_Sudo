@@ -45,6 +45,95 @@ def verify_audit_log(path: Path) -> tuple[bool, str]:
     return False, str(result)
 
 
+def read_audit_entries(path: Path) -> list[dict[str, Any]]:
+    """Load audit JSONL records as a list of dicts (oldest first)."""
+    if not path.exists():
+        return []
+    entries: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            entries.append(json.loads(line))
+    return entries
+
+
+def _audit_view(entry: dict[str, Any]) -> dict[str, str]:
+    """Reduce a raw audit entry to the human-facing columns.
+
+    Handles both ``gateway_decision`` records (which carry a ``request``) and
+    approval lifecycle events (which carry an ``approval_request``).
+    """
+    event_type = str(entry.get("event_type", "event"))
+
+    request = entry.get("request")
+    approval = entry.get("approval_request")
+    if not isinstance(request, dict) and isinstance(approval, dict):
+        request = approval.get("action_request")
+    if not isinstance(request, dict):
+        request = {}
+
+    if event_type == "gateway_decision":
+        label = str(entry.get("decision", ""))
+    else:
+        label = event_type
+
+    reason = entry.get("reason")
+    if reason is None and isinstance(approval, dict):
+        reason = approval.get("reason")
+
+    return {
+        "time": str(entry.get("timestamp", ""))[:19],
+        "label": label,
+        "actor": str(request.get("actor", "")),
+        "action": str(request.get("action", "")),
+        "target": str(request.get("target", "")),
+        "reason": str(reason or ""),
+    }
+
+
+# (column header, width) pairs for the audit table.
+_AUDIT_COLUMNS = [
+    ("time", 19),
+    ("decision", 17),
+    ("actor", 12),
+    ("action", 20),
+    ("target", 22),
+    ("reason", 44),
+]
+
+
+def format_audit_log(entries: list[dict[str, Any]], *, limit: int | None = None) -> str:
+    """Render audit records as a readable table (newest at the bottom).
+
+    Mirrors the style of ``format_pending_approvals``: a header row followed by
+    clipped, space-separated columns. ``limit`` keeps only the most recent N
+    records while preserving their original (1-based) record numbers.
+    """
+    if not entries:
+        return "No audit records found."
+    selected = entries if not limit or limit <= 0 else entries[-limit:]
+    first_number = len(entries) - len(selected) + 1
+
+    header = "  ".join(
+        ["#".ljust(4)] + [name.ljust(width) for name, width in _AUDIT_COLUMNS]
+    )
+    rows = [header]
+    for offset, entry in enumerate(selected):
+        view = _audit_view(entry)
+        cells = [str(first_number + offset).ljust(4)]
+        for name, width in _AUDIT_COLUMNS:
+            key = "label" if name == "decision" else name
+            cells.append(_clip(view[key], width).ljust(width))
+        rows.append("  ".join(cells).rstrip())
+    return "\n".join(rows)
+
+
+def _clip(value: str, width: int) -> str:
+    return value if len(value) <= width else value[: max(0, width - 1)] + "."
+
+
 GENESIS_HASH = "0" * 64
 
 

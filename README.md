@@ -70,6 +70,7 @@ For system administrators and security engineers who want to audit agent logs, m
 *   **Install**: `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`
 *   **Initialize**: `agent-sudo init-approval` (sets up local passphrase for CLI confirmations)
 *   **Built-in Demo**: Run `agent-sudo demo` to see policies in action.
+*   **Review Activity**: Run `agent-sudo audit list` to see what your agent did — a readable table of each decision (time, decision, actor, action, target, reason). Add `--limit N` or `--json`.
 *   **Audit Verification**: Run `agent-sudo verify-audit <path/to/audit.jsonl>` to verify cryptographic hash chain integrity.
 
 ---
@@ -113,13 +114,33 @@ These two layers are **complementary**: use Docker/VM sandboxes to isolate envir
 
 ---
 
+## Trust Boundaries: What Is and Is Not Protected
+
+Agent_Sudo only sees the tool calls that are **routed through it**. This is the single most important thing to understand before relying on it.
+
+| ✅ Protected | ❌ Not protected |
+| :--- | :--- |
+| Tool calls made through the `agent-sudo` MCP server (file reads/writes, shell, network) — gated, classified, and logged | A client's **own native/built-in tools** (e.g. Claude Desktop's built-in file or web tools) that don't go through the `agent-sudo` server |
+| Any runtime where dangerous tools are disabled or explicitly proxied through the gateway | **Other MCP servers** you've installed that expose filesystem/shell/network directly to the agent |
+| Intent-level decisions: provenance, approval gates, delegation scopes, audit | OS-level isolation (use Docker/VM for that — see [comparison](docs/comparison/sandboxes.md)) |
+
+**How to make sure you're actually protected:**
+
+1. Route the agent's risky capabilities through the `agent-sudo` MCP server (see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md)).
+2. Disable or remove **other** tools that grant the agent direct file/shell/network access and bypass the gateway.
+3. **Verify with the audit log.** Ask the agent to perform an action, then run `agent-sudo audit list`. If the action is recorded, it went through the gateway. **If it is *not* in the log, it bypassed Agent_Sudo and was not protected** — that capability still needs to be disabled or routed through the gateway.
+
+This is a deliberate scope choice, not a defect: Agent_Sudo governs *intent and authorization* for the tools it mediates. Pair it with OS-level isolation (Docker/Firecracker) for environment containment.
+
+---
+
 ## Core Features
 
 - **Approval Gates**: Prompts for interactive confirmation (CLI yes/no) on sensitive actions, and requires a local passphrase for critical actions (e.g., running shell commands).
 - **Protected Reads**: Automatically blocks reads targeting private files such as credentials, configuration folders, and shell startup scripts.
 - **Critical Write Detection**: Upgrades ordinary file writes to critical status if the target is executable code or configuration files.
 - **Scoped Delegation**: Allows humans to issue temporary, resource-limited permission tokens (e.g., allow read access to `/path/to/project` for 2 hours, max 10 uses).
-- **Audit Logs**: Records all tool attempts and gateway decisions to a local JSONL log file secured with a SHA-256 hash chain to detect log tampering.
+- **Audit Logs**: Records all tool attempts and gateway decisions to a local JSONL log file secured with a SHA-256 hash chain to detect log tampering. Review them in a human-readable table with `agent-sudo audit list`, or verify integrity with `agent-sudo verify-audit`.
 - **Claude Desktop / MCP Support**: Implements the Model Context Protocol (MCP) to plug directly into Claude Desktop as a stdio server.
 
 ---
@@ -187,11 +208,45 @@ agent-sudo init-approval
 > [!IMPORTANT]
 > This passphrase is hashed locally (PBKDF2-HMAC-SHA256) and cannot be recovered. If lost, you must reset the approval configuration.
 
-### 3. Check Context
-Verify that the runtime context matches your current directory:
+### 3. Set Your Workspace
+Persist the fixed workspace that Claude Desktop and other MCP clients should use:
+
 ```bash
-agent-sudo context
+agent-sudo workspace set /ABS/PATH/TO/your/project
 ```
+
+Verify that the saved workspace is the one you expect:
+
+```bash
+agent-sudo workspace show
+```
+
+### 4. Wire It Into Claude Desktop (required to actually be protected)
+
+> [!WARNING]
+> **Installing the package does not protect anything by itself.** Until you route your agent's tools through Agent_Sudo, it sees no actions and gates nothing. Steps 1–3 only install and configure the CLI — you are *not* yet protected.
+
+Add the MCP server to `~/Library/Application Support/Claude/claude_desktop_config.json` (run `which agent-sudo-mcp` to get the absolute path). If you already ran `agent-sudo workspace set`, you can omit `--workspace`; the MCP server reads the persisted value from `~/.agent-sudo/config.json`.
+
+```json
+{
+  "mcpServers": {
+    "agent-sudo": {
+      "command": "/ABS/PATH/TO/agent-sudo-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Restart Claude Desktop, then **confirm your agent's actions are actually flowing through the gateway**:
+
+```bash
+# After asking Claude to do something, you should see it here:
+agent-sudo audit list
+```
+
+If an action you asked the agent to perform is **not** in `agent-sudo audit list`, it bypassed the gateway and was **not** protected — see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md) (full options + trust boundary) and [Trust Boundaries](#trust-boundaries-what-is-and-is-not-protected) below.
 
 ---
 

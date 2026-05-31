@@ -8,6 +8,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+CONFIG_PATH = Path.home() / ".agent-sudo" / "config.json"
+
 
 @dataclass(frozen=True)
 class RuntimeContext:
@@ -33,18 +35,52 @@ class RuntimeContext:
         }
 
 
-def _load_config_workspace() -> str | None:
+def load_agent_sudo_config(config_path: Path | None = None) -> dict[str, object]:
+    config_path = config_path or CONFIG_PATH
     try:
-        config_path = Path.home() / ".agent-sudo" / "config.json"
         if config_path.exists():
             data = json.loads(config_path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
-                val = data.get("workspace")
-                if val is not None:
-                    return str(val)
+                return data
     except Exception:
         pass
+    return {}
+
+
+def _load_config_workspace(config_path: Path | None = None) -> str | None:
+    data = load_agent_sudo_config(config_path)
+    val = data.get("workspace")
+    if val is not None:
+        return str(val)
     return None
+
+
+def save_config_workspace(
+    workspace: Path | str,
+    config_path: Path | None = None,
+) -> str:
+    config_path = config_path or CONFIG_PATH
+    resolved_workspace = Path(workspace).expanduser().resolve()
+    if not resolved_workspace.exists() or not resolved_workspace.is_dir():
+        raise ValueError(f"workspace path is invalid or inaccessible: {workspace}")
+
+    data: dict[str, object] = {}
+    if config_path.exists():
+        loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError(f"config file must contain a JSON object: {config_path}")
+        data = loaded
+    data["workspace"] = str(resolved_workspace)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        json.dumps(data, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return str(resolved_workspace)
+
+
+def get_config_workspace(config_path: Path | None = None) -> str | None:
+    return _load_config_workspace(config_path)
 
 
 def detect_runtime_context(

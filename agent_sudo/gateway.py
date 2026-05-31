@@ -8,7 +8,12 @@ from typing import Iterable
 
 from agent_sudo import __version_label__
 from agent_sudo.approvals import ApprovalProvider, init_approval_config, CONFIG_PATH
-from agent_sudo.audit import AuditLogger, verify_audit_log
+from agent_sudo.audit import (
+    AuditLogger,
+    format_audit_log,
+    read_audit_entries,
+    verify_audit_log,
+)
 from agent_sudo.classifier import ActionClassifier
 from agent_sudo.delegations import DelegationStore, DELEGATIONS_PATH
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
@@ -496,6 +501,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_parser.add_argument("audit_log", type=Path)
 
+    audit_parser = subparsers.add_parser(
+        "audit", help="Inspect the local audit log in human-readable form"
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_command", required=True)
+    audit_list = audit_subparsers.add_parser(
+        "list", help="Show recent audit decisions as a readable table"
+    )
+    audit_list.add_argument(
+        "audit_log",
+        type=Path,
+        nargs="?",
+        default=Path(".agent-sudo/mcp-audit.jsonl"),
+        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+    )
+    audit_list.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Show only the most recent N records (default: 20; use 0 for all)",
+    )
+    audit_list.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON records instead of a table",
+    )
+
     init_parser = subparsers.add_parser(
         "init-approval",
         help="Initialize or reset local approval passphrase hash",
@@ -642,6 +673,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     context_parser.add_argument("--workspace", help="Path to configured workspace root")
 
+    workspace_parser = subparsers.add_parser(
+        "workspace", help="Manage the persisted Agent_Sudo workspace"
+    )
+    workspace_subparsers = workspace_parser.add_subparsers(
+        dest="workspace_command", required=True
+    )
+    workspace_set = workspace_subparsers.add_parser(
+        "set", help="Persist the workspace used by MCP clients"
+    )
+    workspace_set.add_argument("path", help="Workspace directory to persist")
+    workspace_set.add_argument("--config", type=Path, help=argparse.SUPPRESS)
+    workspace_show = workspace_subparsers.add_parser(
+        "show", help="Show the persisted workspace"
+    )
+    workspace_show.add_argument("--config", type=Path, help=argparse.SUPPRESS)
+
     return parser
 
 
@@ -744,6 +791,26 @@ def main(argv: Iterable[str] | None = None) -> int:
         ok, message = verify_audit_log(args.audit_log)
         print(message)
         return 0 if ok else 1
+    if args.command == "audit":
+        if args.audit_command == "list":
+            if not args.audit_log.exists():
+                sys.stderr.write(
+                    f"no audit log found at {args.audit_log}\n\n"
+                    "Agent_Sudo records decisions once an agent runs through the "
+                    "gateway. Common locations:\n"
+                    "  .agent-sudo/mcp-audit.jsonl   (Claude Desktop / MCP server)\n"
+                    "  .agent-sudo/audit.jsonl       (agent-sudo run / generic-run)\n"
+                    "Pass the path explicitly: agent-sudo audit list <path>\n"
+                )
+                return 1
+            entries = read_audit_entries(args.audit_log)
+            limit = None if args.limit <= 0 else args.limit
+            if args.json:
+                selected = entries if limit is None else entries[-limit:]
+                print(json.dumps(selected, indent=2, sort_keys=True))
+            else:
+                print(format_audit_log(entries, limit=limit))
+            return 0
     if args.command == "init-approval":
         try:
             init_approval_config(
@@ -882,6 +949,25 @@ def main(argv: Iterable[str] | None = None) -> int:
         ctx = detect_runtime_context(workspace=args.workspace)
         print(json.dumps(ctx.to_dict(), indent=2, sort_keys=True))
         return 0
+
+    if args.command == "workspace":
+        from agent_sudo.context import get_config_workspace, save_config_workspace
+
+        if args.workspace_command == "set":
+            try:
+                workspace = save_config_workspace(args.path, config_path=args.config)
+            except ValueError as exc:
+                print(f"workspace set failed: {exc}", file=sys.stderr)
+                return 1
+            print(f"workspace set to {workspace}")
+            return 0
+        if args.workspace_command == "show":
+            workspace = get_config_workspace(config_path=args.config)
+            if workspace is None:
+                print("no workspace configured", file=sys.stderr)
+                return 1
+            print(workspace)
+            return 0
 
     if args.command == "approval-helper":
         from agent_sudo.helper import run_approval_helper

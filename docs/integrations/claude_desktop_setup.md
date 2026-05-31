@@ -68,11 +68,18 @@ agent-sudo-mcp --version
 
 ## E. Claude Desktop Configuration
 
-Claude Desktop reads its MCP server configuration from a local JSON file. 
+First persist the fixed workspace that Claude Desktop should use:
+
+```bash
+agent-sudo workspace set /path/to/project
+agent-sudo workspace show
+```
+
+Claude Desktop reads its MCP server configuration from a local JSON file.
 
 1. Open the configuration file at:
    `~/Library/Application Support/Claude/claude_desktop_config.json`
-2. Add `agent-sudo` to the `mcpServers` object:
+2. Add `agent-sudo` to the `mcpServers` object. If you ran `agent-sudo workspace set`, the `--workspace` argument can be omitted because the MCP server reads `~/.agent-sudo/config.json` on startup:
 
 ```json
 {
@@ -84,8 +91,6 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
         "/path/to/mcp-audit.jsonl",
         "--pending-approvals-file",
         "/path/to/pending_approvals.json",
-        "--workspace",
-        "/path/to/project",
         "--notify",
         "--open-approval-terminal"
       ]
@@ -95,8 +100,8 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 ```
 
 > [!IMPORTANT]
-> - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array (e.g. write `"--workspace"` and `"/path/to/project"` as separate items).
-> - **Workspace Config**: Always configure the `--workspace` parameter to point to a valid, absolute directory on your filesystem where you plan to execute commands. Claude Desktop launches MCP servers from the root `/` directory by default, so omitting the workspace will cause context detection to fail.
+> - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array.
+> - **Workspace Config**: Run `agent-sudo workspace set /path/to/project` before starting Claude Desktop. `--workspace /path/to/project` is still supported as an explicit override, but the recommended Claude Desktop config can omit it once the persisted workspace is set. Claude Desktop launches MCP servers from the root `/` directory by default, so starting without either persisted workspace config or `--workspace` will cause context detection to fail.
 > - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript`) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly.
 >   - **Optional & Default OFF**: Notifications must be explicitly enabled using the flag or environment variable.
 >   - **macOS-only**: This is currently macOS-only MVP behavior.
@@ -123,6 +128,33 @@ pkill -f agent-sudo-mcp
 ```
 
 Reopen Claude Desktop from your Applications folder.
+
+---
+
+## F2. Close the Bypass — Make Sure Tools Actually Route Through Agent_Sudo
+
+> [!WARNING]
+> **Adding the `agent-sudo` MCP server does not, by itself, protect every action.** Agent_Sudo can only gate, deny, or log the tool calls that are **routed through it**. Claude Desktop's own built-in tools and any *other* MCP servers you have installed (filesystem, shell, web, etc.) can perform file, shell, and network actions **without ever touching Agent_Sudo** — those actions are not gated and will not appear in your audit log.
+
+To rely on Agent_Sudo as a control, you must ensure the agent's risky capabilities flow through it and **not** around it:
+
+1. **Inventory the agent's tools.** In Claude Desktop, review the configured connectors/MCP servers. Anything that exposes filesystem, shell, or network access *other than* `agent-sudo` is a bypass path.
+2. **Disable or remove competing tools.** Remove other MCP servers that grant direct file/shell/network access (or restrict them), so the agent must use `agent-sudo` for those operations. If a client built-in tool can perform the action directly, instruct the agent to use `agent-sudo` only (see the validation prompts below), and treat the built-in as out-of-scope/untrusted.
+3. **Prefer least privilege.** Only expose the capabilities you actually need through the gateway.
+
+### Verify nothing bypassed the gateway
+
+After exercising the agent, confirm its actions were actually mediated:
+
+```bash
+agent-sudo audit list
+```
+
+- Every action you expected the agent to take should appear as a row (time, decision, actor, action, target, reason).
+- **If an action you asked for is *missing* from the list, it bypassed Agent_Sudo and was not protected.** Find the tool that performed it (a client built-in or another MCP server) and disable/route it.
+
+> [!IMPORTANT]
+> Agent_Sudo is a **policy gateway, not an OS sandbox**. Even when every tool is routed correctly, shell filtering is best-effort. For environment-level isolation, run the agent inside Docker/Firecracker in addition to Agent_Sudo. See [Agent_Sudo vs. Container/VM Sandboxes](../comparison/sandboxes.md).
 
 ---
 
@@ -161,14 +193,14 @@ Claude should execute the tool successfully and report a context where:
 
 ## H. Common Mistakes
 
-- **Missing `--workspace` value**: Forgetting to add the workspace path argument after the `--workspace` flag.
+- **Missing workspace config**: Starting Claude Desktop before running `agent-sudo workspace set /path/to/project`, or passing `--workspace` without a path value.
 - **Malformed arguments**: Forgetting to put `--pending-approvals-file` or `--audit-log` in a separate JSON string from their path values.
 - **Copy-pasted absolute paths**: Using config files containing placeholder paths or another user's home directories.
 - **Inaccessible workspace paths**: Configuring a directory that doesn't exist or is not readable by the user running Claude Desktop.
 - **Wrong passphrase**: Typing the wrong passphrase during `agent-sudo approve`.
 - **Approval expired**: Waiting longer than the approval TTL (default 120 seconds) to approve a request.
 - **Claude using stale processes**: Failing to kill old `agent-sudo-mcp` processes, causing Claude to run older versions of the server code.
-- **Runtime starting from `/`**: Failing to configure `--workspace`, resulting in files and commands trying to resolve from the root filesystem.
+- **Runtime starting from `/`**: Failing to configure a persisted workspace or `--workspace`, resulting in files and commands trying to resolve from the root filesystem.
 
 ---
 
@@ -184,8 +216,11 @@ agent-sudo-mcp --version
 # Run local sanity checks (checks permissions, scans, config files)
 agent-sudo doctor
 
-# Verify context resolution from CLI using your target workspace
-agent-sudo context --workspace /path/to/your/project
+# Verify the persisted workspace
+agent-sudo workspace show
+
+# Verify runtime context resolution from the persisted workspace
+agent-sudo context
 
 # Check current pending approvals list
 agent-sudo pending
