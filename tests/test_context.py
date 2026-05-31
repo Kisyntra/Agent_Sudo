@@ -317,9 +317,7 @@ class RuntimeContextTests(unittest.TestCase):
 
             stdout = io.StringIO()
             with mock.patch("sys.stdout", stdout):
-                exit_code = main(
-                    ["workspace", "show", "--config", str(config_path)]
-                )
+                exit_code = main(["workspace", "show", "--config", str(config_path)])
 
             self.assertEqual(exit_code, 0)
             self.assertEqual(stdout.getvalue().strip(), str(workspace_path))
