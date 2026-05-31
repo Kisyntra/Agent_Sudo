@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.4.1
 
 - Adds `agent-sudo audit list`, a human-readable view of the audit log. Renders each record as a table (time, decision, actor, action, target, reason) so users can review what an agent did without parsing raw JSONL or writing code. Supports `--limit N` (default 20; `0` for all) and `--json`, defaults to the MCP server log at `.agent-sudo/mcp-audit.jsonl`, and handles both gateway-decision records and approval lifecycle events. Complements the existing integrity-only `verify-audit`.
 - Adds `agent-sudo workspace set <path>` and `agent-sudo workspace show` so Claude Desktop users can persist the fixed workspace once in `~/.agent-sudo/config.json` and omit `--workspace` from the MCP server config.
+- Fixes `agent-sudo doctor` for installed package users by running the contributor-only personal-data scan only when the source-tree scanner exists.
+- Updates Claude Desktop onboarding docs and README setup guidance to make workspace persistence, audit verification, and native-tool bypass boundaries explicit.
 
 ## v0.4.0
 
