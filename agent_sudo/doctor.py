@@ -33,9 +33,20 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
     # source tree (scripts/), not in the installed package. Only run it when
     # working from a clone, so installed users aren't shown an irrelevant scan
     # of their own working directory.
-    if (root / "scripts" / "check_no_personal_data.py").exists():
+    if _is_source_checkout(root):
         checks.append(_personal_data_check(root))
     return checks
+
+
+def _is_source_checkout(root: Path) -> bool:
+    script = root / "scripts" / "check_no_personal_data.py"
+    source_doctor = root / "agent_sudo" / "doctor.py"
+    if not script.exists() or not source_doctor.exists():
+        return False
+    try:
+        return source_doctor.resolve() == Path(__file__).resolve()
+    except OSError:
+        return False
 
 
 def doctor_exit_code(checks: list[DoctorCheck]) -> int:

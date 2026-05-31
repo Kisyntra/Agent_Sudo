@@ -128,8 +128,9 @@ class PrivacyDoctorTests(unittest.TestCase):
             )
             audit_file.write_text(audit_content, encoding="utf-8")
 
-            # Run doctor
-            checks = run_doctor(repo_root=tmp_path)
+            # Run doctor with the contributor-only scanner explicitly enabled.
+            with mock.patch("agent_sudo.doctor._is_source_checkout", return_value=True):
+                checks = run_doctor(repo_root=tmp_path)
             personal_check = [
                 c for c in checks if c.name == "no personal data in repo"
             ][0]

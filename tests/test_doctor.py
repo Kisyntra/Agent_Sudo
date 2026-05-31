@@ -27,6 +27,27 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("delegation store writable", names)
         self.assertIn("no personal data in repo", names)
 
+    def test_installed_doctor_skips_checkout_scanner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            script_dir = tmp_path / "scripts"
+            script_dir.mkdir()
+            (script_dir / "check_no_personal_data.py").write_text(
+                "raise SystemExit(1)\n",
+                encoding="utf-8",
+            )
+            venv_dir = tmp_path / "test_venv"
+            venv_dir.mkdir()
+            (venv_dir / "example.txt").write_text(
+                "/Users/username/Library/Application Support/SuperApp",
+                encoding="utf-8",
+            )
+
+            checks = run_doctor(repo_root=tmp_path)
+            names = {check.name for check in checks}
+
+            self.assertNotIn("no personal data in repo", names)
+
     def test_doctor_exit_code_fails_required_check(self) -> None:
         checks = [DoctorCheck("Python version OK", False, "too old")]
 
