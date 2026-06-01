@@ -12,17 +12,15 @@ PydanticAI agent
   → audit verification        (real chain verification)
 ```
 
-## What is real vs. a test double
-
-This matters — the example is precise about it so nothing is overclaimed:
+## What this example exercises
 
 | Part | Real? | Notes |
 | :--- | :--- | :--- |
-| **Model behavior** | **No — deterministic test double** | Uses PydanticAI `FunctionModel` to script which tool runs with which arguments. No LLM, no API key, no network. This example proves the *enforcement path*, not model quality. |
-| **Enforcement / decisions** | **Yes** | Real `PermissionGateway`: classification, provenance escalation, ALLOW / REQUIRE_APPROVAL / DENY. |
-| **File I/O** | **Yes** | Tools perform actual `Path.read_text` / `Path.write_text` in a temp dir. |
-| **Approval via delegation** | **Yes** | A real scoped, single-use `DelegationToken` authorizes the gated write. |
-| **Audit + verification** | **Yes** | Real hash-chained audit log; verified with `verify_audit_log` at the end. |
+| **Model** | Deterministic test double | PydanticAI `FunctionModel` scripts which tool runs with which arguments. No LLM, no API key, no network. |
+| **Enforcement / decisions** | Yes | Real `PermissionGateway`: classification, provenance escalation, ALLOW / REQUIRE_APPROVAL / DENY. |
+| **File I/O** | Yes | Tools perform actual `Path.read_text` / `Path.write_text` in a temp dir. |
+| **Approval via delegation** | Yes | A real scoped, single-use `DelegationToken` authorizes the gated write. |
+| **Audit + verification** | Yes | Real hash-chained audit log; verified with `verify_audit_log` at the end. |
 
 All state lives in a `TemporaryDirectory`. The example never touches `~/.agent-sudo`.
 

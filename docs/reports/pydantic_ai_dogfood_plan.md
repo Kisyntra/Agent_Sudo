@@ -7,7 +7,7 @@
 PydanticAI agent → PermissionGateway → real local file action → approval/delegation → audit log → audit verification
 ```
 
-**Honesty rule (carried from this project's arc):** the *LLM* is a deterministic test double; **everything we are actually demonstrating — gateway decision, delegation, real file I/O, audit + verification — is real.** The README must say this plainly so we don't ship another "looks real but isn't" example.
+**Note:** the LLM is a deterministic test double; the gateway decision, delegation, file I/O, and audit verification are real. The README states this plainly.
 
 ---
 
@@ -47,7 +47,7 @@ Rationale:
 - A delegation token is a **real product feature** (scoped, TTL-limited, use-limited pre-authorization). It is deterministic and non-interactive *without faking a human*. An auto-approve `ApprovalProvider` would be a "click yes for you" stub — exactly the kind of fake we're trying to remove.
 - `ApproveAllProvider` only exists in the test suite, not the package — using it would import test code into an example.
 
-So scenario 2 has two honest halves:
+So scenario 2 has two halves:
 - **2a (held):** sensitive `write_file` with **no** delegation → gateway returns `REQUIRE_APPROVAL` → the gate **blocks** (raises), proving we never treat `REQUIRE_APPROVAL` as `ALLOW`.
 - **2b (delegated):** issue `DelegationStore.create(actor=..., allowed_actions=["write_file"], allowed_paths=[tmp_dir], ttl_seconds=..., max_uses=1)`; the gateway (constructed with that `delegation_store`) authorizes the in-scope write → `ALLOW` → the tool performs a **real** `Path.write_text`. The audit entry records `method=delegation`.
 
@@ -60,7 +60,7 @@ So scenario 2 has two honest halves:
 | File | Change |
 |---|---|
 | `examples/pydantic_ai/example.py` | **Full rewrite** (~150–180 lines): real `Agent`+`FunctionModel`, 3 tools doing real temp-dir file ops, gateway with temp `AuditLogger` + temp `DelegationStore`, 4 scenarios, ends with audit verification. |
-| `examples/pydantic_ai/README.md` | **Rewrite**: what it proves, the honesty note (model is a test double; gateway/delegation/audit are real), how to run, expected output. |
+| `examples/pydantic_ai/README.md` | **Rewrite**: what it proves, a note that the model is a test double and the gateway/delegation/audit path is real, how to run, expected output. |
 | `pyproject.toml` | Add optional extra (see §4). |
 | `tests/test_example_pydantic_ai.py` | **New**: `pytest.importorskip("pydantic_ai")`, runs each scenario function and asserts real outcomes. |
 | `.github/workflows/*` (CI) | Add a step/job that installs `.[examples]` and runs the example + its test (see §6). |
@@ -106,7 +106,7 @@ Determinism guarantees for CI: no network, no API key, no time-based assertions 
 
 ## 7. README / docs wording changes
 
-- **`examples/pydantic_ai/README.md`** — rewrite to: (a) state the honesty note (deterministic model; real gateway/delegation/audit); (b) describe the 4 scenarios; (c) `pip install -e ".[examples]"` + run; (d) expected output incl. the final audit verification line.
+- **`examples/pydantic_ai/README.md`** — rewrite to: (a) note that the model is deterministic and the gateway/delegation/audit path is real; (b) describe the 4 scenarios; (c) `pip install -e ".[examples]"` + run; (d) expected output incl. the final audit verification line.
 - **Root `README.md`** — under "Supported Framework Examples" / the Path 1 (library) section, point to this as **the canonical, runnable end-to-end dogfood** ("agent → gateway → delegation → audit, verified — runs offline").
 - **`CHANGELOG.md`** — Unreleased: "Replace the PydanticAI example with a real, deterministic, offline end-to-end demo (agent → gateway → delegation → audited + verified)."
 - Optional: a one-line pointer from `docs/examples/langgraph.md` noting PydanticAI is the canonical reference, LangGraph follows the same pattern.
@@ -116,7 +116,7 @@ Determinism guarantees for CI: no network, no API key, no time-based assertions 
 ## 8. Risks / limitations
 
 - **Heavy dependency tree.** `pydantic-ai` pulls `pydantic`, `httpx`, etc. Mitigation: optional `examples` extra only; never a runtime dep; CI installs it in an isolated step. The zero-runtime-dep promise is preserved.
-- **Test-double model, not a real LLM.** Intentional (offline/deterministic), but the README must state it clearly so the example isn't mistaken for proof that a *real* model behaves well — it proves the **integration and enforcement path**, not model behavior. This is the explicit honesty guardrail.
+- **Test-double model, not a real LLM.** Intentional (offline/deterministic), but the README must state it clearly so the example isn't mistaken for proof that a *real* model behaves well — it proves the **integration and enforcement path**, not model behavior.
 - **PydanticAI API drift.** `FunctionModel`/message-part shapes are public but evolving across majors. Mitigation: floor-pin `>=1.0`, and the `importorskip` guard means a future incompatibility degrades to a skipped test, not a red core suite. (A follow-up could pin an upper bound if drift bites.)
 - **File-state hygiene.** Must route audit + delegation to temp paths; a mistake here would write into the user's real `~/.agent-sudo`. Covered by using `TemporaryDirectory` and explicit path args; the test asserts nothing is written outside tmp.
 - **Scope discipline.** This is an example + one test + an extra + docs. No engine changes, no new runtime deps, no approval-UX changes. If it starts growing into "a PydanticAI middleware library," stop and reconsider — that's a separate decision.

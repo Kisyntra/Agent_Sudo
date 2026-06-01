@@ -9,16 +9,12 @@ This example demonstrates the full library-integration path:
       -> audit log                       (real hash-chained JSONL)
       -> audit verification              (real chain verification)
 
-Honesty note — what is and is not "real" here:
-  * The MODEL is a deterministic test double (PydanticAI ``FunctionModel``).
-    It is NOT a real LLM. It scripts which tool runs with which arguments so
-    the demo is offline, key-free, and reproducible in CI. This example proves
-    the *enforcement path*, not model behavior.
-  * Everything the gateway does is real: classification, provenance-aware
-    decisions, delegation authorization, the hash-chained audit log, and its
-    verification. The file reads and writes are real OS operations.
+The model is a deterministic ``FunctionModel`` (not a real LLM) that scripts
+which tool runs with which arguments, so the demo is offline, key-free, and
+reproducible in CI. The gateway decisions, delegation, audit log, audit
+verification, and the file reads/writes are all real.
 
-All state is confined to a TemporaryDirectory. This example never reads or
+All state is confined to a TemporaryDirectory; this example never reads or
 writes ``~/.agent-sudo``.
 
 Run:  pip install -e ".[examples]"  &&  python examples/pydantic_ai/example.py
