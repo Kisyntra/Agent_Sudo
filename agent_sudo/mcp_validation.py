@@ -57,8 +57,12 @@ def tool_call_from_jsonrpc(message: dict[str, Any]) -> dict[str, Any]:
     return {
         "actor": str(message.get("actor", "mcp-client")),
         "agent_type": "mcp",
-        "source": str(message.get("source", "user")),
-        "source_trust": str(message.get("source_trust", "USER_DIRECT")),
+        # Fail closed: a JSON-RPC message that does not assert its own
+        # provenance is treated as unknown/untrusted, not as the operator's
+        # own action. Clients that genuinely speak for the user must send an
+        # explicit "source"/"source_trust".
+        "source": str(message.get("source", "unknown")),
+        "source_trust": str(message.get("source_trust", "UNKNOWN")),
         "tool": _tool_for(name),
         "action": name,
         "target": target,
@@ -113,9 +117,14 @@ def run_jsonrpc_case(
 
 
 def jsonrpc_tool_call(
-    case_id: str, name: str, arguments: dict[str, Any]
+    case_id: str,
+    name: str,
+    arguments: dict[str, Any],
+    *,
+    source: str | None = None,
+    source_trust: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    message: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": case_id,
         "method": "tools/call",
@@ -125,6 +134,13 @@ def jsonrpc_tool_call(
             "summary": f"Validation case {case_id}",
         },
     }
+    # A conformant client attests provenance on the message; absent these,
+    # tool_call_from_jsonrpc fails closed to source="unknown"/UNKNOWN trust.
+    if source is not None:
+        message["source"] = source
+    if source_trust is not None:
+        message["source_trust"] = source_trust
+    return message
 
 
 def _target_for(name: str, arguments: dict[str, Any]) -> str:

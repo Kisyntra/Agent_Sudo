@@ -10,7 +10,7 @@ from pathlib import Path
 from agent_sudo.approvals import AutoDenyApprovalProvider
 from agent_sudo.audit import AuditLogger
 from agent_sudo.gateway import PermissionGateway, main
-from agent_sudo.models import ActionRequest, Classification, Decision
+from agent_sudo.models import ActionRequest, Classification, Decision, TrustLevel
 from agent_sudo.policy import load_default_policy
 
 
@@ -20,7 +20,13 @@ class GatewayTests(unittest.TestCase):
 
     def test_safe_action_allows(self) -> None:
         request = ActionRequest(
-            "codex", "user", "filesystem", "read_file", "README.md", "read"
+            "codex",
+            "user",
+            "filesystem",
+            "read_file",
+            "README.md",
+            "read",
+            source_trust=TrustLevel.USER_DIRECT,
         )
         result = PermissionGateway(self.policy).evaluate(request)
         self.assertEqual(result.classification, Classification.SAFE)
@@ -58,14 +64,17 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(result.approval_method, "DENY")
 
     def test_critical_hint_upgrades_safe_action(self) -> None:
+        # Isolate the CRITICAL-hint upgrade from trust-based escalation: a
+        # trusted user action carrying a "secrets" hint must still upgrade.
         request = ActionRequest(
             "codex",
-            "webpage",
+            "user",
             "filesystem",
             "read_file",
             "confidential.txt",
             "read key",
             ["secrets"],
+            source_trust=TrustLevel.USER_DIRECT,
         )
         result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
         self.assertEqual(result.classification, Classification.CRITICAL)
@@ -86,7 +95,13 @@ class GatewayTests(unittest.TestCase):
 
     def test_audit_writes_jsonl(self) -> None:
         request = ActionRequest(
-            "codex", "user", "filesystem", "read_file", "README.md", "read"
+            "codex",
+            "user",
+            "filesystem",
+            "read_file",
+            "README.md",
+            "read",
+            source_trust=TrustLevel.USER_DIRECT,
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             audit_path = Path(tmpdir) / "audit.jsonl"
@@ -114,6 +129,7 @@ class GatewayTests(unittest.TestCase):
                         "target": "README.md",
                         "payload_summary": "read",
                         "risk_hints": [],
+                        "source_trust": "USER_DIRECT",
                     }
                 ),
                 encoding="utf-8",

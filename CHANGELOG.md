@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Security hardening (behavior change): missing provenance now fails closed.** A request that does not assert a trust level — no `source_trust`, no `provenance` — is treated as `UNKNOWN` (untrusted) instead of `USER_DIRECT`. The change is applied at the MCP JSON-RPC boundary (`tool_call_from_jsonrpc`), the `ActionRequest.from_dict` path, and the `ActionRequest` constructor default. **Impact:** a SAFE action (e.g. `read_file`) arriving without provenance is now escalated to `REQUIRE_APPROVAL` rather than allowed silently. Clients/integrations that speak for the operator must attest provenance explicitly (`source_trust="USER_DIRECT"`); explicit trust is honored exactly as before. Self-attested `USER_DIRECT` remains believed — host attestation / nonce binding is tracked separately. See [`docs/architecture/security_model.md`](docs/architecture/security_model.md) (Default Trust Posture).
+
 ## v0.4.3
 
 - Capitalizes the verification namespace in `README.md` and aligns version metadata to resolve case-sensitive publisher check errors during official registry submission.

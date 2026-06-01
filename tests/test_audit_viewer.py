@@ -13,7 +13,7 @@ from agent_sudo.audit import (
     read_audit_entries,
 )
 from agent_sudo.gateway import PermissionGateway, main
-from agent_sudo.models import ActionRequest
+from agent_sudo.models import ActionRequest, TrustLevel
 from agent_sudo.policy import load_default_policy
 
 
@@ -23,7 +23,13 @@ def _write_log(path: Path) -> None:
     gateway = PermissionGateway(policy, audit_logger=AuditLogger(path))
     gateway.evaluate(
         ActionRequest(
-            "mcp-client", "user", "filesystem", "read_file", "README.md", "read"
+            "mcp-client",
+            "user",
+            "filesystem",
+            "read_file",
+            "README.md",
+            "read",
+            source_trust=TrustLevel.USER_DIRECT,
         )
     )
     gateway.evaluate(

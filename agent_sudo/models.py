@@ -123,7 +123,10 @@ class ActionRequest:
     target: str
     payload_summary: str
     risk_hints: list[str] = field(default_factory=list)
-    source_trust: TrustLevel = TrustLevel.USER_DIRECT
+    # Fail closed: a request constructed without an explicit trust level is
+    # treated as UNKNOWN (untrusted), not USER_DIRECT. Callers that speak for
+    # the operator must set source_trust=TrustLevel.USER_DIRECT explicitly.
+    source_trust: TrustLevel = TrustLevel.UNKNOWN
     provenance: Provenance = field(default_factory=Provenance)
 
     @classmethod
@@ -144,7 +147,8 @@ class ActionRequest:
         elif provenance_data:
             source_trust = _trust_from_provenance(provenance)
         else:
-            source_trust = TrustLevel.USER_DIRECT
+            # Fail closed: no explicit trust and no provenance => untrusted.
+            source_trust = TrustLevel.UNKNOWN
         return cls(
             actor=str(data["actor"]),
             source=str(data["source"]),

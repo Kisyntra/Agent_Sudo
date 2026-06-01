@@ -1,3 +1,14 @@
+"""Convenience constructors for ActionRequest.
+
+Unlike the wire/deserialization paths (`ActionRequest.from_dict`,
+`tool_call_from_jsonrpc`), which fail closed to `UNKNOWN` trust when provenance
+is absent, these helpers are an *in-process developer API*: the application code
+calling them is the trusted party expressing intent, so they intentionally
+default `source="user"` / `source_trust=USER_DIRECT`. Callers gating untrusted
+input should pass an explicit lower `source_trust`/`provenance`. (Revisiting
+these defaults is deferred — see docs/reports/fail_closed_provenance_plan.md, S4.)
+"""
+
 from __future__ import annotations
 
 from agent_sudo.models import ActionRequest, Provenance, TrustLevel

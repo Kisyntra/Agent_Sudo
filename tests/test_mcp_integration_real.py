@@ -41,7 +41,13 @@ class RealMCPIntegrationValidationTests(unittest.TestCase):
             target = Path(tmpdir) / "sample.txt"
             target.write_text("read ok\n", encoding="utf-8")
             transcript = run_jsonrpc_case(
-                jsonrpc_tool_call("case-a", "read_file", {"path": str(target)}),
+                jsonrpc_tool_call(
+                    "case-a",
+                    "read_file",
+                    {"path": str(target)},
+                    source="user",
+                    source_trust="USER_DIRECT",
+                ),
                 policy=self.policy,
                 audit_path=audit_path,
             )
