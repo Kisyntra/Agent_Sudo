@@ -144,6 +144,12 @@ class ActionRequest:
         provenance = Provenance.from_dict(provenance_data)
         if "source_trust" in data:
             source_trust = TrustLevel(str(data["source_trust"]))
+            # Cap an explicit claim at what source/origin_type evidence supports.
+            source_trust, inconsistency = reconcile_trust(
+                source_trust, str(data["source"]), provenance.origin_type
+            )
+            if inconsistency is not None:
+                risk_hints = [*risk_hints, inconsistency]
         elif provenance_data:
             source_trust = _trust_from_provenance(provenance)
         else:
@@ -176,6 +182,70 @@ def _trust_from_provenance(provenance: Provenance) -> TrustLevel:
     if provenance.origin_type in {OriginType.EXTERNAL_CONTENT, OriginType.EXTERNAL_API}:
         return TrustLevel.EXTERNAL_CONTENT
     return TrustLevel.UNKNOWN
+
+
+# Risk-hint prefix recorded when reconcile_trust() downgrades an inflated claim.
+INCONSISTENT_PROVENANCE_HINT = "inconsistent_provenance"
+
+# Higher rank == more trusted. Used only to compare claimed vs. evidenced trust.
+_TRUST_RANK = {
+    TrustLevel.UNKNOWN: 0,
+    TrustLevel.EXTERNAL_CONTENT: 1,
+    TrustLevel.AGENT_INTERNAL: 2,
+    TrustLevel.USER_DIRECT: 3,
+}
+
+# Source-string tokens that positively indicate untrusted external origin. Kept
+# in sync with the inference tokens in agent_sudo/adapters/common.py.
+_EXTERNAL_SOURCE_TOKENS = {"web", "email", "document", "external", "slack", "browser"}
+
+
+def _evidenced_trust(source: str, origin_type: OriginType) -> TrustLevel | None:
+    """The most restrictive trust level the (source, origin_type) signals support.
+
+    Returns None when no signal has an opinion (e.g. unknown source + UNKNOWN
+    origin) — those cases are left to the fail-closed default, not treated as a
+    contradiction. Only positive indicators contribute an opinion.
+    """
+    evidence: list[TrustLevel] = []
+    if origin_type in {OriginType.EXTERNAL_CONTENT, OriginType.EXTERNAL_API}:
+        evidence.append(TrustLevel.EXTERNAL_CONTENT)
+    elif origin_type == OriginType.AGENT_INTERNAL:
+        evidence.append(TrustLevel.AGENT_INTERNAL)
+    elif origin_type == OriginType.USER_DIRECT:
+        evidence.append(TrustLevel.USER_DIRECT)
+    normalized = source.lower()
+    if normalized in {"user", "human", "user_direct"}:
+        evidence.append(TrustLevel.USER_DIRECT)
+    elif any(token in normalized for token in _EXTERNAL_SOURCE_TOKENS):
+        evidence.append(TrustLevel.EXTERNAL_CONTENT)
+    if not evidence:
+        return None
+    return min(evidence, key=lambda level: _TRUST_RANK[level])
+
+
+def reconcile_trust(
+    claimed: TrustLevel, source: str, origin_type: OriginType
+) -> tuple[TrustLevel, str | None]:
+    """Cap an explicitly-claimed trust level at what the evidence supports.
+
+    Fail closed against contradictory provenance: if `claimed` is more trusted
+    than the floor implied by `source`/`origin_type`, downgrade it to that floor
+    and return an explaining reason. Downgrade only — a caller may always claim
+    a *lower* trust than the evidence (self-restriction). Neutral/absent signals
+    contribute no opinion and never trigger a downgrade. A claim that is
+    internally consistent with its evidence is returned unchanged (a fully
+    consistent forgery is a documented limitation, not detectable here).
+    """
+    ceiling = _evidenced_trust(source, origin_type)
+    if ceiling is None or _TRUST_RANK[claimed] <= _TRUST_RANK[ceiling]:
+        return claimed, None
+    reason = (
+        f"{INCONSISTENT_PROVENANCE_HINT}: source_trust={claimed.value} exceeds "
+        f"evidence (source={source!r}, origin_type={origin_type.value}); "
+        f"downgraded to {ceiling.value}"
+    )
+    return ceiling, reason
 
 
 @dataclass(frozen=True)

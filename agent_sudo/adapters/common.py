@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 from agent_sudo.builders import AgentActionRequest
@@ -11,10 +12,30 @@ from agent_sudo.models import (
     OriginType,
     Provenance,
     TrustLevel,
+    reconcile_trust,
 )
 
 
 def normalize_tool_call(
+    tool_call: dict[str, Any], *, default_actor: str
+) -> ActionRequest:
+    request = _normalize_tool_call(tool_call, default_actor=default_actor)
+    # Cap an explicitly-claimed trust at the floor its source/origin evidence
+    # supports, uniformly across every tool branch (including builder-routed
+    # ones). A no-op for inferred trust, already derived from those signals.
+    resolved, inconsistency = reconcile_trust(
+        request.source_trust, request.source, request.provenance.origin_type
+    )
+    if inconsistency is None:
+        return request
+    return replace(
+        request,
+        source_trust=resolved,
+        risk_hints=[*request.risk_hints, inconsistency],
+    )
+
+
+def _normalize_tool_call(
     tool_call: dict[str, Any], *, default_actor: str
 ) -> ActionRequest:
     actor = str(tool_call.get("actor", default_actor))
