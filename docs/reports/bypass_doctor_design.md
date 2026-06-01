@@ -60,7 +60,7 @@ $ agent-sudo verify-routing
 
 Configuration (what is set up)
   ✓ approvals initialized         ~/.agent-sudo/config.json
-  ✓ workspace configured          /Users/you/project
+  ✓ workspace configured          /ABS/PATH/TO/project
   ✓ default policy loaded         agent_sudo/config/default_policy.yaml
 
 Observed gateway activity (what actually reached the gateway — past tense)
