@@ -149,7 +149,9 @@ def run_safe_read(gateway: PermissionGateway, tmp: Path) -> dict:
     return {"scenario": "safe_read", "tool_output": out, "expected_allow": True}
 
 
-def run_sensitive_write(gateway: PermissionGateway, tmp: Path, *, delegated: bool) -> dict:
+def run_sensitive_write(
+    gateway: PermissionGateway, tmp: Path, *, delegated: bool
+) -> dict:
     """2. Sensitive write. Without delegation -> REQUIRE_APPROVAL (held, not run).
     With a scoped delegation token -> ALLOW (real write)."""
     target = tmp / "report.txt"
@@ -271,7 +273,9 @@ def _self_check(r: dict) -> list[str]:
     if r["safe_read"]["tool_output"] != "hello from disk":
         failures.append("safe read did not return real file content")
     if r["write_held"]["file_written"]:
-        failures.append("un-delegated write was executed (REQUIRE_APPROVAL treated as ALLOW)")
+        failures.append(
+            "un-delegated write was executed (REQUIRE_APPROVAL treated as ALLOW)"
+        )
     if "REQUIRE_APPROVAL" not in r["write_held"]["tool_output"]:
         failures.append("un-delegated write was not held with REQUIRE_APPROVAL")
     if not r["write_delegated"]["file_written"]:
