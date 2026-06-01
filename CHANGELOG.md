@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.5.0
 
+- **Stabilizes the approval-helper opener test.** Replaces a brittle `assertNotIn("pwd", ...)` substring scan — which false-positived whenever the temp-dir path contained `pwd` — with a deterministic check that parses the AppleScript `do script` body and asserts it launches only the approval-helper invocation, preserving the original intent (the requested command is never executed by the opener). No production behavior change.
 - **Replaces the PydanticAI example with a real, deterministic, offline end-to-end dogfood.** A `FunctionModel`-driven agent loop exercises the full path — agent → `PermissionGateway` → real temp-dir file I/O → scoped delegation → hash-chained audit → audit verification — across four scenarios (safe `USER_DIRECT` allow; sensitive write held at `REQUIRE_APPROVAL` then allowed via a delegation token; blocked exfiltration denied; audit chain verified). The LLM is a deterministic test double (no key, no network); the gateway/delegation/audit path and file I/O are real. Adds a `pydantic-ai` `examples` optional extra (never a runtime dependency) and a dedicated CI job; the example test skips cleanly when the extra is absent.
 
 - **Positioning: clarifies engine vs. demo executor.** Documents Agent_Sudo as an authorization/approval/delegation/audit **engine** whose primary integration is embedding the library in your agent; the MCP server is a distribution channel and reference demo. The MCP `write_file` (scoped to `/tmp/agent-sudo-demo`) and `run_shell_command` (narrow allowlist) tool descriptions now state plainly that they are **demo executors**, not a turnkey way to mediate a client's real file/shell tools. README "Choose Your Path", the Claude Desktop guide, and the security model are updated accordingly. No behavior change — labeling and docs only.

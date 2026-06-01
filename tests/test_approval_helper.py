@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import io
+import re
+import shlex
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,10 +165,34 @@ class ApprovalHelperTests(unittest.TestCase):
         self.assertIn("do script", script_content)
         self.assertIn("approval-helper", script_content)
         self.assertIn(str(self.pending_file.resolve()), script_content)
-        self.assertNotIn("pwd", script_content)  # does not contain target secrets
         self.assertEqual(kwargs.get("shell"), None)  # shell=True not used
         self.assertIn("--auto-opened", script_content)
         self.assertIn("clear; exec ", script_content)
+
+        # Security: the auto-opened Terminal must launch ONLY the approval-helper,
+        # never the command being approved (here `run_shell_command pwd`). Parse the
+        # single `do script` body and assert its command structure exactly, rather
+        # than substring-scanning the whole script for "pwd" — a brittle check that
+        # false-positives whenever the temp-dir path happens to contain that string.
+        do_script_match = re.search(r'do script "(.*?)"', script_content)
+        self.assertIsNotNone(do_script_match)
+        shell_commands = [c.strip() for c in do_script_match.group(1).split(";")]
+        self.assertEqual(len(shell_commands), 2)  # only `clear` and `exec ...`
+        self.assertEqual(shell_commands[0], "clear")
+        self.assertTrue(shell_commands[1].startswith("exec "))
+        exec_tokens = shlex.split(shell_commands[1][len("exec ") :])
+        self.assertEqual(
+            exec_tokens,
+            [
+                sys.executable,
+                "-m",
+                "agent_sudo.gateway",
+                "approval-helper",
+                "--auto-opened",
+                "--pending-approvals-file",
+                str(self.pending_file.resolve()),
+            ],
+        )
 
     @patch("sys.platform", "darwin")
     @patch("subprocess.run")
