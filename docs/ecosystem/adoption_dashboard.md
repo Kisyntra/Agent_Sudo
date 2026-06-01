@@ -48,7 +48,7 @@ This dashboard tracks active ecosystem integrations, community implementations, 
 | Directory / Catalog | Target URL | Submission Method | Status | Links / Reference |
 | :--- | :--- | :--- | :--- | :--- |
 | **awesome-mcp-servers** | `punkpeye/awesome-mcp-servers` | Pull Request (Draft) | 🔄 **Submitted (Draft PR)** | [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) |
-| **Official MCP Registry** | `registry.modelcontextprotocol.io` | `mcp-publisher` CLI | 📋 **Staged** | - |
+| **Official MCP Registry** | `registry.modelcontextprotocol.io` | `mcp-publisher` CLI | ✅ **Active** | [Registry Search](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp) |
 | **Glama MCP Registry** | `glama.ai/mcp/servers` | OAuth/Manual Form | ✅ **Active** (Listed: 2026-05-29) | [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo) |
 | **mcpservers.org** | `mcpservers.org` | Web Form Submission | 📋 **Pending (Manual)** | - |
 | **modelcontextprotocol/servers** | `modelcontextprotocol/servers` | Pull Request | ❌ **Dropped** (Decision: 2026-05-29) | See Dropped Opportunities |
@@ -71,6 +71,7 @@ To maximize ecosystem impact, our distribution work is structured into the follo
 ### Tier 3: Official MCP Registry Publication
 *   **Goal**: Publish server metadata to the official metaregistry using `mcp-publisher`.
 *   **Completion Criteria**: The server is queryable via the metaregistry API (`registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp`) and lists correct NPM/PyPI/GitHub package installation directives.
+*   **Status**: ✅ **Completed** (Active as of 2026-05-31)
 
 ### Tier 4: awesome-mcp Merge
 *   **Goal**: Promote and merge the draft pull request on `awesome-mcp-servers`.

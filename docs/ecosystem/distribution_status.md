@@ -7,10 +7,10 @@ This document reviews the current distribution channels, active bottlenecks, upc
 ## 1. Current Reach
 
 *   **GitHub**: `Kisyntra/Agent_Sudo` is the repository home. It hosts the core permission gateway, CLI tool, standard spec schemas, and documentation.
-*   **PyPI**: Registered as `agent-sudo` (v0.4.0), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
+*   **PyPI**: Registered as [`agent-sudo-mcp` v0.4.3](https://pypi.org/project/agent-sudo-mcp/), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
 *   **Glama.ai**: ✅ **Active**. Live and verified listing page at [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo).
 *   **awesome-mcp-servers**: [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) is currently open, containing the description and Glama badge.
-*   **Official MCP Registry**: Metadata schema initialized and reverse DNS registration plan formulated. Publication is staged for implementation.
+*   **Official MCP Registry**: ✅ **Active** as `io.github.Kisyntra/agent-sudo-mcp` at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp).
 
 ---
 
@@ -27,8 +27,8 @@ Our ecosystem distribution and adoption activities are prioritized as follows:
 
 *   **Priority 1: LexFlow Verifier CI Pass**
     *   *Description*: Emitters in the LexFlow codebase successfully compile logs, execute `agent-sudo verify-audit` inside their CI script, and pass with exit code `0`.
-*   **Priority 2: Official MCP Registry Publication**
-    *   *Description*: Staged metaregistry metadata schema is published using the `mcp-publisher` CLI, making the package officially queryable.
+*   **Priority 2: Official MCP Registry Maintenance**
+    *   *Description*: Keep `server.json`, the PyPI README verification marker, and registry package metadata aligned for future patch releases.
 *   **Priority 3: awesome-mcp Merge**
     *   *Description*: The now-resolving Glama badge enables maintainers to merge PR #7111, listing `Agent_Sudo` in the main catalog.
 *   **Priority 4: agent-runtimes Merge**
@@ -38,6 +38,7 @@ Our ecosystem distribution and adoption activities are prioritized as follows:
 
 ### Completed Milestones
 *   ✅ **Glama Activation** (Completed: 2026-05-29) - Manual GitHub OAuth registration successfully completed and introspection checks verified.
+*   ✅ **Official MCP Registry Publication** (Completed: 2026-05-31) - `Agent_Sudo` is queryable as `io.github.Kisyntra/agent-sudo-mcp`.
 
 ---
 
@@ -50,7 +51,7 @@ We rank the active discovery directories by their actual impact on developer ado
     *   *Cost/Effort*: Staged and active (zero remaining effort).
 2.  **Official MCP Registry (Rank 2)**
     *   *Adoption Impact*: **Extremely High**. Standard lookup metaregistry maintained by Anthropic/MCP, queryable by SDK tools.
-    *   *Cost/Effort*: Medium (requires CLI configuration, namespace verification, and packaging alignment).
+    *   *Cost/Effort*: Active (ongoing maintenance only).
 3.  **awesome-mcp-servers (Rank 3)**
     *   *Adoption Impact*: **Very High**. The primary community-curated list for developers looking for high-quality, production-tested MCP servers.
     *   *Cost/Effort*: Low-medium (PR already drafted, pending final merge review).
