@@ -25,9 +25,7 @@ from agent_sudo.policy import load_default_policy
 
 
 def _has_inconsistency(request: ActionRequest) -> bool:
-    return any(
-        h.startswith(INCONSISTENT_PROVENANCE_HINT) for h in request.risk_hints
-    )
+    return any(h.startswith(INCONSISTENT_PROVENANCE_HINT) for h in request.risk_hints)
 
 
 class ProvenanceConsistencyTests(unittest.TestCase):
