@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 import io
 import json
 import os
@@ -31,6 +33,15 @@ class RuntimeContextTests(unittest.TestCase):
             "HOME": os.environ.get("HOME", ""),
             "PATH": os.environ.get("PATH", ""),
         }
+
+    @contextmanager
+    def _without_configured_workspace(self) -> Iterator[None]:
+        with (
+            mock.patch.dict(os.environ, {}, clear=False),
+            mock.patch("agent_sudo.context._load_config_workspace", return_value=None),
+        ):
+            os.environ.pop("AGENT_SUDO_WORKSPACE", None)
+            yield
 
     def test_git_repository_workspace(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -70,7 +81,8 @@ class RuntimeContextTests(unittest.TestCase):
             )
 
             # Detect context
-            ctx = detect_runtime_context(cwd=tmp_path)
+            with self._without_configured_workspace():
+                ctx = detect_runtime_context(cwd=tmp_path)
             self.assertEqual(ctx.repo_root, str(tmp_path))
             self.assertEqual(ctx.git_branch, "main")
             self.assertTrue(ctx.workspace_detected)
@@ -79,7 +91,8 @@ class RuntimeContextTests(unittest.TestCase):
     def test_non_git_directory(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
-            ctx = detect_runtime_context(cwd=tmp_path)
+            with self._without_configured_workspace():
+                ctx = detect_runtime_context(cwd=tmp_path)
             self.assertIsNone(ctx.repo_root)
             self.assertIsNone(ctx.git_branch)
             self.assertFalse(ctx.workspace_detected)
@@ -90,7 +103,8 @@ class RuntimeContextTests(unittest.TestCase):
         original_stderr = sys.stderr
         sys.stderr = io.StringIO()
         try:
-            ctx = detect_runtime_context("/")
+            with self._without_configured_workspace():
+                ctx = detect_runtime_context("/")
             # filesystem root should have running_from_root = True
             self.assertTrue(ctx.running_from_root)
             # Stderr should contain root warning
@@ -149,7 +163,8 @@ class RuntimeContextTests(unittest.TestCase):
             )
 
             # Detect context
-            ctx = detect_runtime_context(cwd=tmp_path)
+            with self._without_configured_workspace():
+                ctx = detect_runtime_context(cwd=tmp_path)
             self.assertEqual(ctx.repo_root, str(tmp_path))
             self.assertIsNotNone(ctx.git_branch)
             self.assertIn("detached", ctx.git_branch)
@@ -158,7 +173,10 @@ class RuntimeContextTests(unittest.TestCase):
     def test_missing_git_executable(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
-            with mock.patch("shutil.which", return_value=None):
+            with (
+                self._without_configured_workspace(),
+                mock.patch("shutil.which", return_value=None),
+            ):
                 ctx = detect_runtime_context(cwd=tmp_path)
                 self.assertIsNone(ctx.repo_root)
                 self.assertIsNone(ctx.git_branch)
@@ -168,7 +186,8 @@ class RuntimeContextTests(unittest.TestCase):
     def test_invalid_path(self) -> None:
         # Non-existent path
         non_existent = "/non/existent/path/for/agent_sudo/test"
-        ctx = detect_runtime_context(non_existent)
+        with self._without_configured_workspace():
+            ctx = detect_runtime_context(non_existent)
         self.assertFalse(ctx.workspace_detected)
         self.assertTrue(any("does not exist" in w for w in ctx.warnings))
 
@@ -178,7 +197,8 @@ class RuntimeContextTests(unittest.TestCase):
             tmp_file = tmp_path / "test.txt"
             tmp_file.write_text("hello", encoding="utf-8")
 
-            ctx = detect_runtime_context(tmp_file)
+            with self._without_configured_workspace():
+                ctx = detect_runtime_context(tmp_file)
             self.assertEqual(ctx.cwd, str(tmp_path))
 
     def test_cli_context_command(self) -> None:
