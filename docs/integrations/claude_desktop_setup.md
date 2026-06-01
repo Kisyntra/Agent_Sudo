@@ -153,6 +153,14 @@ agent-sudo audit list
 - Every action you expected the agent to take should appear as a row (time, decision, actor, action, target, reason).
 - **If an action you asked for is *missing* from the list, it bypassed Agent_Sudo and was not protected.** Find the tool that performed it (a client built-in or another MCP server) and disable/route it.
 
+For a structured summary of the same picture, run:
+
+```bash
+agent-sudo verify-routing
+```
+
+It reports configuration, observed gateway activity (record count + hash-chain integrity), a best-effort scan of your Claude Desktop config for `agent-sudo` and any *other* MCP servers that could bypass it, and the trust-boundary limits that always apply. It is read-only and deliberately makes no "you are protected" claim — absence of records is not proof of safety. Use it to spot bypass paths and confirm the gateway is receiving requests; use `agent-sudo audit list` to confirm a *specific* action was gated.
+
 > [!IMPORTANT]
 > Agent_Sudo is a **policy gateway, not an OS sandbox**. Even when every tool is routed correctly, shell filtering is best-effort. For environment-level isolation, run the agent inside Docker/Firecracker in addition to Agent_Sudo. See [Agent_Sudo vs. Container/VM Sandboxes](../comparison/sandboxes.md).
 

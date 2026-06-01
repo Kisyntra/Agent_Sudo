@@ -562,6 +562,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init_parser.add_argument("--force", action="store_true")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
+    verify_routing_parser = subparsers.add_parser(
+        "verify-routing",
+        help="Report observed evidence of whether actions flow through Agent_Sudo",
+    )
+    verify_routing_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero on a provable misconfiguration (for scripted checks)",
+    )
     subparsers.add_parser(
         "demo", help="Run a built-in interactive demo of Agent_Sudo gateway decisions"
     )
@@ -841,6 +850,16 @@ def main(argv: Iterable[str] | None = None) -> int:
         checks = run_doctor()
         print(format_doctor_checks(checks))
         return doctor_exit_code(checks)
+    if args.command == "verify-routing":
+        from agent_sudo.routing_check import (
+            format_routing_report,
+            routing_exit_code,
+            run_routing_check,
+        )
+
+        signals = run_routing_check()
+        print(format_routing_report(signals))
+        return routing_exit_code(signals, strict=getattr(args, "strict", False))
     if args.command == "setup":
         from agent_sudo.setup_guides import setup_lines
 
