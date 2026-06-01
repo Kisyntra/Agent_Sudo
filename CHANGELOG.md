@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.2
+
+- Adds the official MCP Registry ownership verification marker to `README.md` and aligns version metadata in `server.json` to enable official registry publication.
+
 ## v0.4.1
 
 - Adds `agent-sudo audit list`, a human-readable view of the audit log. Renders each record as a table (time, decision, actor, action, target, reason) so users can review what an agent did without parsing raw JSONL or writing code. Supports `--limit N` (default 20; `0` for all) and `--json`, defaults to the MCP server log at `.agent-sudo/mcp-audit.jsonl`, and handles both gateway-decision records and approval lifecycle events. Complements the existing integrity-only `verify-audit`.
