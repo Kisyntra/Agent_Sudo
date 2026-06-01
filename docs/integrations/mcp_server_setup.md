@@ -1,6 +1,8 @@
 # MCP Server Setup
 
-Release: `v0.4.3`.
+Release: `v0.5.0`.
+
+If you are evaluating Agent_Sudo for the first time, start with [Evaluate Agent_Sudo in 5 Minutes](../evaluate_5_minutes.md). This setup page is reference material after the first blocked -> delegated -> allowed once -> blocked again -> audit verified path succeeds.
 
 agent-sudo includes a standard stdio MCP server entrypoint:
 

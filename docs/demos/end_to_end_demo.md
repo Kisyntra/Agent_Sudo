@@ -1,6 +1,8 @@
 # End-to-End MCP Demo
 
-This demo shows the validated `v0.4.0` workflow: a critical shell action is blocked without approval, allowed once by scoped delegation, then denied after the token is exhausted.
+This demo shows the validated `v0.5.0` workflow: a critical shell action is blocked without approval, allowed once by scoped delegation, then denied after the token is exhausted.
+
+For first-time evaluation, start with [Evaluate Agent_Sudo in 5 Minutes](../evaluate_5_minutes.md). This page explains the same flow in more detail.
 
 The local path in the transcript is redacted as `~/agent-sudo` so the demo is safe to publish.
 

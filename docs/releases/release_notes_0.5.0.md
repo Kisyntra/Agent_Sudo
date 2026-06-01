@@ -39,6 +39,10 @@ read-only tooling, a real end-to-end example, and distribution automation.
 
 - **Messaging accuracy (#27).** Security messaging is aligned with provenance-based
   enforcement across the README, Claude Desktop guide, and security model.
+- **Evaluator activation path.** First-time MCP evaluators are now directed to one
+  primary path: blocked -> delegated -> allowed once -> blocked again -> audit
+  verified. The flow uses existing MCP server, delegation, audit-listing,
+  audit-verification, and routing-verification functionality only.
 
 ## Examples
 

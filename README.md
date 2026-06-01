@@ -5,13 +5,51 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.4.3-blue" alt="PyPI v0.4.3"></a>
+  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.5.0-blue" alt="PyPI v0.5.0"></a>
   <a href="https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp"><img src="https://img.shields.io/badge/MCP%20Registry-active-brightgreen" alt="Official MCP Registry"></a>
   <a href="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo"><img src="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo/badges/score.svg" alt="Glama MCP Server Score"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
-`Agent_Sudo` is a local permission gateway for AI agents. It classifies, authorizes, and logs the tool calls routed through it — applying provenance-aware policy, human approval gates, and scoped delegation before each action runs, and recording every decision to a tamper-evident audit log.
+`Agent_Sudo` is a local MCP permission gateway for AI agent tool calls. It lets a first-time evaluator see one high-risk action get blocked, narrowly delegated, allowed once, blocked again when the delegation is exhausted, and recorded in a tamper-evident audit log.
+
+## Evaluate Agent_Sudo in 5 Minutes
+
+Start here if you are evaluating Agent_Sudo for the first time:
+
+```bash
+pipx install agent-sudo-mcp
+agent-sudo --version
+```
+
+Then run the 5-minute evaluator path:
+
+**[Evaluate Agent_Sudo in 5 Minutes](docs/evaluate_5_minutes.md)**
+
+You should finish with this proof, without learning the internal architecture first:
+
+```text
+blocked
+↓
+delegated
+↓
+allowed once
+↓
+blocked again
+↓
+audit verified
+```
+
+The evaluation uses only existing MCP server, delegation, audit-listing, audit-verification, and routing-verification functionality. If you are working from a source checkout and `agent-sudo --version` is stale, use `python3 -m agent_sudo.gateway --version` or reinstall the package in your active environment.
+
+## What You Will Validate
+
+- A critical shell request through `agent-sudo-mcp` does not execute by default.
+- A one-use delegation allows exactly one matching request.
+- The same request is denied after the delegation is consumed.
+- `agent-sudo audit list` shows the decisions.
+- `agent-sudo verify-audit` verifies the hash-chained audit log.
+- `agent-sudo verify-routing` reports configured routing and audit signals without claiming complete protection.
 
 ### What Agent_Sudo Protects / Does Not Protect
 
@@ -31,9 +69,9 @@
 
 See [Trust Boundaries](#trust-boundaries-what-is-and-is-not-protected) for the full table and the [Security & Threat Model](docs/architecture/security_model.md).
 
-## Quick Install for MCP Clients
+## MCP Client Setup
 
-Install the published MCP server:
+After the 5-minute evaluation, wire the published MCP server into your MCP client:
 
 ```bash
 pipx install agent-sudo-mcp
@@ -66,7 +104,7 @@ If the action is not listed, it bypassed Agent_Sudo. For the full setup and trus
 
 ## Discoverability & Registry Status
 
-*   📦 **PyPI Package**: [agent-sudo-mcp v0.4.3 on PyPI](https://pypi.org/project/agent-sudo-mcp/)
+*   📦 **PyPI Package**: [agent-sudo-mcp v0.5.0 on PyPI](https://pypi.org/project/agent-sudo-mcp/)
 *   ✅ **Official MCP Registry**: Active as `io.github.Kisyntra/agent-sudo-mcp` at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp)
 *   🌐 **Glama Registry Listing**: Live listing at [glama.ai/mcp/servers/Kisyntra/Agent_Sudo](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)
 *   🛠️ **MCP Server Integration**: Read the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md)
@@ -74,59 +112,21 @@ If the action is not listed, it bypassed Agent_Sudo. For the full setup and trus
 
 ---
 
-## Demo
+## Evaluation Story
 
 ![Agent_Sudo Demo](assets/demo/demo-agent_sudo.gif)
 
-# Choose Your Path
+A first-time MCP developer should evaluate one narrow story:
 
-Agent_Sudo is an **authorization, approval, delegation, and audit engine** for AI agents. The engine — embedded in your agent — is the product; the MCP server is a distribution channel and reference demo. Choose the path that fits your use case:
+```text
+1. blocked: a critical shell request is not executed by default
+2. delegated: the user grants one scoped, one-use token
+3. allowed once: the exact matching request executes once
+4. blocked again: the same request is denied after token exhaustion
+5. audit verified: the decision log is listed and hash-chain verified
+```
 
-### 1. Python Agent Developers (primary integration)
-Embed the engine in an agent built on PydanticAI, LangGraph, the OpenAI Agents SDK, or your own loop, to gate **real** tool execution in code. This is the path that protects production actions.
-*   **30-Second Code Example**:
-    ```python
-    from agent_sudo.gateway import PermissionGateway
-    from agent_sudo.models import ActionRequest
-    from agent_sudo.policy import load_default_policy
-
-    # Initialize gateway with local policy rules
-    gateway = PermissionGateway(load_default_policy())
-
-    # Gate tool execution in your application
-    request = ActionRequest(
-        actor="my-agent",
-        source="user",
-        tool="shell",
-        action="run_shell_command",
-        target="rm -rf /",
-        payload_summary="recursively delete the filesystem root",
-    )
-    result = gateway.evaluate(request)
-    if result.decision.name == "DENY":
-        raise PermissionError(f"Blocked by Agent_Sudo: {result.reason}")
-    ```
-*   **Framework Examples**:
-    *   [PydanticAI Gating Example](examples/pydantic_ai/) — **canonical runnable dogfood**: agent → gateway → real file I/O → delegation → audited + verified, fully offline
-    *   [OpenAI Agents SDK Gating Example](examples/openai_agents_sdk/)
-    *   [LangGraph Integration Guide](docs/examples/langgraph.md) ([examples/langgraph_integration.py](examples/langgraph_integration.py))
-    *   [agent-runtimes Hook Plugin Setup](examples/agent_runtimes/)
-
-### 2. Claude Desktop / MCP Users
-For developers running Claude Desktop or other MCP clients who want to **observe and audit** agent activity and try the policy engine live.
-*   **What is real here:** policy classification, provenance-based escalation, approval/delegation, and a tamper-evident audit log over the tool calls routed through the server; `read_file` executes for real.
-*   **What is a demo:** the `write_file` and `run_shell_command` tools are **reference executors** — `write_file` only writes inside `/tmp/agent-sudo-demo` and shell runs a narrow allowlist. They demonstrate gating; they are **not** a drop-in way to mediate Claude Desktop's own file/shell tools. To gate real writes/commands, embed the engine (Path 1).
-*   **Installation**: `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`; add the stdio server to `claude_desktop_config.json`.
-*   **Guide**: [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md) and [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
-
-### 3. CLI / Security Operations
-For system administrators and security engineers who want to audit agent logs, manage credentials, and configure temporary delegation tokens.
-*   **Install**: `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`
-*   **Initialize**: `agent-sudo init-approval` (sets up local passphrase for CLI confirmations)
-*   **Built-in Demo**: Run `agent-sudo demo` to see policies in action.
-*   **Review Activity**: Run `agent-sudo audit list` to see what your agent did — a readable table of each decision (time, decision, actor, action, target, reason). Add `--limit N` or `--json`.
-*   **Audit Verification**: Run `agent-sudo verify-audit <path/to/audit.jsonl>` to verify cryptographic hash chain integrity.
-*   **Routing Evidence**: Run `agent-sudo verify-routing` for a read-only report of whether actions are actually flowing through Agent_Sudo — configuration, observed gateway activity (record count + integrity), best-effort MCP-client wiring, and the standing trust-boundary limits. It reports observed signals only; it cannot certify that you are protected.
+That story is the product activation path. Broader integration guides are reference material after this succeeds.
 
 ---
 
@@ -200,16 +200,21 @@ This is a deliberate scope choice, not a defect: Agent_Sudo governs *intent and 
 
 ---
 
-## Try it in 30 Seconds
+## Additional Demos
 
-Verify how `Agent_Sudo` classifies tool risk and makes gateway decisions using our built-in demo (no repository clone or config files needed):
+After you complete the 5-minute evaluator path, these demos show adjacent scenarios.
+
+### Built-In Policy Demo
+
+Run a local dry-run policy demo:
 
 ```bash
-# Run the built-in gateway interactive demo
 agent-sudo demo
 ```
 
-### Flagship Demo: Block Exfiltration by Provenance
+This is useful for seeing policy decisions quickly. It is not the primary activation path because it does not show the full MCP deny -> delegate -> allow once -> deny exhausted loop.
+
+### Provenance Blocking Demo
 
 See provenance-aware policy enforcement in ~60 seconds. An agent reads a poisoned web page that tells it to exfiltrate your `.env`. Agent_Sudo **denies** the action because its **origin is untrusted external content** — not because it parsed the malicious wording — while **allowing** the user's own work, and writes a tamper-evident audit log. The decision turns on *where the instruction came from*, independent of how the injection is phrased.
 
@@ -223,85 +228,6 @@ cd Agent_Sudo/examples/exfil_demo && python demo.py
 ```
 
 Walkthrough and expected output: [`examples/exfil_demo/`](examples/exfil_demo/).
-
----
-
-## 5-Minute Quickstart
-
-### 1. Install Agent_Sudo
-
-Choose the installation method based on how you intend to use the gateway:
-
-#### For CLI Users & Claude Desktop (MCP)
-To run the CLI tools or the MCP server, install using `pipx` (recommended) to automatically manage your executable path and avoid global dependency conflicts:
-
-```bash
-pipx install agent-sudo-mcp
-```
-*Note: If the `agent-sudo` command is not found after installation, make sure your pipx binary path is in your environment by running `pipx ensurepath` and restarting your terminal.*
-
-#### For Python SDK / Library Integration
-If you are integrating Agent_Sudo programmatically within your agent codebase (e.g., PydanticAI, LangGraph), install the package into your project environment:
-
-```bash
-pip install agent-sudo-mcp
-```
-*(If you are developing or running from source, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md) for editable installation).*
-
-Verify the installation:
-```bash
-agent-sudo --version
-agent-sudo doctor
-```
-
-### 2. Initialize the Approval Passphrase
-Set up a secure passphrase for approving critical actions (e.g. shell command execution):
-
-```bash
-agent-sudo init-approval
-```
-> [!IMPORTANT]
-> This passphrase is hashed locally (PBKDF2-HMAC-SHA256) and cannot be recovered. If lost, you must reset the approval configuration.
-
-### 3. Set Your Workspace
-Persist the fixed workspace that Claude Desktop and other MCP clients should use:
-
-```bash
-agent-sudo workspace set /ABS/PATH/TO/your/project
-```
-
-Verify that the saved workspace is the one you expect:
-
-```bash
-agent-sudo workspace show
-```
-
-### 4. Wire It Into Claude Desktop (required to actually be protected)
-
-> [!WARNING]
-> **Installing the package does not protect anything by itself.** Until you route your agent's tools through Agent_Sudo, it sees no actions and gates nothing. Steps 1–3 only install and configure the CLI — you are *not* yet protected.
-
-Add the MCP server to `~/Library/Application Support/Claude/claude_desktop_config.json` (run `which agent-sudo-mcp` to get the absolute path). If you already ran `agent-sudo workspace set`, you can omit `--workspace`; the MCP server reads the persisted value from `~/.agent-sudo/config.json`.
-
-```json
-{
-  "mcpServers": {
-    "agent-sudo": {
-      "command": "/ABS/PATH/TO/agent-sudo-mcp",
-      "args": []
-    }
-  }
-}
-```
-
-Restart Claude Desktop, then **confirm your agent's actions are actually flowing through the gateway**:
-
-```bash
-# After asking Claude to do something, you should see it here:
-agent-sudo audit list
-```
-
-If an action you asked the agent to perform is **not** in `agent-sudo audit list`, it bypassed the gateway and was **not** protected — see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md) (full options + trust boundary) and [Trust Boundaries](#trust-boundaries-what-is-and-is-not-protected) below.
 
 ---
 
@@ -347,7 +273,7 @@ For a full compatibility matrix and integration details, see the [Ecosystem Stat
 
 | Directory / Section | Topic | Key Files |
 | :--- | :--- | :--- |
-| **First Run** | Getting started tutorial | [docs/first_run.md](docs/first_run.md) |
+| **Evaluation** | First-time activation path | [Evaluate in 5 Minutes](docs/evaluate_5_minutes.md) • [First Run Reference](docs/first_run.md) |
 | **Troubleshooting** | Diagnostics and resolution steps | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | **Integrations** | Connecting to runtimes and IDEs | [docs/integrations/overview.md](docs/integrations/overview.md) • [Ecosystem Status](docs/ecosystem/ecosystem_status.md) • [Outreach Playbook](docs/ecosystem/outreach_playbook.md) • [Adoption Dashboard](docs/ecosystem/adoption_dashboard.md) • [Discoverability Notes](docs/ecosystem/discoverability_notes.md) • [LexFlow Readiness](docs/ecosystem/lexflow_readiness.md) • [LexFlow Checklist](docs/ecosystem/lexflow_compatibility_checklist.md) • [Claude Desktop](docs/integrations/claude_desktop_setup.md) • [MCP Setup](docs/integrations/mcp_server_setup.md) • [agent-runtimes](docs/integrations/agent-runtimes.md) • [Hermes (Research)](docs/integrations/hermes-research.md) |
 | **Framework Integrations** | Direct SDK gating for agent frameworks | [LangGraph Integration Guide](docs/examples/langgraph.md) • [examples/langgraph_integration.py](examples/langgraph_integration.py) |

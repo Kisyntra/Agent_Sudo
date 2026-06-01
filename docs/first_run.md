@@ -1,22 +1,23 @@
-# First Run
+# First Run Reference
 
-This guide takes a new user from a fresh checkout to the validated MCP workflow:
+For first-time evaluation, start with [Evaluate Agent_Sudo in 5 Minutes](evaluate_5_minutes.md). This page is the expanded reference version of the same validated MCP workflow:
 
 ```text
-agent requests shell
--> denied
-
-user grants one-use delegation
--> allowed once
-
-same request again
--> denied because delegation is exhausted
+blocked
+↓
+delegated
+↓
+allowed once
+↓
+blocked again
+↓
+audit verified
 ```
 
 Expected time:
 
-- first successful install: 2 to 5 minutes
-- first successful MCP demo: 5 to 10 minutes
+- first successful evaluation after install: under 5 minutes
+- source-checkout setup if Python packaging is not ready: 2 to 5 extra minutes
 
 ## 1. Install
 
@@ -58,27 +59,6 @@ agent-sudo init-approval
 Use a unique local passphrase. Do not reuse an account password.
 
 This writes local approval state under `~/.agent-sudo/`. Do not commit that directory.
-
-### Resetting a Forgotten Passphrase
-
-If you forget your local passphrase, you can reset it by running the initialization command again:
-
-```bash
-agent-sudo init-approval
-```
-
-Resetting the passphrase has the following secure behavior:
-* **No passphrase recovery**: The old passphrase cannot be recovered because it is stored only as a one-way PBKDF2 hash.
-* **Revokes delegations**: All existing delegation tokens are immediately revoked to prevent compromised credentials from surviving the reset.
-* **Cancels pending approvals**: All active `PENDING` and `APPROVED` approvals are transitioned to `DENIED` with the reason `"passphrase was reset"`.
-* **Preserves audit logs**: Existing audit logs are preserved (none are deleted).
-* **Logs reset event**: A `passphrase_reset` event is cryptographically appended to the audit log, recording the counts of revoked delegations and canceled approvals.
-
-To run this command non-interactively (e.g., in automated scripts or tests), pass the `--force` flag:
-
-```bash
-agent-sudo init-approval --force
-```
 
 ## 3. Prepare Local Demo State
 
@@ -302,6 +282,22 @@ pwd-3 DENY DELEGATION False delegation token <token_id> mismatched: token exhaus
 
 ## 9. Verify Final Audit Log
 
+List the decisions you just produced:
+
+```bash
+agent-sudo audit list --limit 5 "$AGENT_SUDO_AUDIT"
+```
+
+Fallback when the console script is not on `PATH`:
+
+```bash
+python3 -m agent_sudo.gateway audit list --limit 5 "$AGENT_SUDO_AUDIT"
+```
+
+Look for the `run_shell_command` / `pwd` decisions: `REQUIRE_STRONG_APPROVAL`, `ALLOW`, then `DENY`. The table may include auxiliary MCP approval rows.
+
+Verify the hash chain:
+
 ```bash
 agent-sudo verify-audit "$AGENT_SUDO_AUDIT"
 ```
@@ -312,13 +308,27 @@ Expected output:
 audit log verified
 ```
 
+Run the read-only routing report:
+
+```bash
+agent-sudo verify-routing
+```
+
+Fallback when the console script is not on `PATH`:
+
+```bash
+python3 -m agent_sudo.gateway verify-routing
+```
+
 You have now validated:
 
 - MCP routing
 - critical shell enforcement
 - scoped one-use delegation
 - delegation exhaustion
+- readable audit decisions
 - audit-chain verification
+- observed routing signals
 
 ## GIF Or Video Capture Workflow
 
@@ -341,3 +351,24 @@ Keep the capture under 45 seconds. The strongest story is deny -> one-use delega
 ## Note on File Read Access
 
 Under the default policy, most files are readable by default (`SAFE` and auto-allowed). However, files containing sensitive configuration data (such as those under `~/.ssh/` or `~/.config/`, `.env` files, or files with keywords like `auth` or `secret` in their path) are classified as `BLOCKED` and denied by default.
+
+## Resetting a Forgotten Passphrase
+
+If you forget your local passphrase, you can reset it by running the initialization command again:
+
+```bash
+agent-sudo init-approval
+```
+
+Resetting the passphrase has the following secure behavior:
+* **No passphrase recovery**: The old passphrase cannot be recovered because it is stored only as a one-way PBKDF2 hash.
+* **Revokes delegations**: All existing delegation tokens are immediately revoked to prevent compromised credentials from surviving the reset.
+* **Cancels pending approvals**: All active `PENDING` and `APPROVED` approvals are transitioned to `DENIED` with the reason `"passphrase was reset"`.
+* **Preserves audit logs**: Existing audit logs are preserved (none are deleted).
+* **Logs reset event**: A `passphrase_reset` event is cryptographically appended to the audit log, recording the counts of revoked delegations and canceled approvals.
+
+To run this command non-interactively (e.g., in automated scripts or tests), pass the `--force` flag:
+
+```bash
+agent-sudo init-approval --force
+```
