@@ -31,6 +31,15 @@ This document outlines the security boundaries, threat mitigation strategies, an
 - **Compromised CLI Environment**: If the local shell session or terminal is fully compromised, an attacker can directly approve pending actions or tamper with the local configuration files.
 - **Passive Data Leaks (outside protected paths)**: Safe read paths (e.g., reading a standard document) are allowed automatically. If a document contains a API key that isn't in a protected config path, `Agent_Sudo` won't prevent the agent from reading and potentially exfiltrating it via normal allowed tools.
 
+### Default Trust Posture (Fail Closed)
+
+`Agent_Sudo` evaluates `source` / `source_trust` / `provenance.origin_type` on each request. The default posture is **fail closed**:
+
+- **Missing provenance is untrusted.** A request that arrives without a trustworthy trust signal — no `source_trust`, no `provenance` — is treated as `UNKNOWN`, not `USER_DIRECT`. For a SAFE action this means it is escalated to `REQUIRE_APPROVAL` rather than allowed silently. This applies uniformly across the MCP JSON-RPC boundary, the `ActionRequest.from_dict` path, and the `ActionRequest` constructor default.
+- **Explicit trust is honored.** A caller that asserts `source_trust=USER_DIRECT` (or attests provenance) is taken at its word and behaves exactly as before.
+
+> **Known limitation — provenance is self-attested.** Trust is only as trustworthy as the component that stamps it. Today that component is the **host/runtime that constructs the tool call**; `Agent_Sudo` does not yet bind trust elevation to a host-issued credential. An adversarial agent that consistently forges `USER_DIRECT` provenance is still believed. Fail-closed defaults protect against an *honest-but-confused* caller that omits provenance — **not** against a *compromised* caller that lies about it. Closing this gap (host attestation / nonce binding) is tracked separately and intentionally out of scope for the fail-closed defaults. See [`docs/reports/provenance_trust_audit.md`](../reports/provenance_trust_audit.md).
+
 ---
 
 ## 3. Approvals and Delegation Lifecycle

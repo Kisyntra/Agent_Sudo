@@ -63,6 +63,10 @@ class MCPServerSubprocessTests(unittest.TestCase):
                         "jsonrpc": "2.0",
                         "id": "read",
                         "method": "tools/call",
+                        # Conformant client attests user provenance; without
+                        # this, the read fails closed to UNKNOWN and escalates.
+                        "source": "user",
+                        "source_trust": "USER_DIRECT",
                         "params": {
                             "name": "read_file",
                             "arguments": {"path": str(read_path)},
