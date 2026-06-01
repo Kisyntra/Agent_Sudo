@@ -17,8 +17,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   validate:
