@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_sudo._locking import DEFAULT_LOCK_TIMEOUT, file_lock
 from agent_sudo.models import GatewayResult
 from agent_sudo.spec_helpers import compute_entry_hash, verify_jsonl_file
 
 
 class AuditLogger:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, lock_timeout: float = DEFAULT_LOCK_TIMEOUT):
         self.path = path
+        self.lock_timeout = lock_timeout
+
+    @property
+    def _lock_path(self) -> Path:
+        return Path(str(self.path) + ".lock")
 
     def record(self, result: GatewayResult) -> None:
         entry: dict[str, Any] = {
@@ -31,11 +38,18 @@ class AuditLogger:
 
     def _write_entry(self, entry: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        previous_hash = _last_entry_hash(self.path)
-        entry["previous_hash"] = previous_hash
-        entry["entry_hash"] = compute_entry_hash(previous_hash, entry)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, sort_keys=True) + "\n")
+        # Read last hash -> link -> append must be one atomic step, otherwise two
+        # concurrent appends read the same previous_hash and fork the chain. The
+        # lock (and a torn/corrupt tail raising in _last_entry_hash) keep us
+        # fail-closed: on failure we raise rather than write an unchained row.
+        with file_lock(self._lock_path, self.lock_timeout):
+            previous_hash = _last_entry_hash(self.path)
+            entry["previous_hash"] = previous_hash
+            entry["entry_hash"] = compute_entry_hash(previous_hash, entry)
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
 
 
 def verify_audit_log(path: Path) -> tuple[bool, str]:

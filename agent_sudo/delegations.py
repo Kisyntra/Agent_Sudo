@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
+import tempfile
 import uuid
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from agent_sudo._locking import (
+    DEFAULT_LOCK_TIMEOUT,
+    LockTimeout,
+    file_lock,
+    fsync_dir,
+)
 from agent_sudo.models import ActionRequest, Classification, DelegationToken
 
 
@@ -14,8 +22,15 @@ DELEGATIONS_PATH = Path.home() / ".agent-sudo" / "delegations.json"
 
 
 class DelegationStore:
-    def __init__(self, path: Path = DELEGATIONS_PATH):
+    def __init__(
+        self, path: Path = DELEGATIONS_PATH, *, lock_timeout: float = DEFAULT_LOCK_TIMEOUT
+    ):
         self.path = path
+        self.lock_timeout = lock_timeout
+
+    @property
+    def _lock_path(self) -> Path:
+        return Path(str(self.path) + ".lock")
 
     def create(
         self,
@@ -42,9 +57,10 @@ class DelegationStore:
             reason=reason,
             critical=critical,
         )
-        tokens = self.list()
-        tokens.append(token)
-        self.save(tokens)
+        with file_lock(self._lock_path, self.lock_timeout):
+            tokens = self.list()
+            tokens.append(token)
+            self.save(tokens)
         return token
 
     def list(self) -> list[DelegationToken]:
@@ -56,25 +72,45 @@ class DelegationStore:
         return [DelegationToken.from_dict(item) for item in raw]
 
     def save(self, tokens: list[DelegationToken]) -> None:
+        # Atomic publish: write a temp file in the same directory, fsync it, then
+        # os.replace over the target so a reader/crash never sees a partial file.
+        # Format is byte-identical to the previous write_text output.
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _chmod_best_effort(self.path.parent, 0o700)
-        self.path.write_text(
+        data = (
             json.dumps([token.to_dict() for token in tokens], indent=2, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+            + "\n"
         )
-        _chmod_best_effort(self.path, 0o600)
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(self.path.parent), prefix=".delegations-", suffix=".tmp"
+        )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, self.path)
+            _chmod_best_effort(self.path, 0o600)
+            fsync_dir(self.path.parent)
+        except BaseException:
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+            raise
 
     def revoke(self, token_id: str) -> DelegationToken | None:
-        tokens = self.list()
-        updated: list[DelegationToken] = []
-        revoked: DelegationToken | None = None
-        for token in tokens:
-            if token.token_id == token_id:
-                token = replace(token, revoked=True)
-                revoked = token
-            updated.append(token)
-        self.save(updated)
+        with file_lock(self._lock_path, self.lock_timeout):
+            tokens = self.list()
+            updated: list[DelegationToken] = []
+            revoked: DelegationToken | None = None
+            for token in tokens:
+                if token.token_id == token_id:
+                    token = replace(token, revoked=True)
+                    revoked = token
+                updated.append(token)
+            self.save(updated)
         return revoked
 
     def authorize(
@@ -84,9 +120,53 @@ class DelegationStore:
         classification: Classification,
         consume: bool = True,
     ) -> tuple[bool | None, str, str]:
-        tokens = self.list()
+        if not consume:
+            # Read-only evaluation: a concurrent atomic save is published via
+            # os.replace, so an unlocked read always sees a complete file.
+            tokens = self.list()
+            result, reason, method, _ = self._evaluate(request, tokens, classification)
+            return result, reason, method
+
+        # Consuming path: the entire read -> check -> increment -> write must be
+        # atomic, so it runs under the exclusive lock and re-reads from disk.
+        try:
+            with file_lock(self._lock_path, self.lock_timeout):
+                try:
+                    tokens = self.list()
+                except (OSError, ValueError, json.JSONDecodeError) as exc:
+                    # Corrupt/unreadable store: fail closed, never fail open.
+                    return (
+                        False,
+                        f"delegation store unreadable, denying: {exc}",
+                        "DELEGATION",
+                    )
+                result, reason, method, matched_id = self._evaluate(
+                    request, tokens, classification
+                )
+                if result is True and matched_id is not None:
+                    updated = [
+                        replace(token, uses=token.uses + 1)
+                        if token.token_id == matched_id
+                        else token
+                        for token in tokens
+                    ]
+                    self.save(updated)
+                return result, reason, method
+        except LockTimeout as exc:
+            # Could not serialize the consume; deny rather than risk a race.
+            return False, f"delegation lock unavailable, denying: {exc}", "DELEGATION"
+
+    def _evaluate(
+        self,
+        request: ActionRequest,
+        tokens: list[DelegationToken],
+        classification: Classification,
+    ) -> tuple[bool | None, str, str, str | None]:
+        """Pure evaluation over a token snapshot. Returns the decision tuple
+        plus the id of the matched token (or None) so the caller can consume it
+        atomically under the lock."""
         if not tokens:
-            return None, "no delegation applies", "none"
+            return None, "no delegation applies", "none", None
 
         now = datetime.now(timezone.utc)
         evaluated = []
@@ -139,19 +219,18 @@ class DelegationStore:
         # Check if any token has 0 mismatches
         for token, mismatches in evaluated:
             if not mismatches:
-                if consume:
-                    self._increment_usage(token.token_id)
                 return (
                     True,
                     f"delegated by {token.token_id}: {token.reason}",
                     "DELEGATION",
+                    token.token_id,
                 )
 
         # Check if any token has only "critical flag missing" as mismatch
         for token, mismatches in evaluated:
             if mismatches == ["critical flag missing"]:
                 reason = f"delegation token {token.token_id} mismatched: critical flag missing"
-                return None, reason, "DELEGATION"
+                return None, reason, "DELEGATION", None
 
         # Build detailed diagnostics for all tokens
         diagnostics = []
@@ -162,15 +241,7 @@ class DelegationStore:
             )
 
         reason = "; ".join(diagnostics)
-        return False, reason, "DELEGATION"
-
-    def _increment_usage(self, token_id: str) -> None:
-        tokens = self.list()
-        updated = [
-            replace(token, uses=token.uses + 1) if token.token_id == token_id else token
-            for token in tokens
-        ]
-        self.save(updated)
+        return False, reason, "DELEGATION", None
 
 
 def _path_matches(target: str, allowed_paths: list[str]) -> bool:
