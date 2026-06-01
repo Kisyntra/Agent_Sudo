@@ -125,6 +125,7 @@ For system administrators and security engineers who want to audit agent logs, m
 *   **Built-in Demo**: Run `agent-sudo demo` to see policies in action.
 *   **Review Activity**: Run `agent-sudo audit list` to see what your agent did — a readable table of each decision (time, decision, actor, action, target, reason). Add `--limit N` or `--json`.
 *   **Audit Verification**: Run `agent-sudo verify-audit <path/to/audit.jsonl>` to verify cryptographic hash chain integrity.
+*   **Routing Evidence**: Run `agent-sudo verify-routing` for a read-only report of whether actions are actually flowing through Agent_Sudo — configuration, observed gateway activity (record count + integrity), best-effort MCP-client wiring, and the standing trust-boundary limits. It reports observed signals only; it cannot certify that you are protected.
 
 ---
 
