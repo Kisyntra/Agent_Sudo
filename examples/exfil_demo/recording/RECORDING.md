@@ -34,6 +34,17 @@ Tune in `demo.tape` if needed:
 
 ## Option B — asciinema + agg (terminal cast → GIF)
 
+Use the scripted driver when you want the same command pacing without VHS:
+
+```bash
+brew install asciinema agg
+cd <repo root>
+asciinema rec --overwrite -c "bash examples/exfil_demo/recording/record.sh" exfil-demo.cast
+agg exfil-demo.cast exfil-demo.gif
+```
+
+Or record manually:
+
 ```bash
 brew install asciinema agg
 cd <repo root>
