@@ -107,7 +107,7 @@ Embed the engine in an agent built on PydanticAI, LangGraph, the OpenAI Agents S
         raise PermissionError(f"Blocked by Agent_Sudo: {result.reason}")
     ```
 *   **Framework Examples**:
-    *   [PydanticAI Gating Example](examples/pydantic_ai/)
+    *   [PydanticAI Gating Example](examples/pydantic_ai/) — **canonical runnable dogfood**: agent → gateway → real file I/O → delegation → audited + verified, fully offline
     *   [OpenAI Agents SDK Gating Example](examples/openai_agents_sdk/)
     *   [LangGraph Integration Guide](docs/examples/langgraph.md) ([examples/langgraph_integration.py](examples/langgraph_integration.py))
     *   [agent-runtimes Hook Plugin Setup](examples/agent_runtimes/)
@@ -135,7 +135,7 @@ For system administrators and security engineers who want to audit agent logs, m
 Agent_Sudo has pre-built example templates showing in-process integration for major Python agent frameworks:
 
 *   ✓ **[OpenAI Agents SDK](examples/openai_agents_sdk/)** — pre-wrapping assistant tool functions.
-*   ✓ **[PydanticAI](examples/pydantic_ai/)** — gating tool execution using standard Python decorators.
+*   ✓ **[PydanticAI](examples/pydantic_ai/)** — **canonical end-to-end dogfood**: a real (deterministic, offline) agent loop driving gateway decisions, real file I/O, scoped delegation, and verified audit.
 *   ✓ **[LangGraph](docs/examples/langgraph.md)** — securing tool node execution and graph states ([examples/langgraph_integration.py](examples/langgraph_integration.py)).
 *   ✓ **[agent-runtimes](examples/agent_runtimes/)** — registering the local tool hooks handler in config.
 

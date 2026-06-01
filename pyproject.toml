@@ -34,6 +34,9 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
+# Examples only — never a runtime dependency of agent-sudo-mcp, which stays
+# dependency-free. Needed to run examples/pydantic_ai.
+examples = ["pydantic-ai>=1.0"]
 
 [project.urls]
 Homepage = "https://github.com/Kisyntra/Agent_Sudo"
