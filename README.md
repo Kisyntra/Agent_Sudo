@@ -310,5 +310,5 @@ For a full compatibility matrix and integration details, see the [Ecosystem Stat
   - Release candidate tags (e.g. `v0.4.0-rc12`) are published as GitHub Prereleases and are explicitly excluded from being marked as the latest release.
   - Release notes are automatically parsed and extracted from the matching version entry in `CHANGELOG.md`.
 
-<!-- mcp-name: io.github.kisyntra/agent-sudo-mcp -->
+<!-- mcp-name: io.github.Kisyntra/agent-sudo-mcp -->
 

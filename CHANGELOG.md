@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.3
+
+- Capitalizes the verification namespace in `README.md` and aligns version metadata to resolve case-sensitive publisher check errors during official registry submission.
+
 ## v0.4.2
 
 - Adds the official MCP Registry ownership verification marker to `README.md` and aligns version metadata in `server.json` to enable official registry publication.

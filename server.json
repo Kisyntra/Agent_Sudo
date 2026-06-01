@@ -1,12 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.kisyntra/agent-sudo-mcp",
-  "description": "Local zero-trust permission gateway for AI agents. Enforces policy-based tool authorization, human approvals, scoped permissions, and cryptographically verifiable audit logs.",
-  "version": "0.4.2",
+  "name": "io.github.Kisyntra/agent-sudo-mcp",
+  "description": "Local permission gateway and security policy engine for MCP tool execution.",
+  "version": "0.4.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "agent-sudo-mcp",
+      "version": "0.4.3",
       "transport": {
         "type": "stdio"
       }
