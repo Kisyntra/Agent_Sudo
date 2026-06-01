@@ -17,8 +17,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   validate:
@@ -124,6 +123,7 @@ jobs:
   publish-dry-run-report:
     needs: build-and-verify
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
     steps:
       - name: Dry Run Publishing Report
         run: |
@@ -135,25 +135,51 @@ jobs:
           echo "  Verification Gates: ALL PASSED"
           echo "=========================================================="
           echo "PyPI publishing and GitHub Release creation are intentionally"
-          echo "skipped. The actual publish steps will remain inactive until"
-          echo "this workflow draft has been fully reviewed and approved."
+          echo "skipped because dry_run was set to true."
           echo "=========================================================="
 
-      # Actual publish steps are commented out below for review.
-      # To enable after review, configure trusted publishing on PyPI,
-      # verify OIDC permissions, and uncomment the steps below.
-      #
-      # - name: Publish to PyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #
-      # - name: Create GitHub Release
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |
-      #     VERSION="${{ github.event.inputs.version || github.ref_name }}"
-      #     VERSION_CLEAN="${VERSION#v}"
-      #     NOTES_FILE="docs/releases/release_notes_${VERSION_CLEAN}.md"
-      #     gh release create "$VERSION" \
-      #       --title "$VERSION" \
-      #       --notes-file "$NOTES_FILE" \
-      #       dist/*
+  publish:
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    # Run on tag push or when workflow_dispatch is run with dry_run = false
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download built distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Upload assets to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          # Upload files to the existing release or create a new one if it does not exist
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists. Uploading built assets..."
+            gh release upload "$VERSION" dist/* --clobber
+          else
+            echo "Release $VERSION does not exist. Creating new release and uploading assets..."
+            VERSION_CLEAN="${VERSION#v}"
+            NOTES_FILE="docs/releases/release_notes_${VERSION_CLEAN}.md"
+            if [ -f "$NOTES_FILE" ]; then
+              gh release create "$VERSION" \
+                --title "$VERSION" \
+                --notes-file "$NOTES_FILE" \
+                dist/*
+            else
+              gh release create "$VERSION" \
+                --title "$VERSION" \
+                dist/*
+            fi
+          fi
