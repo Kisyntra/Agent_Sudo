@@ -25,8 +25,12 @@ from agent_sudo.context import load_agent_sudo_config
 
 # Sections, in display order.
 SECTION_CONFIG = "Configuration (what is set up)"
-SECTION_ACTIVITY = "Observed gateway activity (what actually reached the gateway — past tense)"
-SECTION_WIRING = "MCP client wiring (best-effort — parsed from client config if present)"
+SECTION_ACTIVITY = (
+    "Observed gateway activity (what actually reached the gateway — past tense)"
+)
+SECTION_WIRING = (
+    "MCP client wiring (best-effort — parsed from client config if present)"
+)
 SECTION_BOUNDARY = "Trust boundary (cannot be proven from local state)"
 
 # Default macOS Claude Desktop client config. Best-effort; absence is reported
@@ -38,6 +42,7 @@ DEFAULT_CLIENT_CONFIG_PATH = (
     / "Claude"
     / "claude_desktop_config.json"
 )
+
 
 # Default MCP audit log locations, checked in order.
 def _default_audit_paths(repo_root: Path) -> list[Path]:
@@ -76,9 +81,7 @@ def run_routing_check(
     root = repo_root or Path.cwd()
     signals: list[Signal] = []
     signals.extend(_configuration_signals(approval_config_path, workspace_config_path))
-    signals.extend(
-        _activity_signals(audit_paths or _default_audit_paths(root))
-    )
+    signals.extend(_activity_signals(audit_paths or _default_audit_paths(root)))
     signals.extend(_wiring_signals(client_config_path))
     signals.extend(_boundary_signals())
     return signals
@@ -115,7 +118,9 @@ def _configuration_signals(
     workspace = config.get("workspace")
     if workspace:
         out.append(
-            Signal(SECTION_CONFIG, Status.OBSERVED, "workspace configured", str(workspace))
+            Signal(
+                SECTION_CONFIG, Status.OBSERVED, "workspace configured", str(workspace)
+            )
         )
     else:
         out.append(
@@ -140,14 +145,16 @@ def _activity_signals(audit_paths: list[Path]) -> list[Signal]:
                 SECTION_ACTIVITY,
                 Status.LIMITATION,
                 "no audit log found yet",
-                "expected at "
-                + " or ".join(_display_path(p) for p in audit_paths),
+                "expected at " + " or ".join(_display_path(p) for p in audit_paths),
             )
         ]
 
     out = [
         Signal(
-            SECTION_ACTIVITY, Status.OBSERVED, "audit log present", _display_path(audit_path)
+            SECTION_ACTIVITY,
+            Status.OBSERVED,
+            "audit log present",
+            _display_path(audit_path),
         )
     ]
 
@@ -250,7 +257,12 @@ def _wiring_signals(client_config_path: Path | None) -> list[Signal]:
     out: list[Signal] = []
     if _has_agent_sudo(servers):
         out.append(
-            Signal(SECTION_WIRING, Status.OBSERVED, "agent-sudo registered", _display_path(path))
+            Signal(
+                SECTION_WIRING,
+                Status.OBSERVED,
+                "agent-sudo registered",
+                _display_path(path),
+            )
         )
     else:
         out.append(
@@ -335,8 +347,7 @@ def format_routing_report(signals: list[Signal]) -> str:
             lines.append(text)
     lines.append("")
     lines.append(
-        "This command reports observed signals. It cannot certify routing "
-        "completeness."
+        "This command reports observed signals. It cannot certify routing completeness."
     )
     lines.append(
         "To confirm a specific action was gated, perform it, then run "

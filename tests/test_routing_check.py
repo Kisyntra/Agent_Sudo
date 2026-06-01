@@ -150,9 +150,7 @@ class RoutingCheckTests(unittest.TestCase):
             signals = self._run(tmp, client_config_path=client)
             report = format_routing_report(signals)
         self.assertIn("agent-sudo registered", _labels(signals))
-        self.assertTrue(
-            any("other MCP server" in label for label in _labels(signals))
-        )
+        self.assertTrue(any("other MCP server" in label for label in _labels(signals)))
         self.assertIn("filesystem", report)
         self.assertIn("shell-runner", report)
 
