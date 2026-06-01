@@ -8,10 +8,10 @@ This release consolidates all previous development and security hardening iterat
 
 ## 🚀 Key Features
 
-### 1. Robust Security Boundaries & Injection Gating
-*   **Shell Command Deep-Scanning**: Implements recursive substring and argument scans to detect and block directory traversals (e.g. `../`), environment variable expansion bypasses (such as `$HOME`), symlinks targeting configuration paths, nested subshell escapes (`bash -c`), and copy/pipe utility abuse (`mv`, `cp`, `ln`, `tar`, `tee`, `dd`, `cat`).
+### 1. Security Boundaries & Provenance Gating
+*   **Shell Command Screening (best-effort)**: Substring and argument scans that flag common bypass shapes — directory traversals (e.g. `../`), environment variable expansion (such as `$HOME`), symlinks targeting configuration paths, nested subshell escapes (`bash -c`), and copy/pipe utility abuse (`mv`, `cp`, `ln`, `tar`, `tee`, `dd`, `cat`). This is pattern-based and best-effort, not a complete shell parser; pair with OS-level containment for a real boundary.
 *   **Protected Path Redaction**: Restricts access to sensitive config folders (`~/.ssh/`, `~/.config/`, `~/.agent-sudo/`, `~/.agent-runtime/`) and security credentials (`.env`, `auth.json`, `policy.yaml`) for both read and write operations.
-*   **Prompt-Injection Defense**: Built-in phrase-based detector flags obvious injection patterns in target inputs prior to gateway execution.
+*   **Injection Tripwire (best-effort)**: Built-in phrase detector flags a few obvious literal injection patterns in target inputs as a signal — not a defense against prompt injection. The real mitigation is provenance-based escalation of untrusted-origin actions.
 
 ### 2. Tamper-Resistant Cryptographic Auditing
 *   **SHA-256 Hash-Chaining**: Generates a tamper-evident cryptographic chain linking every tool call result.

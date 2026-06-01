@@ -46,7 +46,7 @@ This flow is 100% reproducible and thoroughly covered in `docs/FIRST_RUN.md`.
 ## 5. Marketing Readiness (Hacker News Evaluation)
 
 ### What a Hacker News Reader Will Understand:
-* **The Problem**: A semantic firewall that prevents prompt injections, excessive agency, and unapproved tool execution.
+* **The Problem**: A provenance-aware policy gateway that reduces excessive agency and unapproved tool execution — requiring human approval for sensitive/critical actions and escalating untrusted-origin actions — for the tool calls routed through it. It does not detect or prevent prompt injection in prose.
 * **The Difference**: It is a policy-driven provenance gate, not a filesystem sandbox or network firewall. It operates on *intent validation* rather than kernel restrictions.
 * **Why MCP Users Should Care**: The Model Context Protocol gives local LLM processes standard access to read/write/shell tools. This gateway acts as an auditable local firewall.
 

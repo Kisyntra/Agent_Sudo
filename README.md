@@ -11,7 +11,25 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
-`Agent_Sudo` is a local permission gateway for AI agents that validates, authorizes, and controls tool execution before actions are run.
+`Agent_Sudo` is a local permission gateway for AI agents. It classifies, authorizes, and logs the tool calls routed through it — applying provenance-aware policy, human approval gates, and scoped delegation before each action runs, and recording every decision to a tamper-evident audit log.
+
+### What Agent_Sudo Protects / Does Not Protect
+
+**What it is:** a policy-and-provenance gateway with human approval gates, scoped delegation, and a tamper-evident (hash-chained) audit log — for the tool calls routed through it.
+
+**Protects:**
+- **Excessive agency** — sensitive/critical actions (shell, critical file writes, external posts) require human approval before they run.
+- **Untrusted-origin actions** — actions whose provenance is external content (e.g. a fetched web page) are escalated or denied based on *where the instruction came from*, not its wording.
+- **Tamper-evident audit** — every decision is recorded to a SHA-256 hash-chained log that `agent-sudo verify-audit` can check for after-the-fact edits.
+- **Scoped delegation** — temporary, resource-limited tokens grant narrow access that expires automatically.
+
+**Does not protect:**
+- **Tools that bypass the gateway** — a client's native tools or other MCP servers that don't route through Agent_Sudo are neither gated nor audited.
+- **Prompt injection as a content-security problem** — Agent_Sudo does **not** reliably detect injected instructions in prose. The built-in phrase detector is a **best-effort tripwire** that flags a few literal strings; the real protection is provenance-based escalation, not text matching.
+- **OS-level isolation** — it is not a sandbox; pair it with Docker/Firecracker for filesystem/process containment.
+- **A compromised local environment** — anyone with your local shell can approve pending actions or edit config directly.
+
+See [Trust Boundaries](#trust-boundaries-what-is-and-is-not-protected) for the full table and the [Security & Threat Model](docs/architecture/security_model.md).
 
 ## Quick Install for MCP Clients
 
@@ -189,11 +207,11 @@ Verify how `Agent_Sudo` classifies tool risk and makes gateway decisions using o
 agent-sudo demo
 ```
 
-### Flagship Demo: Stop Prompt-Injection Exfiltration
+### Flagship Demo: Block Exfiltration by Provenance
 
-See provenance-based blocking in ~60 seconds. An agent reads a poisoned web page that tells it to exfiltrate your `.env`; Agent_Sudo **denies** it (untrusted origin) while **allowing** the user's own work — and writes a tamper-evident audit log.
+See provenance-aware policy enforcement in ~60 seconds. An agent reads a poisoned web page that tells it to exfiltrate your `.env`. Agent_Sudo **denies** the action because its **origin is untrusted external content** — not because it parsed the malicious wording — while **allowing** the user's own work, and writes a tamper-evident audit log. The decision turns on *where the instruction came from*, independent of how the injection is phrased.
 
-![Agent_Sudo exfiltration-prevention demo](assets/demo/exfil-demo.gif)
+![Agent_Sudo provenance-based blocking demo](assets/demo/exfil-demo.gif)
 
 The demo lives in the repository (it is not part of the PyPI package), so clone first:
 
