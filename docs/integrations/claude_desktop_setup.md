@@ -2,6 +2,9 @@
 
 This guide explains how to install `Agent_Sudo`, connect it to Claude Desktop as a Model Context Protocol (MCP) server, and validate the setup.
 
+> [!IMPORTANT]
+> **What the MCP server is for.** Agent_Sudo is an authorization, approval, delegation, and audit **engine**. Wired into Claude Desktop, it lets you **observe, gate, and audit** the tool calls routed through its server — `read_file` executes for real, and every routed call is classified and logged. The `write_file` and `run_shell_command` tools are **reference/demo executors** (`write_file` writes only inside `/tmp/agent-sudo-demo`; shell runs a narrow allowlist). They demonstrate gating; they do **not** mediate Claude Desktop's own file/shell tools and are not a turnkey way to protect arbitrary writes or commands. To gate **real** tool execution, embed the engine in your agent — see the [README](../../README.md) integration path and [framework examples](../../examples/).
+
 ## A. Prerequisites
 
 Before starting, ensure you have:

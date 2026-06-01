@@ -11,6 +11,7 @@ This document outlines the security boundaries, threat mitigation strategies, an
 > [!IMPORTANT]
 > - **Not the action owner**: `Agent_Sudo` does not execute downstream actions itself. The operator and concrete tool provider (e.g. your shell executor or file writer) remain responsible for the safe handling of the action.
 > - **Policy and Auditing only**: `Agent_Sudo` provides authorization, interactive user approval, scoped delegation, transparency, and logging. It acts as a safety gate, not a sandbox or containment chamber.
+> - **The shipped MCP server is a reference**: its `write_file` (scoped to `/tmp/agent-sudo-demo`) and `run_shell_command` (narrow allowlist) tools are **demo executors** that showcase gating. The engine is designed to be embedded in an agent/runtime that owns execution; to gate real tools, integrate the library rather than relying on the demo executors.
 
 ---
 
