@@ -6,15 +6,50 @@
 
 <p align="center">
   <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/pypi/v/agent-sudo-mcp.svg" alt="PyPI Version"></a>
+  <a href="https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp"><img src="https://img.shields.io/badge/MCP%20Registry-active-brightgreen" alt="Official MCP Registry"></a>
   <a href="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo"><img src="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo/badges/score.svg" alt="Glama MCP Server Score"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
 `Agent_Sudo` is a local permission gateway for AI agents that validates, authorizes, and controls tool execution before actions are run.
 
+## Quick Install for MCP Clients
+
+Install the published MCP server:
+
+```bash
+pipx install agent-sudo-mcp
+agent-sudo --version
+agent-sudo init-approval
+agent-sudo workspace set /ABS/PATH/TO/your/project
+which agent-sudo-mcp
+```
+
+Add Agent_Sudo to Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`:
+
+```json
+{
+  "mcpServers": {
+    "agent-sudo": {
+      "command": "/ABS/PATH/TO/agent-sudo-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Restart Claude Desktop, ask it to use an Agent_Sudo tool, then verify the action was routed through the gateway:
+
+```bash
+agent-sudo audit list
+```
+
+If the action is not listed, it bypassed Agent_Sudo. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
+
 ## Discoverability & Registry Status
 
 *   📦 **PyPI Package**: [agent-sudo-mcp on PyPI](https://pypi.org/project/agent-sudo-mcp/)
+*   ✅ **Official MCP Registry**: Active as `io.github.Kisyntra/agent-sudo-mcp` at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp)
 *   🌐 **Glama Registry Listing**: Live listing at [glama.ai/mcp/servers/Kisyntra/Agent_Sudo](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)
 *   🛠️ **MCP Server Integration**: Read the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md)
 *   🏢 **GitHub Organization**: Part of the [Kisyntra](https://github.com/Kisyntra) ecosystem
@@ -281,6 +316,7 @@ We work with agent runtime maintainers and external implementers to define porta
 *   **Research & Local PoC**:
     *   **[Hermes](https://github.com/NousResearch/hermes-agent)** — Experimental architecture research (#34992) targeting registry-level dispatch gating.
 *   **Public Listings**:
+    *   **[Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp)** — Active listing as `io.github.Kisyntra/agent-sudo-mcp`.
     *   **[Glama MCP Registry](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)** — Active, verified listing with introspection tests.
 
 For a full compatibility matrix and integration details, see the [Ecosystem Status Guide](docs/ecosystem/ecosystem_status.md).
@@ -311,4 +347,3 @@ For a full compatibility matrix and integration details, see the [Ecosystem Stat
   - Release notes are automatically parsed and extracted from the matching version entry in `CHANGELOG.md`.
 
 <!-- mcp-name: io.github.Kisyntra/agent-sudo-mcp -->
-
