@@ -18,6 +18,7 @@ from agent_sudo.classifier import ActionClassifier
 from agent_sudo.delegations import DelegationStore, DELEGATIONS_PATH
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
 from agent_sudo.models import (
+    INCONSISTENT_PROVENANCE_HINT,
     ActionRequest,
     ApprovalStatus,
     Classification,
@@ -61,6 +62,17 @@ class PermissionGateway:
         decision = policy_result.decision
         approval_method = "none"
         reason = policy_result.reason
+        # Surface a provenance-consistency downgrade in the decision/audit reason.
+        inconsistency = next(
+            (
+                hint
+                for hint in request.risk_hints
+                if hint.startswith(INCONSISTENT_PROVENANCE_HINT)
+            ),
+            None,
+        )
+        if inconsistency is not None:
+            reason = f"{reason}; {inconsistency}"
         approval_attempts: list[dict[str, object]] = []
         approval_request_id = ""
         approval_command_text = ""
