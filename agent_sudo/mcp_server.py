@@ -35,7 +35,12 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "write_file",
-        "description": "Write a local file through agent-sudo policy enforcement.",
+        "description": (
+            "DEMO/REFERENCE executor: classifies and gates the write through "
+            "agent-sudo, then writes only inside /tmp/agent-sudo-demo. It does "
+            "not write to arbitrary paths. To gate real writes, embed the "
+            "agent-sudo authorization engine in your agent (see README)."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -47,7 +52,12 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "run_shell_command",
-        "description": "Run a narrow local shell command through agent-sudo policy enforcement.",
+        "description": (
+            "DEMO/REFERENCE executor: classifies and gates the command through "
+            "agent-sudo, then executes only a narrow allowlist. It is not a "
+            "general shell. To gate real commands, embed the agent-sudo "
+            "authorization engine in your agent (see README)."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {

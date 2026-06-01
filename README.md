@@ -80,16 +80,10 @@ If the action is not listed, it bypassed Agent_Sudo. For the full setup and trus
 
 # Choose Your Path
 
-Whether you want to protect your desktop agent, secure your custom Python agent application, or run security operations on agent audit logs, choose the path that fits your use case:
+Agent_Sudo is an **authorization, approval, delegation, and audit engine** for AI agents. The engine — embedded in your agent — is the product; the MCP server is a distribution channel and reference demo. Choose the path that fits your use case:
 
-### 1. Claude Desktop / MCP Users
-For developers running Claude Desktop or other Model Context Protocol (MCP) clients who want to secure local filesystem/command execution.
-*   **Installation**: Standard `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`.
-*   **Configuration**: Add the Agent_Sudo stdio server to your `claude_desktop_config.json`.
-*   **Guide**: See the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md) and [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
-
-### 2. Python Agent Developers
-For developers building autonomous agents using frameworks like PydanticAI, LangGraph, or the OpenAI Agents SDK who want to enforce execution policies in code.
+### 1. Python Agent Developers (primary integration)
+Embed the engine in an agent built on PydanticAI, LangGraph, the OpenAI Agents SDK, or your own loop, to gate **real** tool execution in code. This is the path that protects production actions.
 *   **30-Second Code Example**:
     ```python
     from agent_sudo.gateway import PermissionGateway
@@ -117,6 +111,13 @@ For developers building autonomous agents using frameworks like PydanticAI, Lang
     *   [OpenAI Agents SDK Gating Example](examples/openai_agents_sdk/)
     *   [LangGraph Integration Guide](docs/examples/langgraph.md) ([examples/langgraph_integration.py](examples/langgraph_integration.py))
     *   [agent-runtimes Hook Plugin Setup](examples/agent_runtimes/)
+
+### 2. Claude Desktop / MCP Users
+For developers running Claude Desktop or other MCP clients who want to **observe and audit** agent activity and try the policy engine live.
+*   **What is real here:** policy classification, provenance-based escalation, approval/delegation, and a tamper-evident audit log over the tool calls routed through the server; `read_file` executes for real.
+*   **What is a demo:** the `write_file` and `run_shell_command` tools are **reference executors** — `write_file` only writes inside `/tmp/agent-sudo-demo` and shell runs a narrow allowlist. They demonstrate gating; they are **not** a drop-in way to mediate Claude Desktop's own file/shell tools. To gate real writes/commands, embed the engine (Path 1).
+*   **Installation**: `pipx install agent-sudo-mcp` (recommended) or `pip install agent-sudo-mcp`; add the stdio server to `claude_desktop_config.json`.
+*   **Guide**: [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md) and [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
 
 ### 3. CLI / Security Operations
 For system administrators and security engineers who want to audit agent logs, manage credentials, and configure temporary delegation tokens.
