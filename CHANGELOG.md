@@ -182,7 +182,7 @@ Initial MVP release.
 - Safe executor boundary before tool execution
 - Agent adapters and universal tool-call schema
 - Tamper-resistant JSONL audit logs
-- Prompt-injection defense primitives
+- Prompt-injection tripwire primitives (best-effort signal, not a defense)
 - Approval hardening with local passphrase hash
 - Scoped delegation tokens
 - Request provenance model

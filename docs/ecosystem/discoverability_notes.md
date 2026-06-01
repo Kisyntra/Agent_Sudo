@@ -45,4 +45,4 @@ To resolve these discoverability issues, we implemented the following changes:
 ## 5. Next Discoverability Actions
 
 1.  **Complete Glama & Web-Form Directory Listings**: Manually submit the `agent-sudo-mcp` server details using our submission profile payload.
-2.  **Author an Integration Guide**: Write a community blog post (e.g. on Dev.to or Medium) showcasing how to protect Claude Desktop from prompt injection using Agent_Sudo's local rules engine.
+2.  **Author an Integration Guide**: Write a community blog post (e.g. on Dev.to or Medium) showcasing how Agent_Sudo limits the blast radius of a prompt-injected agent by gating untrusted-origin tool calls and requiring approval for sensitive actions — not by detecting injection in prose.

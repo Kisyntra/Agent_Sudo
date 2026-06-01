@@ -16,11 +16,15 @@ This document outlines the security boundaries, threat mitigation strategies, an
 
 ## 2. Threat Mitigation Profile
 
-### What Agent_Sudo Protects Against:
-- **Excessive Agency / Accidental Executions**: Prevents agents from running commands or mutating critical files without explicit human consent.
-- **Prompt Injection Risks**: Intercepts actions triggered by injected content (e.g., instructions hidden in read files or web pages) by upgrading untrusted actions to require human validation, and blocking obvious override keyword patterns.
+### What Agent_Sudo Enforces:
+- **Excessive Agency / Accidental Executions**: Requires explicit human consent before agents run commands or mutate critical files.
+- **Untrusted-Origin Actions**: Actions whose provenance is external content (e.g. instructions hidden in read files or web pages) are upgraded to require human validation based on *where the instruction came from*, independent of its wording.
 - **Insecure Tools / Over-permissioning**: Normalizes and filters raw tool calls into structured, checked actions (e.g. classifying writes to source files as critical).
 - **Log Tampering**: Implements append-only verification of local audit logs to detect post-hoc alterations by compromised agents.
+
+### Best-Effort Signals (not enforcement boundaries):
+- **Injection phrase detector**: Flags a small set of literal override strings (e.g. "ignore previous instructions") as a **tripwire signal**. It is trivially bypassed by paraphrasing or encoding and must **not** be relied on as prompt-injection protection — the real mitigation is the provenance-based escalation above.
+- **Shell command screening**: Pattern-based scans for common bypass shapes (`../`, `$VAR` expansion, `bash -c`, copy/pipe utilities). Best-effort, not a complete shell parser; pair with OS-level containment for a real boundary.
 
 ### What Agent_Sudo Does NOT Protect Against:
 - **Direct Tool Access (Bypasses)**: If the agent has access to alternate tools that do not route their operations through the `Agent_Sudo` gateway (e.g., a native tool with shell execution capability that doesn't use `Agent_Sudo`), `Agent_Sudo` cannot block or audit those actions.
