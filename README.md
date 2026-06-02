@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.5.0-blue" alt="PyPI v0.5.0"></a>
+  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.5.2-blue" alt="PyPI v0.5.2"></a>
   <a href="https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp"><img src="https://img.shields.io/badge/MCP%20Registry-active-brightgreen" alt="Official MCP Registry"></a>
   <a href="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo"><img src="https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo/badges/score.svg" alt="Glama MCP Server Score"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
@@ -104,7 +104,7 @@ If the action is not listed, it bypassed Agent_Sudo. For the full setup and trus
 
 ## Discoverability & Registry Status
 
-*   📦 **PyPI Package**: [agent-sudo-mcp v0.5.0 on PyPI](https://pypi.org/project/agent-sudo-mcp/)
+*   📦 **PyPI Package**: [agent-sudo-mcp v0.5.2 on PyPI](https://pypi.org/project/agent-sudo-mcp/)
 *   ✅ **Official MCP Registry**: Active as `io.github.Kisyntra/agent-sudo-mcp` at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp)
 *   🌐 **Glama Registry Listing**: Live listing at [glama.ai/mcp/servers/Kisyntra/Agent_Sudo](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo)
 *   🛠️ **MCP Server Integration**: Read the [MCP Server Setup Guide](docs/integrations/mcp_server_setup.md)
