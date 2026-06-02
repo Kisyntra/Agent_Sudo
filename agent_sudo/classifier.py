@@ -454,7 +454,17 @@ def _looks_like_gh_mutation(argv: list[str]) -> bool:
     if argv[1] == "api":
         return _gh_api_uses_mutating_method(argv[2:])
     if argv[1] == "issue" and len(argv) >= 3:
-        return argv[2] in {"close", "create", "delete", "develop", "edit", "lock", "reopen", "transfer", "unlock"}
+        return argv[2] in {
+            "close",
+            "create",
+            "delete",
+            "develop",
+            "edit",
+            "lock",
+            "reopen",
+            "transfer",
+            "unlock",
+        }
     if argv[1] == "pr" and len(argv) >= 3:
         return argv[2] in {"close", "create", "edit", "merge", "reopen", "ready"}
     if argv[1] == "release" and len(argv) >= 3:
@@ -538,10 +548,7 @@ def is_blocked_read_target(target: str) -> bool:
     if lowered.startswith(f"{home}/.config/") or lowered == f"{home}/.config":
         return True
     # ~/.agent-sudo/**
-    if (
-        lowered.startswith(f"{home}/.agent-sudo/")
-        or lowered == f"{home}/.agent-sudo"
-    ):
+    if lowered.startswith(f"{home}/.agent-sudo/") or lowered == f"{home}/.agent-sudo":
         return True
     # ~/.agent-runtime/**
     if (
