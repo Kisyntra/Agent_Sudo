@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.builders import AgentActionRequest
-from agent_sudo.delegations import DelegationStore
+from agent_sudo.delegations import DELEGATIONS_PATH, DelegationStore
 from agent_sudo.gateway import PermissionGateway, main
 from agent_sudo.models import ActionRequest, ApprovalResult, Decision
 from agent_sudo.policy import load_default_policy
@@ -248,7 +250,7 @@ class DelegationTests(unittest.TestCase):
     def test_delegate_cli_create_list_revoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "delegations.json"
-            with redirect_stdout(StringIO()):
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 create_code = main(
                     [
                         "delegate",
@@ -284,6 +286,73 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(list_code, 0)
         self.assertEqual(revoke_code, 0)
         self.assertTrue(revoked.revoked)
+
+    def test_delegate_cli_create_reports_explicit_delegations_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "delegations.json"
+            stdout = StringIO()
+            stderr = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                create_code = main(
+                    [
+                        "delegate",
+                        "create",
+                        "--actor",
+                        "codex",
+                        "--allow-action",
+                        "edit_file",
+                        "--allow-path",
+                        "README.md",
+                        "--delegations-file",
+                        str(path),
+                    ]
+                )
+
+        token = json.loads(stdout.getvalue())
+        self.assertEqual(create_code, 0)
+        self.assertEqual(token["actor"], "codex")
+        self.assertIn(f"delegations file: {path}", stderr.getvalue())
+        self.assertNotIn("warning: using default delegation store", stderr.getvalue())
+
+    def test_delegate_cli_create_warns_for_default_delegations_file(self) -> None:
+        class FakeToken:
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "actor": "codex",
+                    "allowed_actions": ["edit_file"],
+                    "allowed_paths": ["README.md"],
+                    "token_id": "test-token",
+                }
+
+        class FakeStore:
+            path = DELEGATIONS_PATH
+
+            def create(self, **kwargs: object) -> FakeToken:
+                return FakeToken()
+
+        stdout = StringIO()
+        stderr = StringIO()
+        with patch("agent_sudo.gateway.DelegationStore", return_value=FakeStore()):
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                create_code = main(
+                    [
+                        "delegate",
+                        "create",
+                        "--actor",
+                        "codex",
+                        "--allow-action",
+                        "edit_file",
+                        "--allow-path",
+                        "README.md",
+                    ]
+                )
+
+        token = json.loads(stdout.getvalue())
+        self.assertEqual(create_code, 0)
+        self.assertEqual(token["actor"], "codex")
+        self.assertIn(f"delegations file: {DELEGATIONS_PATH}", stderr.getvalue())
+        self.assertIn("warning: using default delegation store", stderr.getvalue())
+        self.assertIn(str(DELEGATIONS_PATH), stderr.getvalue())
 
 
 if __name__ == "__main__":

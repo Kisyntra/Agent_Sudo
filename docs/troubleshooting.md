@@ -178,3 +178,22 @@ This guide provides solutions for common issues encountered when setting up, run
   3. Navigate to **Profiles** and select your active profile (e.g. *Default* or *Basic*).
   4. Under the **Shell** tab, locate **When the shell exits**.
   5. Change the dropdown setting to **Close if the shell exited cleanly** (since success exits with code `0`, this triggers window closure cleanly).
+
+---
+
+## 14. Delegation created but authorization still denied
+
+* **Symptom**: `agent-sudo delegate create` succeeds, but the next matching tool call is still denied or asks for approval again.
+* **Likely Cause**: The delegation token does not match the runtime authorization check.
+* **Fix**: Verify all of these fields:
+  1. `allowed_actions` contains the exact action the runtime sends.
+  2. `allowed_paths` matches the exact target path after runtime normalization.
+  3. `actor` matches the runtime actor.
+  4. `expires_at` is still in the future.
+  5. `uses` is less than `max_uses`.
+  6. The token was created in the same delegation file the runtime reads.
+* **Command Examples**:
+  ```bash
+  agent-sudo delegate list --delegations-file /path/to/runtime/delegations.json
+  ```
+* **Common Integration Issue**: If `--delegations-file` is omitted, the CLI writes to `~/.agent-sudo/delegations.json`. Some integrations use a different store, so pass the runtime's configured delegation store explicitly.
