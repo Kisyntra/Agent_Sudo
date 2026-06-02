@@ -141,8 +141,12 @@ jobs:
   publish:
     needs: build-and-verify
     runs-on: ubuntu-latest
-    # Run on tag push or when workflow_dispatch is run with dry_run = false
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+    # Publish ONLY via an explicit manual dispatch with dry_run=false, gated behind
+    # the protected `pypi` environment (manual approval). A tag push still builds and
+    # verifies (and release.yml still cuts the GitHub Release), but can no longer reach
+    # this job — preventing accidental PyPI publication from a tag.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+    environment: pypi
     permissions:
       contents: write
       id-token: write
