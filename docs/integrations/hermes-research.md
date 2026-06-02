@@ -67,6 +67,25 @@ graph TD
 *   **Local Processing**: Directly utilizes the in-process Python `PermissionGateway` (Level 2 compatibility). No MCP wrappers or external network daemons are required.
 *   **Gated Actions**: Gates `terminal`, `write_file`, `patch`, `execute_code`, `computer_use`, `cronjob`, `send_message`, `process`, `skill_manage`, browser mutation tools, all MCP tools, and `delegate_task`.
 
+### Delegation Store Path
+
+Hermes integrations may configure their own Agent_Sudo delegation store. A token only authorizes Hermes if it is created in the same store Hermes reads.
+
+For a Hermes runtime with a dedicated delegation store, create delegations with `--delegations-file` pointing at that active store:
+
+```bash
+agent-sudo delegate create \
+  --actor hermes \
+  --allow-action edit_file \
+  --allow-path /path/to/hermes-agent/agent_sudo_bridge.py \
+  --ttl-seconds 900 \
+  --max-uses 1 \
+  --reason "Hermes scoped edit approval" \
+  --delegations-file /path/to/hermes/agent_sudo_audit/delegations.json
+```
+
+If `--delegations-file` is omitted, the CLI writes to `~/.agent-sudo/delegations.json`, which Hermes may not read.
+
 ---
 
 ## 4. Phase 2: Chat-Native Approval Bridge

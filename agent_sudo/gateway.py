@@ -984,6 +984,14 @@ def main(argv: Iterable[str] | None = None) -> int:
                 critical=args.critical,
             )
             print(json.dumps(token.to_dict(), sort_keys=True))
+            print(f"delegations file: {store.path}", file=sys.stderr)
+            if args.delegations_file is None:
+                print(
+                    "warning: using default delegation store "
+                    f"{DELEGATIONS_PATH}; integrations may use another store. "
+                    "Pass --delegations-file to match the runtime store.",
+                    file=sys.stderr,
+                )
             return 0
         if args.delegate_command == "list":
             print(
