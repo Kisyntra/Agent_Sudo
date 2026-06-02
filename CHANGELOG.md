@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.1
+
+- **Concurrency-safe one-use delegation consumption.** The delegation consume path (`DelegationStore.authorize(consume=True)`, plus `create`/`revoke`) now performs its entire read → check → increment → write under an exclusive POSIX advisory lock (`fcntl.flock`) and re-reads token state from disk inside the lock. This closes a race in which concurrent consumers could each observe `uses=0` and all be allowed, double-spending a `max_uses=1` token. `save()` now publishes atomically (temp file → `fsync` → `os.replace` → directory `fsync`) so a reader or crash never sees a partial delegations file.
+- **Concurrency-safe audit append.** `AuditLogger._write_entry` now holds the same exclusive lock across read-last-hash → link → append → `fsync`, so concurrent appends can no longer read the same `previous_hash` and fork the SHA-256 hash chain. The chain stays linear and `verify-audit`-clean under parallel writes.
+- **Fail-closed under lock contention and corruption.** If the lock cannot be acquired within the timeout, or the store is unreadable/corrupt, or the audit log has a torn tail, the gateway denies (delegation) or raises (audit) rather than falling open or silently continuing. No broad `except` masking is introduced; existing fail-closed behavior is preserved.
+- **No format changes.** `delegations.json` and `audit.jsonl` are byte-for-byte identical to v0.5.0. The only new on-disk artifacts are sibling `*.lock` files used purely for lock state.
+- **No new dependencies.** Standard library only (`fcntl`). Public signatures are unchanged — `lock_timeout` is a keyword-only argument with a default on `DelegationStore` and `AuditLogger`. POSIX-only (macOS/Linux), matching the supported runtimes.
+
 ## v0.5.0
 
 - **Stabilizes the approval-helper opener test.** Replaces a brittle `assertNotIn("pwd", ...)` substring scan — which false-positived whenever the temp-dir path contained `pwd` — with a deterministic check that parses the AppleScript `do script` body and asserts it launches only the approval-helper invocation, preserving the original intent (the requested command is never executed by the opener). No production behavior change.
