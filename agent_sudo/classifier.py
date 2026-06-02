@@ -69,7 +69,9 @@ class ActionClassifier:
             request.target
         ):
             return Classification.BLOCKED
-        if request.action == "read_file" and is_blocked_read_target(request.target):
+        if request.action in {"read_file", "search_files"} and is_blocked_read_target(
+            request.target
+        ):
             return Classification.BLOCKED
         if request.action == "get_runtime_context":
             return Classification.SAFE
@@ -168,9 +170,9 @@ def is_forbidden_path_target(target: str) -> bool:
 def is_blocked_write_target(target: str) -> bool:
     normalized = _normalized_target(target)
     lowered = normalized.lower()
-    home = str(Path.home()).replace("\\", "/")
+    home = str(Path.home()).replace("\\", "/").lower()
 
-    if normalized.startswith(f"{home}/.ssh/") or normalized == f"{home}/.ssh":
+    if lowered.startswith(f"{home}/.ssh/") or lowered == f"{home}/.ssh":
         return True
     if is_protected_target(target) and _looks_like_tamper_target(lowered):
         return True
@@ -370,9 +372,9 @@ def is_blocked_shell_target(command: str) -> bool:
         "/library/keychains/",
         "/library/messages/",
         "/library/mail/",
+        "/library/cookies/",
+        "/library/safari/",
         "/library/containers/",
-        "cookies",
-        "login data",
         ".netrc",
         ".npmrc",
         ".pypirc",
@@ -382,6 +384,8 @@ def is_blocked_shell_target(command: str) -> bool:
     for marker in blocked_markers:
         if marker in lowered:
             return True
+    if _looks_like_browser_profile_secret_command(lowered):
+        return True
 
     # Check for symlinks pointing to protected/blocked targets
     if _has_protected_symlink(command, blocked_markers):
@@ -406,6 +410,7 @@ def _looks_like_git_or_gh_mutation(command: str) -> bool:
 
 
 def _looks_like_git_mutation(argv: list[str]) -> bool:
+    argv = _strip_git_global_options(argv)
     if len(argv) < 2:
         return False
     subcommand = argv[1]
@@ -416,17 +421,50 @@ def _looks_like_git_mutation(argv: list[str]) -> bool:
     return False
 
 
+def _strip_git_global_options(argv: list[str]) -> list[str]:
+    if not argv:
+        return argv
+    stripped = [argv[0]]
+    index = 1
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--":
+            index += 1
+            break
+        if arg in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
+            index += 2
+            continue
+        if arg.startswith("-C") and arg != "-C":
+            index += 1
+            continue
+        if arg.startswith("-c") and arg != "-c":
+            index += 1
+            continue
+        if arg.startswith("--git-dir=") or arg.startswith("--work-tree="):
+            index += 1
+            continue
+        break
+    stripped.extend(argv[index:])
+    return stripped
+
+
 def _looks_like_gh_mutation(argv: list[str]) -> bool:
     if len(argv) < 2:
         return False
     if argv[1] == "api":
         return _gh_api_uses_mutating_method(argv[2:])
+    if argv[1] == "issue" and len(argv) >= 3:
+        return argv[2] in {"close", "create", "delete", "develop", "edit", "lock", "reopen", "transfer", "unlock"}
     if argv[1] == "pr" and len(argv) >= 3:
         return argv[2] in {"close", "create", "edit", "merge", "reopen", "ready"}
     if argv[1] == "release" and len(argv) >= 3:
         return argv[2] in {"create", "delete", "edit", "upload"}
     if argv[1] == "repo" and len(argv) >= 3:
         return argv[2] in {"archive", "create", "delete", "edit", "fork", "rename"}
+    if argv[1] == "workflow" and len(argv) >= 3:
+        return argv[2] in {"disable", "enable", "run"}
+    if argv[1] == "run":
+        return True
     if argv[1] in {"auth", "config", "secret", "variable"}:
         return True
     return False
@@ -436,6 +474,10 @@ def _gh_api_uses_mutating_method(args: list[str]) -> bool:
     mutating_methods = {"POST", "PUT", "PATCH", "DELETE"}
     for index, arg in enumerate(args):
         upper = arg.upper()
+        if arg in {"-f", "-F", "--raw-field"} or arg.startswith(("-f", "-F")):
+            return True
+        if arg.startswith("--raw-field="):
+            return True
         if upper.startswith("-X") and upper[2:] in mutating_methods:
             return True
         if (
@@ -486,33 +528,33 @@ def is_blocked_read_target(target: str) -> bool:
     normalized = str(Path(target).expanduser()).replace("\\", "/")
     lowered = normalized.lower()
     name = Path(normalized).name.lower()
-    home = str(Path.home()).replace("\\", "/")
+    home = str(Path.home()).replace("\\", "/").lower()
 
     # Paths:
     # ~/.ssh/**
-    if normalized.startswith(f"{home}/.ssh/") or normalized == f"{home}/.ssh":
+    if lowered.startswith(f"{home}/.ssh/") or lowered == f"{home}/.ssh":
         return True
     # ~/.config/**
-    if normalized.startswith(f"{home}/.config/") or normalized == f"{home}/.config":
+    if lowered.startswith(f"{home}/.config/") or lowered == f"{home}/.config":
         return True
     # ~/.agent-sudo/**
     if (
-        normalized.startswith(f"{home}/.agent-sudo/")
-        or normalized == f"{home}/.agent-sudo"
+        lowered.startswith(f"{home}/.agent-sudo/")
+        or lowered == f"{home}/.agent-sudo"
     ):
         return True
     # ~/.agent-runtime/**
     if (
-        normalized.startswith(f"{home}/.agent-runtime/")
-        or normalized == f"{home}/.agent-runtime"
+        lowered.startswith(f"{home}/.agent-runtime/")
+        or lowered == f"{home}/.agent-runtime"
     ):
         return True
     # ~/.config/gcloud/** and ~/.kube/**
     if (
-        normalized.startswith(f"{home}/.config/gcloud/")
-        or normalized == f"{home}/.config/gcloud"
-        or normalized.startswith(f"{home}/.kube/")
-        or normalized == f"{home}/.kube"
+        lowered.startswith(f"{home}/.config/gcloud/")
+        or lowered == f"{home}/.config/gcloud"
+        or lowered.startswith(f"{home}/.kube/")
+        or lowered == f"{home}/.kube"
     ):
         return True
 
@@ -542,33 +584,74 @@ def is_blocked_read_target(target: str) -> bool:
 
 
 def _looks_like_macos_sensitive_read_path(normalized: str, lowered: str) -> bool:
-    home = str(Path.home()).replace("\\", "/")
+    home = str(Path.home()).replace("\\", "/").lower()
     macos_prefixes = {
-        f"{home}/Library/Keychains",
-        f"{home}/Library/Messages",
-        f"{home}/Library/Mail",
+        f"{home}/library/keychains",
+        f"{home}/library/messages",
+        f"{home}/library/mail",
+        f"{home}/library/cookies",
+        f"{home}/library/safari",
     }
     if any(
-        normalized == prefix or normalized.startswith(prefix + "/")
+        lowered == prefix or lowered.startswith(prefix + "/")
         for prefix in macos_prefixes
     ):
         return True
 
-    if normalized.startswith(f"{home}/Library/Application Support/") and (
-        lowered.endswith("/cookies")
-        or "/cookies" in lowered
-        or lowered.endswith("/login data")
-        or "/login data" in lowered
-    ):
+    if _looks_like_browser_profile_secret_path(lowered, home):
+        return True
+    if _looks_like_browser_profile_path(lowered, home):
         return True
 
-    if normalized.startswith(f"{home}/Library/Containers/") and any(
+    if lowered.startswith(f"{home}/library/containers/") and any(
         marker in lowered
         for marker in {"mail", "notes", "com.apple.mail", "com.apple.notes"}
     ):
         return True
 
     return False
+
+
+def _looks_like_browser_profile_secret_command(lowered: str) -> bool:
+    home = str(Path.home()).replace("\\", "/").lower()
+    return _looks_like_browser_profile_secret_path(lowered.replace("\\ ", " "), home)
+
+
+def _looks_like_browser_profile_secret_path(lowered: str, home: str) -> bool:
+    if not (
+        lowered.endswith("/cookies")
+        or lowered.endswith("/cookies.sqlite")
+        or "/cookies/" in lowered
+        or "/cookies.sqlite" in lowered
+        or lowered.endswith("/login data")
+        or "/login data" in lowered
+    ):
+        return False
+    return _looks_like_browser_profile_path(lowered, home)
+
+
+def _looks_like_browser_profile_path(lowered: str, home: str) -> bool:
+    browser_prefixes = {
+        f"{home}/library/application support/google/chrome/",
+        f"{home}/library/application support/chromium/",
+        f"{home}/library/application support/brave software/brave-browser/",
+        f"{home}/library/application support/microsoft edge/",
+        f"{home}/library/application support/arc/",
+        f"{home}/library/application support/firefox/",
+        f"{home}/library/application support/librewolf/",
+        f"{home}/library/application support/vivaldi/",
+        f"{home}/library/application support/opera software/",
+        "~/library/application support/google/chrome/",
+        "~/library/application support/chromium/",
+        "~/library/application support/brave software/brave-browser/",
+        "~/library/application support/microsoft edge/",
+        "~/library/application support/arc/",
+        "~/library/application support/firefox/",
+        "~/library/application support/librewolf/",
+        "~/library/application support/vivaldi/",
+        "~/library/application support/opera software/",
+    }
+    return any(prefix in lowered for prefix in browser_prefixes)
 
 
 def _injection_scan_text(request: ActionRequest) -> str:

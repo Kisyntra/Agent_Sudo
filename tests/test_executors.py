@@ -127,7 +127,13 @@ class ExecutorBoundaryTests(unittest.TestCase):
             "gh release delete v0.5.1",
             "gh api -X DELETE /repos/example/project/releases/123",
             "gh api --method PATCH /repos/example/project/issues/1",
+            "gh api /repos/example/project/issues -f title=bug",
+            "gh api /repos/example/project/issues -F title=bug",
+            "gh api /repos/example/project/issues --raw-field title=bug",
             "gh pr merge 41",
+            "gh workflow run tests.yml",
+            "gh issue create --title bug --body body",
+            "gh run cancel 123",
         ]
 
         for command in commands:
@@ -140,6 +146,8 @@ class ExecutorBoundaryTests(unittest.TestCase):
     def test_git_mutations_blocked_with_reason(self) -> None:
         commands = [
             "git push origin main",
+            "git -C /tmp/repo push origin main",
+            "git -c credential.helper= push origin main",
             "git remote set-url origin git@example.invalid:repo.git",
             "git remote add mirror git@example.invalid:mirror.git",
         ]
