@@ -45,9 +45,7 @@ class LockTimeout(Exception):
 
 
 @contextmanager
-def file_lock(
-    lock_path: Path, timeout: float = DEFAULT_LOCK_TIMEOUT
-) -> Iterator[None]:
+def file_lock(lock_path: Path, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[None]:
     """Hold an exclusive advisory lock on ``lock_path`` for the with-block.
 
     Raises :class:`LockTimeout` if the lock is not acquired within ``timeout``

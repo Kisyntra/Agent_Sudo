@@ -63,7 +63,9 @@ class ConcurrentDelegationConsumptionTests(unittest.TestCase):
             allows = [r for r in results if r[0] is True]
             denies = [r for r in results if r[0] is not True]
 
-            self.assertEqual(len(allows), 1, f"expected exactly 1 ALLOW, got {len(allows)}")
+            self.assertEqual(
+                len(allows), 1, f"expected exactly 1 ALLOW, got {len(allows)}"
+            )
             self.assertEqual(len(denies), n - 1)
 
             # Store reflects exactly one consumption.

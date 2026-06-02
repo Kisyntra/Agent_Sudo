@@ -23,7 +23,10 @@ DELEGATIONS_PATH = Path.home() / ".agent-sudo" / "delegations.json"
 
 class DelegationStore:
     def __init__(
-        self, path: Path = DELEGATIONS_PATH, *, lock_timeout: float = DEFAULT_LOCK_TIMEOUT
+        self,
+        path: Path = DELEGATIONS_PATH,
+        *,
+        lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
     ):
         self.path = path
         self.lock_timeout = lock_timeout
