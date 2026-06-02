@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -18,7 +19,11 @@ from agent_sudo.audit import (
     verify_audit_log,
 )
 from agent_sudo.classifier import ActionClassifier
-from agent_sudo.delegations import DelegationStore, DELEGATIONS_PATH
+from agent_sudo.delegations import (
+    DelegationStore,
+    DELEGATIONS_PATH_ENV,
+    default_delegations_path,
+)
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
 from agent_sudo.models import (
     INCONSISTENT_PROVENANCE_HINT,
@@ -575,7 +580,9 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument(
         "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
     )
-    init_parser.add_argument("--delegations-file", type=Path, default=DELEGATIONS_PATH)
+    init_parser.add_argument(
+        "--delegations-file", type=Path, default=default_delegations_path()
+    )
     init_parser.add_argument(
         "--audit-log", type=Path, default=Path(".agent-sudo/audit.jsonl")
     )
@@ -985,11 +992,14 @@ def main(argv: Iterable[str] | None = None) -> int:
             )
             print(json.dumps(token.to_dict(), sort_keys=True))
             print(f"delegations file: {store.path}", file=sys.stderr)
-            if args.delegations_file is None:
+            if args.delegations_file is None and not os.environ.get(
+                DELEGATIONS_PATH_ENV
+            ):
                 print(
                     "warning: using default delegation store "
-                    f"{DELEGATIONS_PATH}; integrations may use another store. "
-                    "Pass --delegations-file to match the runtime store.",
+                    f"{store.path}; integrations may use another store. "
+                    f"Set {DELEGATIONS_PATH_ENV} or pass --delegations-file "
+                    "to match the runtime store.",
                     file=sys.stderr,
                 )
             return 0

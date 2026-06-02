@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -10,7 +11,12 @@ from unittest.mock import patch
 
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.builders import AgentActionRequest
-from agent_sudo.delegations import DELEGATIONS_PATH, DelegationStore
+from agent_sudo.delegations import (
+    DELEGATIONS_PATH,
+    DELEGATIONS_PATH_ENV,
+    DelegationStore,
+    default_delegations_path,
+)
 from agent_sudo.gateway import PermissionGateway, main
 from agent_sudo.models import ActionRequest, ApprovalResult, Decision
 from agent_sudo.policy import load_default_policy
@@ -332,20 +338,22 @@ class DelegationTests(unittest.TestCase):
 
         stdout = StringIO()
         stderr = StringIO()
-        with patch("agent_sudo.gateway.DelegationStore", return_value=FakeStore()):
-            with redirect_stdout(stdout), redirect_stderr(stderr):
-                create_code = main(
-                    [
-                        "delegate",
-                        "create",
-                        "--actor",
-                        "codex",
-                        "--allow-action",
-                        "edit_file",
-                        "--allow-path",
-                        "README.md",
-                    ]
-                )
+        with patch.dict(os.environ):
+            os.environ.pop(DELEGATIONS_PATH_ENV, None)
+            with patch("agent_sudo.gateway.DelegationStore", return_value=FakeStore()):
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    create_code = main(
+                        [
+                            "delegate",
+                            "create",
+                            "--actor",
+                            "codex",
+                            "--allow-action",
+                            "edit_file",
+                            "--allow-path",
+                            "README.md",
+                        ]
+                    )
 
         token = json.loads(stdout.getvalue())
         self.assertEqual(create_code, 0)
@@ -353,6 +361,77 @@ class DelegationTests(unittest.TestCase):
         self.assertIn(f"delegations file: {DELEGATIONS_PATH}", stderr.getvalue())
         self.assertIn("warning: using default delegation store", stderr.getvalue())
         self.assertIn(str(DELEGATIONS_PATH), stderr.getvalue())
+
+
+class DelegationStorePathResolutionTests(unittest.TestCase):
+    """Resolution of the default delegation store path (env-aware, use-time)."""
+
+    def test_default_used_when_env_unset(self) -> None:
+        with patch.dict(os.environ):
+            os.environ.pop(DELEGATIONS_PATH_ENV, None)
+            self.assertEqual(default_delegations_path(), DELEGATIONS_PATH)
+            self.assertEqual(DelegationStore().path, DELEGATIONS_PATH)
+
+    def test_env_var_sets_default(self) -> None:
+        with patch.dict(
+            os.environ, {DELEGATIONS_PATH_ENV: "/tmp/hermes/delegations.json"}
+        ):
+            self.assertEqual(
+                DelegationStore().path, Path("/tmp/hermes/delegations.json")
+            )
+
+    def test_env_var_expands_user(self) -> None:
+        with patch.dict(
+            os.environ, {DELEGATIONS_PATH_ENV: "~/.hermes/delegations.json"}
+        ):
+            resolved = DelegationStore().path
+            self.assertEqual(resolved, Path.home() / ".hermes" / "delegations.json")
+            self.assertNotIn("~", str(resolved))
+
+    def test_explicit_path_overrides_env(self) -> None:
+        with patch.dict(
+            os.environ, {DELEGATIONS_PATH_ENV: "/tmp/hermes/delegations.json"}
+        ):
+            explicit = Path("/tmp/explicit/delegations.json")
+            self.assertEqual(DelegationStore(explicit).path, explicit)
+
+    def test_resolution_is_use_time_not_import_time(self) -> None:
+        # A store constructed after the env changes must observe the new value,
+        # proving resolution happens when DelegationStore() is created.
+        with patch.dict(os.environ):
+            os.environ.pop(DELEGATIONS_PATH_ENV, None)
+            self.assertEqual(DelegationStore().path, DELEGATIONS_PATH)
+            os.environ[DELEGATIONS_PATH_ENV] = "/tmp/late/delegations.json"
+            self.assertEqual(DelegationStore().path, Path("/tmp/late/delegations.json"))
+
+    def test_cli_create_uses_env_default_without_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store_path = Path(tmpdir) / "delegations.json"
+            stdout = StringIO()
+            stderr = StringIO()
+            with patch.dict(os.environ, {DELEGATIONS_PATH_ENV: str(store_path)}):
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    create_code = main(
+                        [
+                            "delegate",
+                            "create",
+                            "--actor",
+                            "codex",
+                            "--allow-action",
+                            "edit_file",
+                            "--allow-path",
+                            "README.md",
+                        ]
+                    )
+
+            self.assertEqual(create_code, 0)
+            # Token landed in the env store, no --delegations-file needed.
+            self.assertTrue(store_path.exists())
+            self.assertIn(f"delegations file: {store_path}", stderr.getvalue())
+            # The default-store footgun warning must NOT fire when env is set.
+            self.assertNotIn(
+                "warning: using default delegation store", stderr.getvalue()
+            )
 
 
 if __name__ == "__main__":

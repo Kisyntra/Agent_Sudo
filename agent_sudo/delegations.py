@@ -18,17 +18,38 @@ from agent_sudo._locking import (
 from agent_sudo.models import ActionRequest, Classification, DelegationToken
 
 
+# Environment variable that lets a runtime (e.g. Hermes) point the CLI and the
+# embedded engine at a shared delegation store without passing --delegations-file
+# on every command.
+DELEGATIONS_PATH_ENV = "AGENT_SUDO_DELEGATIONS_FILE"
+
+# Backwards-compatible static fallback used when DELEGATIONS_PATH_ENV is unset.
+# Prefer default_delegations_path() for resolution so the environment is read at
+# use-time rather than import-time.
 DELEGATIONS_PATH = Path.home() / ".agent-sudo" / "delegations.json"
+
+
+def default_delegations_path() -> Path:
+    """Resolve the default delegation store at call time.
+
+    Honors ``AGENT_SUDO_DELEGATIONS_FILE`` so the CLI and integrations converge
+    on one store; falls back to ``~/.agent-sudo/delegations.json`` when unset.
+    An explicit ``DelegationStore(path=...)`` always overrides this.
+    """
+    env = os.environ.get(DELEGATIONS_PATH_ENV)
+    if env:
+        return Path(env).expanduser()
+    return DELEGATIONS_PATH
 
 
 class DelegationStore:
     def __init__(
         self,
-        path: Path = DELEGATIONS_PATH,
+        path: Path | None = None,
         *,
         lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
     ):
-        self.path = path
+        self.path = path if path is not None else default_delegations_path()
         self.lock_timeout = lock_timeout
 
     @property
