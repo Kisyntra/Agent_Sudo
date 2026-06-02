@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 from agent_sudo.injection import detect_prompt_injection
@@ -224,6 +225,9 @@ def _looks_like_credential_path(lowered: str) -> bool:
     path_parts = {part for part in lowered.replace("\\", "/").split("/") if part}
     sensitive_names = {
         ".env",
+        ".netrc",
+        ".npmrc",
+        ".pypirc",
         "auth.json",
         "credentials",
         "secrets",
@@ -325,6 +329,8 @@ def _looks_like_runtime_config(lowered: str, name: str) -> bool:
 def is_blocked_shell_target(command: str) -> bool:
     lowered = command.lower()
     parts = lowered.split()
+    if _looks_like_git_or_gh_mutation(command):
+        return True
     if (
         parts
         and parts[0] == "rm"
@@ -361,6 +367,17 @@ def is_blocked_shell_target(command: str) -> bool:
         "audit.jsonl",
         "audit.log",
         "agent_sudo/",
+        "/library/keychains/",
+        "/library/messages/",
+        "/library/mail/",
+        "/library/containers/",
+        "cookies",
+        "login data",
+        ".netrc",
+        ".npmrc",
+        ".pypirc",
+        "/gcloud/",
+        "/.kube/",
     }
     for marker in blocked_markers:
         if marker in lowered:
@@ -370,6 +387,63 @@ def is_blocked_shell_target(command: str) -> bool:
     if _has_protected_symlink(command, blocked_markers):
         return True
 
+    return False
+
+
+def _looks_like_git_or_gh_mutation(command: str) -> bool:
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return False
+    if not argv:
+        return False
+    command_name = Path(argv[0]).name
+    if command_name == "git":
+        return _looks_like_git_mutation(argv)
+    if command_name == "gh":
+        return _looks_like_gh_mutation(argv)
+    return False
+
+
+def _looks_like_git_mutation(argv: list[str]) -> bool:
+    if len(argv) < 2:
+        return False
+    subcommand = argv[1]
+    if subcommand == "push":
+        return True
+    if subcommand == "remote" and len(argv) >= 3:
+        return argv[2] in {"add", "remove", "rename", "set-url", "set-head"}
+    return False
+
+
+def _looks_like_gh_mutation(argv: list[str]) -> bool:
+    if len(argv) < 2:
+        return False
+    if argv[1] == "api":
+        return _gh_api_uses_mutating_method(argv[2:])
+    if argv[1] == "pr" and len(argv) >= 3:
+        return argv[2] in {"close", "create", "edit", "merge", "reopen", "ready"}
+    if argv[1] == "release" and len(argv) >= 3:
+        return argv[2] in {"create", "delete", "edit", "upload"}
+    if argv[1] == "repo" and len(argv) >= 3:
+        return argv[2] in {"archive", "create", "delete", "edit", "fork", "rename"}
+    if argv[1] in {"auth", "config", "secret", "variable"}:
+        return True
+    return False
+
+
+def _gh_api_uses_mutating_method(args: list[str]) -> bool:
+    mutating_methods = {"POST", "PUT", "PATCH", "DELETE"}
+    for index, arg in enumerate(args):
+        upper = arg.upper()
+        if upper.startswith("-X") and upper[2:] in mutating_methods:
+            return True
+        if arg == "-X" and index + 1 < len(args) and args[index + 1].upper() in mutating_methods:
+            return True
+        if arg.startswith("--method=") and arg.split("=", 1)[1].upper() in mutating_methods:
+            return True
+        if arg == "--method" and index + 1 < len(args) and args[index + 1].upper() in mutating_methods:
+            return True
     return False
 
 
@@ -422,9 +496,22 @@ def is_blocked_read_target(target: str) -> bool:
         or normalized == f"{home}/.agent-runtime"
     ):
         return True
+    # ~/.config/gcloud/** and ~/.kube/**
+    if (
+        normalized.startswith(f"{home}/.config/gcloud/")
+        or normalized == f"{home}/.config/gcloud"
+        or normalized.startswith(f"{home}/.kube/")
+        or normalized == f"{home}/.kube"
+    ):
+        return True
+
+    if _looks_like_macos_sensitive_read_path(normalized, lowered):
+        return True
 
     # .env and .env.*
     if name == ".env" or name.startswith(".env."):
+        return True
+    if name in {".netrc", ".npmrc", ".pypirc"}:
         return True
 
     # Files containing: auth, token, credential, secret, private_key, config, api-key
@@ -438,6 +525,35 @@ def is_blocked_read_target(target: str) -> bool:
         "api" + "_" + "key",
     }
     if any(kw in name or kw in lowered for kw in keywords):
+        return True
+
+    return False
+
+
+def _looks_like_macos_sensitive_read_path(normalized: str, lowered: str) -> bool:
+    home = str(Path.home()).replace("\\", "/")
+    macos_prefixes = {
+        f"{home}/Library/Keychains",
+        f"{home}/Library/Messages",
+        f"{home}/Library/Mail",
+    }
+    if any(
+        normalized == prefix or normalized.startswith(prefix + "/")
+        for prefix in macos_prefixes
+    ):
+        return True
+
+    if normalized.startswith(f"{home}/Library/Application Support/") and (
+        lowered.endswith("/cookies")
+        or "/cookies" in lowered
+        or lowered.endswith("/login data")
+        or "/login data" in lowered
+    ):
+        return True
+
+    if normalized.startswith(f"{home}/Library/Containers/") and any(
+        marker in lowered for marker in {"mail", "notes", "com.apple.mail", "com.apple.notes"}
+    ):
         return True
 
     return False

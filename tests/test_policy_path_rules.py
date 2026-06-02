@@ -124,6 +124,85 @@ class PolicyPathRuleTests(unittest.TestCase):
         self.assertEqual(res_token.classification, Classification.BLOCKED)
         self.assertEqual(res_token.decision, Decision.DENY)
 
+    def test_macos_store_reads_blocked(self) -> None:
+        targets = [
+            "~/Library/Keychains/login.keychain-db",
+            "~/Library/Messages/chat.db",
+            "~/Library/Mail/V10/MailData/Envelope Index",
+            "~/Library/Application Support/Google/Chrome/Default/Cookies",
+            "~/Library/Application Support/Google/Chrome/Default/Login Data",
+            "~/Library/Application Support/Firefox/Profiles/example/Cookies.sqlite",
+            "~/Library/Containers/com.apple.mail/Data/Mail/mailbox.db",
+            "~/Library/Containers/com.apple.Notes/Data/Library/Notes/notes.db",
+        ]
+
+        for target in targets:
+            with self.subTest(target=target):
+                request = AgentActionRequest.file_read(target)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
+
+    def test_extra_secret_file_reads_blocked(self) -> None:
+        targets = [
+            "~/.netrc",
+            "~/.npmrc",
+            "~/.pypirc",
+            "~/.config/gcloud/application_default_credentials.json",
+            "~/.kube/config",
+        ]
+
+        for target in targets:
+            with self.subTest(target=target):
+                request = AgentActionRequest.file_read(target)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
+
+    def test_shell_sensitive_reads_blocked(self) -> None:
+        commands = [
+            "cat ~/Library/Keychains/login.keychain-db",
+            "head ~/Library/Messages/chat.db",
+            "grep token ~/.netrc",
+            "less ~/.config/gcloud/application_default_credentials.json",
+            "cp ~/.kube/config /tmp/kube-config-copy",
+        ]
+
+        for command in commands:
+            with self.subTest(command=command):
+                request = AgentActionRequest.shell_command(command)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
+
+    def test_git_and_github_mutations_blocked_but_read_only_allowed(self) -> None:
+        blocked_commands = [
+            "gh release delete v0.5.1",
+            "gh api -X DELETE /repos/example/project/releases/123",
+            "gh api --method PATCH /repos/example/project/issues/1",
+            "gh pr merge 41",
+            "git push origin main",
+            "git remote set-url origin git@example.invalid:repo.git",
+            "git remote add mirror git@example.invalid:mirror.git",
+        ]
+        for command in blocked_commands:
+            with self.subTest(command=command):
+                request = AgentActionRequest.shell_command(command)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+                self.assertEqual(result.classification, Classification.BLOCKED)
+                self.assertEqual(result.decision, Decision.DENY)
+
+        allowed_commands = ["git status", "git log --oneline -1", "gh pr view 41"]
+        for command in allowed_commands:
+            with self.subTest(command=command):
+                request = AgentActionRequest.shell_command(command)
+                result = PermissionGateway(self.policy).evaluate(request, dry_run=True)
+                self.assertEqual(result.classification, Classification.CRITICAL)
+                self.assertEqual(result.decision, Decision.REQUIRE_STRONG_APPROVAL)
+
 
 if __name__ == "__main__":
     unittest.main()

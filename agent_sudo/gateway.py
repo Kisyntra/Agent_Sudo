@@ -10,7 +10,10 @@ from agent_sudo import __version_label__
 from agent_sudo.approvals import ApprovalProvider, init_approval_config, CONFIG_PATH
 from agent_sudo.audit import (
     AuditLogger,
+    audit_entries_since,
     format_audit_log,
+    format_audit_review,
+    parse_since_window,
     read_audit_entries,
     verify_audit_log,
 )
@@ -538,6 +541,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output raw JSON records instead of a table",
     )
+    audit_review = audit_subparsers.add_parser(
+        "review",
+        help="Review the recent audit window with verification and non-ALLOW rows",
+    )
+    audit_review.add_argument(
+        "audit_log",
+        type=Path,
+        nargs="?",
+        default=Path(".agent-sudo/mcp-audit.jsonl"),
+        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+    )
+    audit_review.add_argument(
+        "--since",
+        default="24h",
+        help="Window to review (default: 24h; examples: 30m, 24h, 7d)",
+    )
 
     init_parser = subparsers.add_parser(
         "init-approval",
@@ -813,17 +832,17 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(message)
         return 0 if ok else 1
     if args.command == "audit":
+        if not args.audit_log.exists():
+            sys.stderr.write(
+                f"no audit log found at {args.audit_log}\n\n"
+                "Agent_Sudo records decisions once an agent runs through the "
+                "gateway. Common locations:\n"
+                "  .agent-sudo/mcp-audit.jsonl   (Claude Desktop / MCP server)\n"
+                "  .agent-sudo/audit.jsonl       (agent-sudo run / generic-run)\n"
+                "Pass the path explicitly: agent-sudo audit list <path>\n"
+            )
+            return 1
         if args.audit_command == "list":
-            if not args.audit_log.exists():
-                sys.stderr.write(
-                    f"no audit log found at {args.audit_log}\n\n"
-                    "Agent_Sudo records decisions once an agent runs through the "
-                    "gateway. Common locations:\n"
-                    "  .agent-sudo/mcp-audit.jsonl   (Claude Desktop / MCP server)\n"
-                    "  .agent-sudo/audit.jsonl       (agent-sudo run / generic-run)\n"
-                    "Pass the path explicitly: agent-sudo audit list <path>\n"
-                )
-                return 1
             entries = read_audit_entries(args.audit_log)
             limit = None if args.limit <= 0 else args.limit
             if args.json:
@@ -831,6 +850,20 @@ def main(argv: Iterable[str] | None = None) -> int:
                 print(json.dumps(selected, indent=2, sort_keys=True))
             else:
                 print(format_audit_log(entries, limit=limit))
+            return 0
+        if args.audit_command == "review":
+            ok, message = verify_audit_log(args.audit_log)
+            if not ok:
+                print(message, file=sys.stderr)
+                return 1
+            try:
+                since = parse_since_window(args.since)
+            except ValueError as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+            entries = audit_entries_since(read_audit_entries(args.audit_log), since)
+            print(message)
+            print(format_audit_review(entries, since_label=args.since))
             return 0
     if args.command == "init-approval":
         try:

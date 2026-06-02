@@ -9,7 +9,10 @@ from pathlib import Path
 
 from agent_sudo.audit import (
     AuditLogger,
+    audit_entries_since,
     format_audit_log,
+    format_audit_review,
+    parse_since_window,
     read_audit_entries,
 )
 from agent_sudo.gateway import PermissionGateway, main
@@ -121,6 +124,48 @@ class ReadAuditEntriesTests(unittest.TestCase):
         self.assertEqual([e["event_type"] for e in entries], ["a", "b"])
 
 
+class AuditReviewTests(unittest.TestCase):
+    def test_parse_since_window(self) -> None:
+        self.assertEqual(parse_since_window("30m").total_seconds(), 1800)
+        self.assertEqual(parse_since_window("24h").total_seconds(), 86400)
+        self.assertEqual(parse_since_window("7d").days, 7)
+        with self.assertRaises(ValueError):
+            parse_since_window("0h")
+        with self.assertRaises(ValueError):
+            parse_since_window("yesterday")
+
+    def test_audit_entries_since_filters_by_timestamp(self) -> None:
+        entries = [
+            {
+                "timestamp": "2000-01-01T00:00:00Z",
+                "decision": "ALLOW",
+            },
+            {
+                "timestamp": "2999-01-01T00:00:00Z",
+                "decision": "DENY",
+            },
+        ]
+
+        selected = audit_entries_since(entries, parse_since_window("24h"))
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["decision"], "DENY")
+
+    def test_format_audit_review_counts_and_non_allow_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "audit.jsonl"
+            _write_log(path)
+            entries = read_audit_entries(path)
+
+        output = format_audit_review(entries, since_label="24h")
+
+        self.assertIn("ALLOW: 1", output)
+        self.assertIn("DENY: 1", output)
+        self.assertIn("Non-ALLOW records:", output)
+        self.assertIn("exfiltrate_secrets", output)
+        self.assertNotIn("read_file", output.split("Non-ALLOW records:", 1)[1])
+
+
 class AuditListCliTests(unittest.TestCase):
     def test_cli_audit_list_renders_table(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -155,6 +200,34 @@ class AuditListCliTests(unittest.TestCase):
             code = main(["audit", "list", str(missing)])
         self.assertEqual(code, 1)
         self.assertIn("no audit log found", err.getvalue())
+
+    def test_cli_audit_review_verifies_chain_and_prints_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "audit.jsonl"
+            _write_log(path)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["audit", "review", str(path), "--since", "24h"])
+
+        self.assertEqual(code, 0)
+        output = buffer.getvalue()
+        self.assertIn("audit log verified", output)
+        self.assertIn("ALLOW: 1", output)
+        self.assertIn("DENY: 1", output)
+        self.assertIn("Non-ALLOW records:", output)
+
+    def test_cli_audit_review_exits_nonzero_on_tampered_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "audit.jsonl"
+            _write_log(path)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write('{"timestamp": "2026-01-01T00:00:00Z"}\n')
+            err = io.StringIO()
+            with redirect_stderr(err):
+                code = main(["audit", "review", str(path)])
+
+        self.assertEqual(code, 1)
+        self.assertIn("mismatch", err.getvalue())
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +142,82 @@ def format_audit_log(entries: list[dict[str, Any]], *, limit: int | None = None)
             cells.append(_clip(view[key], width).ljust(width))
         rows.append("  ".join(cells).rstrip())
     return "\n".join(rows)
+
+
+def audit_entries_since(entries: list[dict[str, Any]], since: timedelta) -> list[dict[str, Any]]:
+    cutoff = datetime.now(timezone.utc) - since
+    selected: list[dict[str, Any]] = []
+    for entry in entries:
+        timestamp = _parse_audit_timestamp(str(entry.get("timestamp", "")))
+        if timestamp is not None and timestamp >= cutoff:
+            selected.append(entry)
+    return selected
+
+
+def format_audit_review(entries: list[dict[str, Any]], *, since_label: str) -> str:
+    counts = _decision_counts(entries)
+    non_allow = [
+        entry
+        for entry in entries
+        if str(entry.get("decision", entry.get("event_type", ""))) != "ALLOW"
+    ]
+    lines = [
+        f"Audit review for last {since_label}",
+        f"Records: {len(entries)}",
+        "Decisions:",
+    ]
+    for decision in ("ALLOW", "REQUIRE_APPROVAL", "REQUIRE_STRONG_APPROVAL", "DENY"):
+        lines.append(f"  {decision}: {counts.get(decision, 0)}")
+    other_count = sum(
+        count
+        for decision, count in counts.items()
+        if decision not in {"ALLOW", "REQUIRE_APPROVAL", "REQUIRE_STRONG_APPROVAL", "DENY"}
+    )
+    if other_count:
+        lines.append(f"  OTHER: {other_count}")
+    lines.append("")
+    lines.append("Non-ALLOW records:")
+    lines.append(format_audit_log(non_allow))
+    return "\n".join(lines)
+
+
+def parse_since_window(value: str) -> timedelta:
+    raw = value.strip().lower()
+    if not raw:
+        raise ValueError("--since must not be empty")
+    unit = raw[-1]
+    amount = raw[:-1]
+    if unit not in {"m", "h", "d"} or not amount.isdigit():
+        raise ValueError("--since must use a duration like 30m, 24h, or 7d")
+    number = int(amount)
+    if number <= 0:
+        raise ValueError("--since must be greater than zero")
+    if unit == "m":
+        return timedelta(minutes=number)
+    if unit == "h":
+        return timedelta(hours=number)
+    return timedelta(days=number)
+
+
+def _decision_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for entry in entries:
+        label = str(entry.get("decision", entry.get("event_type", "UNKNOWN")))
+        counts[label] = counts.get(label, 0) + 1
+    return counts
+
+
+def _parse_audit_timestamp(value: str) -> datetime | None:
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _clip(value: str, width: int) -> str:
