@@ -52,6 +52,43 @@ SENSITIVE_HINTS = {
     "scheduled_task",
 }
 
+# Leading privilege/utility wrappers that prefix a real command without changing
+# what it does. They shift the underlying command off argv[0], which would
+# otherwise defeat the argv[0]-anchored destructive-command matchers below
+# (e.g. `sudo rm -rf /`).
+_COMMAND_WRAPPERS = {
+    "sudo",
+    "doas",
+    "env",
+    "command",
+    "nice",
+    "nohup",
+    "time",
+    "timeout",
+    "stdbuf",
+    "setsid",
+    "ionice",
+    "xargs",
+}
+
+# Wrapper options that consume the following token as their value, so the value
+# is not mistaken for the wrapped command.
+_WRAPPER_VALUE_FLAGS = {
+    "-u",
+    "-g",
+    "-U",
+    "-p",
+    "-C",
+    "-r",
+    "-t",
+    "-T",
+    "-h",
+    "-n",
+    "-s",
+    "-k",
+    "-o",
+}
+
 
 class ActionClassifier:
     def __init__(self, policy: Policy):
@@ -328,25 +365,78 @@ def _looks_like_runtime_config(lowered: str, name: str) -> bool:
     return False
 
 
+def _strip_command_wrappers(parts: list[str]) -> list[str]:
+    """Peel leading privilege/utility wrappers (sudo, env, nice, timeout, ...) so
+    argv[0]-anchored matchers see the real command. Conservative: only peels a
+    known wrapper set and never loosens matching (the result is always a suffix
+    of ``parts``)."""
+    i = 0
+    n = len(parts)
+    while i < n and parts[i] in _COMMAND_WRAPPERS:
+        wrapper = parts[i]
+        i += 1
+        consumed_positional = False
+        while i < n:
+            token = parts[i]
+            if token.startswith("-"):
+                flag = token.split("=", 1)[0]
+                i += 1
+                if (
+                    "=" not in token
+                    and flag in _WRAPPER_VALUE_FLAGS
+                    and i < n
+                    and not parts[i].startswith("-")
+                ):
+                    i += 1
+                continue
+            if wrapper == "env" and "=" in token and not token.startswith("/"):
+                i += 1  # VAR=value assignment before the command
+                continue
+            if wrapper == "timeout" and not consumed_positional:
+                consumed_positional = True  # timeout's leading positional is a duration
+                i += 1
+                continue
+            break
+    return parts[i:]
+
+
+def _is_path_like(token: str) -> bool:
+    return (
+        "/" in token
+        or token.startswith(("~", "./", "../"))
+        or (token.startswith(".") and token not in {".", ".."})
+    )
+
+
 def is_blocked_shell_target(command: str) -> bool:
     lowered = command.lower()
     parts = lowered.split()
+    effective = _strip_command_wrappers(parts)
     if _looks_like_git_or_gh_mutation(command):
         return True
     if (
-        parts
-        and parts[0] == "rm"
+        effective
+        and effective[0] == "rm"
         and any(
-            "r" in flag and "f" in flag for flag in parts[1:] if flag.startswith("-")
+            "r" in flag and "f" in flag
+            for flag in effective[1:]
+            if flag.startswith("-")
         )
     ):
         return True
     if (
-        parts
-        and parts[0] == "chmod"
+        effective
+        and effective[0] == "chmod"
         and any(marker in lowered for marker in {".ssh", "auth", "credential"})
     ):
         return True
+    # Credential-file reads via the shell must match read_file/search_files
+    # handling: route path-like tokens through the shared credential-path helper.
+    for token in parts:
+        if _is_path_like(token) and _looks_like_credential_path(
+            str(Path(token).expanduser()).replace("\\", "/").lower()
+        ):
+            return True
     if any(marker in lowered for marker in {"id_rsa", ".ssh/", "private_key"}):
         return True
     if "token" in lowered and any(
