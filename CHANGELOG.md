@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.2
+
+- **Sensitive read/search hardening.** Blocks sensitive `read_file` and `search_files` targets more consistently, including macOS Keychains, Messages, Mail, Cookies, and Safari stores; browser cookie/login profile stores; gcloud and kube config directories; and common credential files such as `.netrc`, `.npmrc`, and `.pypirc`.
+- **Git/GitHub mutation hardening.** Blocks mutating Git and GitHub CLI shell commands at the classifier and executor boundary, including `git push`, `git remote` mutations, mutating `gh issue`/`pr`/`release`/`repo`/`workflow`/`run` commands, and mutating `gh api` calls. Read-only Git/GitHub commands remain approval-gated rather than hard-denied.
+- **Audit review command.** Adds `agent-sudo audit review`, which verifies the audit chain, summarizes recent decision counts, and lists non-ALLOW records for a configurable window such as `30m`, `24h`, or `7d`.
+- **Delegation store visibility.** Keeps `agent-sudo delegate create` stdout as parseable token JSON while reporting the delegation file path on stderr. When the default `~/.agent-sudo/delegations.json` store is used, the CLI warns that integrations may read a different delegation store.
+- **Delegation troubleshooting docs.** Adds Hermes delegation-store guidance using explicit `--delegations-file`, plus a troubleshooting checklist for "delegation created but authorization still denied" cases covering action, path, actor, expiry, use count, and delegation-file mismatches.
+- **Compatibility.** No new runtime dependencies. Delegation token format is unchanged, and existing JSON stdout consumers of `agent-sudo delegate create` remain compatible.
+
 ## v0.5.1
 
 - **Concurrency-safe one-use delegation consumption.** The delegation consume path (`DelegationStore.authorize(consume=True)`, plus `create`/`revoke`) now performs its entire read → check → increment → write under an exclusive POSIX advisory lock (`fcntl.flock`) and re-reads token state from disk inside the lock. This closes a race in which concurrent consumers could each observe `uses=0` and all be allowed, double-spending a `max_uses=1` token. `save()` now publishes atomically (temp file → `fsync` → `os.replace` → directory `fsync`) so a reader or crash never sees a partial delegations file.
