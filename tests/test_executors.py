@@ -8,7 +8,12 @@ from pathlib import Path
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.audit import AuditLogger
 from agent_sudo.builders import AgentActionRequest
-from agent_sudo.executors import ExecutionResult, SafeToolExecutor, ShellCommandExecutor
+from agent_sudo.executors import (
+    ExecutionResult,
+    SafeToolExecutor,
+    ShellCommandExecutor,
+    _blocked_shell_reason,
+)
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.models import ActionRequest, ApprovalResult, Decision, GatewayResult
 from agent_sudo.policy import load_default_policy
@@ -116,6 +121,48 @@ class ExecutorBoundaryTests(unittest.TestCase):
 
         self.assertFalse(result.executed)
         self.assertEqual(result.gateway_result.decision, Decision.DENY)
+
+    def test_github_cli_mutations_blocked_with_reason(self) -> None:
+        commands = [
+            "gh release delete v0.5.1",
+            "gh api -X DELETE /repos/example/project/releases/123",
+            "gh api --method PATCH /repos/example/project/issues/1",
+            "gh api /repos/example/project/issues -f title=bug",
+            "gh api /repos/example/project/issues -F title=bug",
+            "gh api /repos/example/project/issues --raw-field title=bug",
+            "gh pr merge 41",
+            "gh workflow run tests.yml",
+            "gh issue create --title bug --body body",
+            "gh run cancel 123",
+        ]
+
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertEqual(
+                    _blocked_shell_reason(command),
+                    "blocked GitHub CLI mutation command",
+                )
+
+    def test_git_mutations_blocked_with_reason(self) -> None:
+        commands = [
+            "git push origin main",
+            "git -C /tmp/repo push origin main",
+            "git -c credential.helper= push origin main",
+            "git remote set-url origin git@example.invalid:repo.git",
+            "git remote add mirror git@example.invalid:mirror.git",
+        ]
+
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertEqual(
+                    _blocked_shell_reason(command),
+                    "blocked git mutation command",
+                )
+
+    def test_read_only_git_and_gh_commands_not_executor_blocked(self) -> None:
+        for command in ["git status", "git log --oneline -1", "gh pr view 41"]:
+            with self.subTest(command=command):
+                self.assertIsNone(_blocked_shell_reason(command))
 
     def test_allowlisted_harmless_shell_command_executes(self) -> None:
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())

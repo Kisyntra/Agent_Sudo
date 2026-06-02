@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from agent_sudo.classifier import is_blocked_shell_target
+from agent_sudo.classifier import (
+    _looks_like_gh_mutation,
+    _looks_like_git_mutation,
+    is_blocked_shell_target,
+)
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.models import ActionRequest, Classification, Decision, GatewayResult
 
@@ -166,6 +170,12 @@ def _blocked_shell_reason(command: str) -> str | None:
         )
     ):
         return "blocked dangerous recursive delete command"
+
+    if argv and Path(argv[0]).name == "gh" and _looks_like_gh_mutation(argv):
+        return "blocked GitHub CLI mutation command"
+
+    if argv and Path(argv[0]).name == "git" and _looks_like_git_mutation(argv):
+        return "blocked git mutation command"
 
     if argv and argv[0] in {"curl", "wget", "nc", "netcat", "scp", "ssh"}:
         return "blocked network-capable command in local executor"
