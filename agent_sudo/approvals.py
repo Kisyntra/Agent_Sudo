@@ -154,14 +154,14 @@ def init_approval_config(
 
         getpass_func = getpass.getpass
 
-    from agent_sudo.delegations import DELEGATIONS_PATH, DelegationStore
+    from agent_sudo.delegations import DelegationStore, default_delegations_path
     from agent_sudo.pending_approvals import (
         PENDING_APPROVALS_PATH,
         PendingApprovalStore,
     )
     from agent_sudo.audit import AuditLogger
 
-    actual_delegations_path = delegations_path or DELEGATIONS_PATH
+    actual_delegations_path = delegations_path or default_delegations_path()
     actual_pending_path = pending_approvals_path or PENDING_APPROVALS_PATH
 
     is_reset = config_path.exists()

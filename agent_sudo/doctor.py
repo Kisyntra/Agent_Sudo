@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from agent_sudo.approvals import CONFIG_PATH
-from agent_sudo.delegations import DELEGATIONS_PATH
+from agent_sudo.delegations import default_delegations_path
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
         _writable_file_check(
             "audit log writable", root / ".agent-sudo" / "doctor-audit.jsonl"
         ),
-        _writable_file_check("delegation store writable", DELEGATIONS_PATH),
+        _writable_file_check("delegation store writable", default_delegations_path()),
     ]
     # Contributor-only hygiene check: the personal-data scanner ships in the
     # source tree (scripts/), not in the installed package. Only run it when
