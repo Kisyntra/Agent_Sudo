@@ -438,11 +438,22 @@ def _gh_api_uses_mutating_method(args: list[str]) -> bool:
         upper = arg.upper()
         if upper.startswith("-X") and upper[2:] in mutating_methods:
             return True
-        if arg == "-X" and index + 1 < len(args) and args[index + 1].upper() in mutating_methods:
+        if (
+            arg == "-X"
+            and index + 1 < len(args)
+            and args[index + 1].upper() in mutating_methods
+        ):
             return True
-        if arg.startswith("--method=") and arg.split("=", 1)[1].upper() in mutating_methods:
+        if (
+            arg.startswith("--method=")
+            and arg.split("=", 1)[1].upper() in mutating_methods
+        ):
             return True
-        if arg == "--method" and index + 1 < len(args) and args[index + 1].upper() in mutating_methods:
+        if (
+            arg == "--method"
+            and index + 1 < len(args)
+            and args[index + 1].upper() in mutating_methods
+        ):
             return True
     return False
 
@@ -552,7 +563,8 @@ def _looks_like_macos_sensitive_read_path(normalized: str, lowered: str) -> bool
         return True
 
     if normalized.startswith(f"{home}/Library/Containers/") and any(
-        marker in lowered for marker in {"mail", "notes", "com.apple.mail", "com.apple.notes"}
+        marker in lowered
+        for marker in {"mail", "notes", "com.apple.mail", "com.apple.notes"}
     ):
         return True
 

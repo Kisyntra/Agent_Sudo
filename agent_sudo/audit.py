@@ -144,7 +144,9 @@ def format_audit_log(entries: list[dict[str, Any]], *, limit: int | None = None)
     return "\n".join(rows)
 
 
-def audit_entries_since(entries: list[dict[str, Any]], since: timedelta) -> list[dict[str, Any]]:
+def audit_entries_since(
+    entries: list[dict[str, Any]], since: timedelta
+) -> list[dict[str, Any]]:
     cutoff = datetime.now(timezone.utc) - since
     selected: list[dict[str, Any]] = []
     for entry in entries:
@@ -171,7 +173,8 @@ def format_audit_review(entries: list[dict[str, Any]], *, since_label: str) -> s
     other_count = sum(
         count
         for decision, count in counts.items()
-        if decision not in {"ALLOW", "REQUIRE_APPROVAL", "REQUIRE_STRONG_APPROVAL", "DENY"}
+        if decision
+        not in {"ALLOW", "REQUIRE_APPROVAL", "REQUIRE_STRONG_APPROVAL", "DENY"}
     )
     if other_count:
         lines.append(f"  OTHER: {other_count}")
