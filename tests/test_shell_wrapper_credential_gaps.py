@@ -33,9 +33,7 @@ class ShellWrapperCredentialGapTests(unittest.TestCase):
 
     def _assert_blocked(self, command: str) -> None:
         result = self._shell(command)
-        self.assertEqual(
-            result.classification, Classification.BLOCKED, msg=command
-        )
+        self.assertEqual(result.classification, Classification.BLOCKED, msg=command)
         self.assertEqual(result.decision, Decision.DENY, msg=command)
 
     def test_bare_and_sudo_rm_share_outcome(self) -> None:
