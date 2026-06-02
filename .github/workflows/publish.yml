@@ -167,7 +167,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          # Normalize to the v-prefixed name so we target the release release.yml
+          # already created from the tag push, instead of minting a duplicate.
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="v${RAW#v}"
           # Upload files to the existing release or create a new one if it does not exist
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "Release $VERSION already exists. Uploading built assets..."
