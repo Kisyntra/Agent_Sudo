@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -8,17 +9,23 @@ MCP_EXECUTABLE = "agent-sudo-mcp"
 WORKSPACE_PLACEHOLDER = "/ABS/PATH/TO/your/project"
 
 
-def _approval_state_paths() -> tuple[str, str]:
-    """Absolute audit-log and pending-approvals paths under ~/.agent-sudo.
+def _mcp_state_paths() -> tuple[str, str, str]:
+    """Absolute audit-log, pending-approvals, and delegations paths.
 
     MCP clients spawn the server with an unpredictable working directory (GUI
-    clients often use ``/``), so the server's *relative* defaults
+    clients often use ``/``), so the server's *relative* audit default
     (``.agent-sudo/mcp-audit.jsonl``) would land somewhere the user cannot find
-    and ``agent-sudo audit list`` would not read. Pinning absolute paths keeps
-    the write location and the verification read location aligned.
+    and ``agent-sudo audit list`` would not read. The delegations file has no
+    server default at all (the store is otherwise ``None`` and tokens are
+    ignored), so it must be passed explicitly. Pinning absolute paths keeps the
+    server's write locations aligned with the CLI's read/verify locations.
     """
     base = Path.home() / ".agent-sudo"
-    return str(base / "mcp-audit.jsonl"), str(base / "pending_approvals.json")
+    return (
+        str(base / "mcp-audit.jsonl"),
+        str(base / "pending_approvals.json"),
+        str(base / "delegations.json"),
+    )
 
 
 def _macos_approval_flags() -> list[str]:
@@ -63,13 +70,6 @@ SETUP_GUIDES = {
         "Route native tool dictionaries through agent-sudo hermes-check before enabling execution.",
         "Verify with: agent-sudo hermes-check examples/hermes_tool_call.json",
     ],
-    "claude-desktop": [
-        "Use a local wrapper around desktop or MCP tools.",
-        "Remove direct dangerous tools where the runtime allows it.",
-        "Route filesystem, shell, browser, and messaging tools through agent-sudo.",
-        "Use the Claude Desktop adapter for native tool-call dictionaries.",
-        "Verify with: agent-sudo generic-check examples/claude_desktop_tool_call.json",
-    ],
     "openclaw": [
         "Configure the runtime to call an agent-sudo wrapper before tools execute.",
         "Restrict direct browser, shell, and filesystem tools where possible.",
@@ -80,26 +80,54 @@ SETUP_GUIDES = {
 }
 
 # Runtimes that connect over MCP get concrete, pasteable config instead of a
-# prose checklist. Both are rendered with the resolved agent-sudo-mcp path.
-MCP_SETUP_TARGETS = ("codex", "claude-code")
+# prose checklist. All are rendered with the resolved agent-sudo-mcp path.
+MCP_SETUP_TARGETS = ("codex", "claude-code", "claude-desktop")
 
 SETUP_TARGETS = (*SETUP_GUIDES.keys(), *MCP_SETUP_TARGETS)
 
 
-def _codex_setup() -> list[str]:
-    command = resolve_mcp_command()
-    audit_log, pending = _approval_state_paths()
-    args = [
+def _server_args() -> list[str]:
+    """The recommended agent-sudo-mcp args, shared by every MCP client.
+
+    Includes ``--delegations-file`` so the server actually loads a delegation
+    store — without it the store is ``None`` and ``agent-sudo delegate create``
+    tokens are silently ignored.
+    """
+    audit_log, pending, delegations = _mcp_state_paths()
+    return [
         "--audit-log",
         audit_log,
         "--pending-approvals-file",
         pending,
+        "--delegations-file",
+        delegations,
         "--workspace",
         WORKSPACE_PLACEHOLDER,
         *_macos_approval_flags(),
     ]
-    args_toml = ", ".join(f'"{value}"' for value in args)
+
+
+def _rationale_lines() -> list[str]:
     lines = [
+        "Absolute --audit-log / --delegations-file / --pending-approvals-file",
+        "paths are used on purpose: the MCP client may launch the server from any",
+        "directory. Relative paths would hide the audit log, and without",
+        "--delegations-file the server runs with no delegation store, so",
+        "`agent-sudo delegate create` tokens are silently ignored.",
+    ]
+    if _macos_approval_flags():
+        lines += [
+            "--notify and --open-approval-terminal give you an interactive macOS",
+            "approval prompt for sensitive/critical actions.",
+        ]
+    return lines
+
+
+def _codex_setup() -> list[str]:
+    command = resolve_mcp_command()
+    audit_log, _, _ = _mcp_state_paths()
+    args_toml = ", ".join(f'"{value}"' for value in _server_args())
+    return [
         "Codex CLI runs MCP servers defined in ~/.codex/config.toml.",
         "Add this block (create the file if it does not exist):",
         "",
@@ -110,16 +138,7 @@ def _codex_setup() -> list[str]:
         f"Replace {WORKSPACE_PLACEHOLDER} with the absolute path to the project",
         "you want Codex to operate in. Restart Codex CLI after editing the file.",
         "",
-        "Absolute --audit-log / --pending-approvals-file paths are used on purpose:",
-        "the MCP client may launch the server from any directory, so relative",
-        "paths would scatter (and hide) the audit log.",
-    ]
-    if _macos_approval_flags():
-        lines += [
-            "--notify and --open-approval-terminal give you an interactive macOS",
-            "approval prompt for sensitive/critical actions.",
-        ]
-    lines += [
+        *_rationale_lines(),
         "",
         "Verify with:",
         "  - In a Codex session, confirm the agent-sudo tools (read_file,",
@@ -127,21 +146,13 @@ def _codex_setup() -> list[str]:
         f"  - Run a tool, then: agent-sudo audit list {audit_log}",
         "    The call should appear; if it does not, it bypassed agent-sudo.",
     ]
-    return lines
 
 
 def _claude_code_setup() -> list[str]:
     command = resolve_mcp_command()
-    audit_log, pending = _approval_state_paths()
-    server_args = " ".join(
-        [
-            f"--audit-log {audit_log}",
-            f"--pending-approvals-file {pending}",
-            f"--workspace {WORKSPACE_PLACEHOLDER}",
-            *_macos_approval_flags(),
-        ]
-    )
-    lines = [
+    audit_log, _, _ = _mcp_state_paths()
+    server_args = " ".join(_server_args())
+    return [
         "Claude Code manages MCP servers with the `claude mcp` command.",
         "Add Agent_Sudo (everything after -- is the server command and its args):",
         "",
@@ -149,16 +160,7 @@ def _claude_code_setup() -> list[str]:
         "",
         f"Replace {WORKSPACE_PLACEHOLDER} with the absolute path to your project.",
         "",
-        "Absolute --audit-log / --pending-approvals-file paths are used on purpose:",
-        "Claude Code may launch the server from any directory, so relative paths",
-        "would scatter (and hide) the audit log.",
-    ]
-    if _macos_approval_flags():
-        lines += [
-            "--notify and --open-approval-terminal give you an interactive macOS",
-            "approval prompt for sensitive/critical actions.",
-        ]
-    lines += [
+        *_rationale_lines(),
         "",
         "Verify with:",
         "  claude mcp list              (agent-sudo should be listed)",
@@ -169,12 +171,44 @@ def _claude_code_setup() -> list[str]:
         "Remove with:",
         "  claude mcp remove agent-sudo",
     ]
-    return lines
+
+
+def _claude_desktop_setup() -> list[str]:
+    command = resolve_mcp_command()
+    audit_log, _, _ = _mcp_state_paths()
+    config = {
+        "mcpServers": {
+            "agent-sudo": {
+                "command": command,
+                "args": _server_args(),
+            }
+        }
+    }
+    return [
+        "Claude Desktop reads MCP servers from its config file:",
+        "  macOS:   ~/Library/Application Support/Claude/claude_desktop_config.json",
+        "  Windows: %APPDATA%\\Claude\\claude_desktop_config.json",
+        "Merge this into the mcpServers object (create the file if needed):",
+        "",
+        *json.dumps(config, indent=2).splitlines(),
+        "",
+        f"Replace {WORKSPACE_PLACEHOLDER} with the absolute path to your project,",
+        "then restart Claude Desktop. Each flag and its value is a separate string",
+        "in the args array.",
+        "",
+        *_rationale_lines(),
+        "",
+        "Verify with:",
+        "  - Ask Claude Desktop to use an agent-sudo tool.",
+        f"  - Then: agent-sudo audit list {audit_log}",
+        "    The call should appear; if it does not, it bypassed agent-sudo.",
+    ]
 
 
 _MCP_SETUP_BUILDERS = {
     "codex": _codex_setup,
     "claude-code": _claude_code_setup,
+    "claude-desktop": _claude_desktop_setup,
 }
 
 

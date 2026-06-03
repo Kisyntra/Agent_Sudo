@@ -91,9 +91,11 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
       "command": "/path/to/agent-sudo-mcp",
       "args": [
         "--audit-log",
-        "/path/to/mcp-audit.jsonl",
+        "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+        "--delegations-file",
+        "/ABS/HOME/.agent-sudo/delegations.json",
         "--pending-approvals-file",
-        "/path/to/pending_approvals.json",
+        "/ABS/HOME/.agent-sudo/pending_approvals.json",
         "--notify",
         "--open-approval-terminal"
       ]
@@ -102,8 +104,12 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 }
 ```
 
+Run `agent-sudo setup claude-desktop` to generate this block with the executable and `~/.agent-sudo` paths already resolved to absolute values.
+
 > [!IMPORTANT]
 > - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array.
+> - **Delegations require `--delegations-file`**: The MCP server has no default delegation store. Started without this flag it runs with no store, so tokens created by `agent-sudo delegate create` (in `~/.agent-sudo/delegations.json`) are silently ignored. Point this at the same file `agent-sudo delegate create` writes.
+> - **Verify with the matching path**: After a tool call, run `agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"` (the same path you set in `--audit-log`). A bare `agent-sudo audit list` reads a relative default and will look empty.
 > - **Workspace Config**: Run `agent-sudo workspace set /path/to/project` before starting Claude Desktop. `--workspace /path/to/project` is still supported as an explicit override, but the recommended Claude Desktop config can omit it once the persisted workspace is set. Claude Desktop launches MCP servers from the root `/` directory by default, so starting without either persisted workspace config or `--workspace` will cause context detection to fail.
 > - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript`) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly.
 >   - **Optional & Default OFF**: Notifications must be explicitly enabled using the flag or environment variable.

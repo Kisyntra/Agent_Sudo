@@ -120,26 +120,34 @@ which agent-sudo-mcp
 
 `agent-sudo setup <client>` resolves the absolute `agent-sudo-mcp` path for you. Interactive approvals additionally need `agent-sudo init-approval` (see [First Run](docs/first_run.md)); the delegation-based evaluation does not.
 
-For Claude Desktop, add Agent_Sudo at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`:
+For Claude Desktop, add Agent_Sudo at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`. Run `agent-sudo setup claude-desktop` to generate this block with paths resolved:
 
 ```json
 {
   "mcpServers": {
     "agent-sudo": {
       "command": "/ABS/PATH/TO/agent-sudo-mcp",
-      "args": []
+      "args": [
+        "--audit-log", "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+        "--delegations-file", "/ABS/HOME/.agent-sudo/delegations.json",
+        "--pending-approvals-file", "/ABS/HOME/.agent-sudo/pending_approvals.json",
+        "--workspace", "/ABS/PATH/TO/your/project",
+        "--notify", "--open-approval-terminal"
+      ]
     }
   }
 }
 ```
 
-Restart Claude Desktop, ask it to use an Agent_Sudo tool, then verify the action was routed through the engine:
+Use absolute paths: the client launches the server from a directory you do not control. **`--delegations-file` is required** — without it the server runs with no delegation store and `agent-sudo delegate create` tokens are silently ignored. `--notify` / `--open-approval-terminal` are macOS-only (no-ops elsewhere). Each flag and value is a separate string in `args`.
+
+Restart Claude Desktop, ask it to use an Agent_Sudo tool, then verify the action was routed through the engine — pass the **same** audit-log path you configured:
 
 ```bash
-agent-sudo audit list
+agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"
 ```
 
-If the action is not listed, it bypassed Agent_Sudo. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
+If the action is not listed, it bypassed Agent_Sudo. A bare `agent-sudo audit list` reads a *relative* default and will look empty — pass the absolute path. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
 
 ---
 

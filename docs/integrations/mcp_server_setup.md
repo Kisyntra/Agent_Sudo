@@ -88,6 +88,7 @@ which agent-sudo-mcp
 
 claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp \
   --audit-log "$HOME/.agent-sudo/mcp-audit.jsonl" \
+  --delegations-file "$HOME/.agent-sudo/delegations.json" \
   --pending-approvals-file "$HOME/.agent-sudo/pending_approvals.json" \
   --workspace /ABS/PATH/TO/your/project \
   --notify --open-approval-terminal
@@ -95,9 +96,10 @@ claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp \
 
 Everything after `--` is the server command and its arguments. Replace `/ABS/PATH/TO/your/project` with the absolute path to the project Claude Code should operate in.
 
-Why these flags matter — do **not** drop `--audit-log` / `--pending-approvals-file`:
+Why these flags matter — do **not** drop `--delegations-file`, `--audit-log`, or `--pending-approvals-file`:
 
-- **Absolute `--audit-log` and `--pending-approvals-file`.** The server's defaults are *relative* (`.agent-sudo/...`), resolved against the directory the MCP client launches the server from — which you do not control and is often not your project. With relative paths the audit log is written somewhere the verification step below cannot read, so it looks like nothing was protected even when it was. Pin absolute paths so the write location and your `agent-sudo audit list` read location match.
+- **`--delegations-file` (required for delegation to work at all).** The MCP server has no default delegation store: started without this flag it runs with `delegation_store = None`, so tokens created by `agent-sudo delegate create` (which live in `~/.agent-sudo/delegations.json`) are **silently ignored** — the deny → delegate → allow-once flow will not work. Point this at the same file `agent-sudo delegate create` writes.
+- **Absolute `--audit-log` and `--pending-approvals-file`.** The server's audit default is *relative* (`.agent-sudo/...`), resolved against the directory the MCP client launches the server from — which you do not control and is often not your project. With a relative path the audit log is written somewhere the verification step below cannot read, so it looks like nothing was protected even when it was. Pin absolute paths so the write location and your `agent-sudo audit list` read location match.
 - **`--notify --open-approval-terminal`** (macOS only; no-ops elsewhere) give you an interactive approval prompt when a sensitive/critical action needs one. Without them an MCP client just receives `approval_required` and you must approve manually via `agent-sudo pending` / `agent-sudo approve`.
 
 To generate this command with the executable path already resolved and the macOS flags included where applicable:
@@ -137,13 +139,14 @@ which agent-sudo-mcp
 command = "/ABS/PATH/TO/agent-sudo-mcp"
 args = [
   "--audit-log", "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+  "--delegations-file", "/ABS/HOME/.agent-sudo/delegations.json",
   "--pending-approvals-file", "/ABS/HOME/.agent-sudo/pending_approvals.json",
   "--workspace", "/ABS/PATH/TO/your/project",
   "--notify", "--open-approval-terminal",
 ]
 ```
 
-Replace the paths with absolute values for your machine, then restart Codex CLI. The same reasoning as Claude Code applies: pin **absolute** `--audit-log` / `--pending-approvals-file` (the client launches the server from a directory you do not control, and relative defaults would hide the audit log), and `--notify --open-approval-terminal` enable the interactive macOS approval prompt (no-ops on other platforms). To generate this block with the executable path already resolved and the macOS flags included where applicable:
+Replace the paths with absolute values for your machine, then restart Codex CLI. The same reasoning as Claude Code applies: include **`--delegations-file`** (without it the server runs with no delegation store and `agent-sudo delegate create` tokens are silently ignored), pin **absolute** `--audit-log` / `--pending-approvals-file` (the client launches the server from a directory you do not control, and relative defaults would hide the audit log), and `--notify --open-approval-terminal` enable the interactive macOS approval prompt (no-ops on other platforms). To generate this block with the executable path already resolved and the macOS flags included where applicable:
 
 ```bash
 agent-sudo setup codex
@@ -154,6 +157,21 @@ Verify routing by running a tool inside a Codex session, then read the **same** 
 ```bash
 agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"   # the call should appear; if not, it bypassed agent-sudo
 ```
+
+## Inspecting and Verifying the Audit Log
+
+All audit commands take the audit-log path as their first positional argument. **Pass the same absolute path you configured in `--audit-log`** — with no argument they read the *relative* default (`.agent-sudo/mcp-audit.jsonl`), resolved against your current directory, which will not match where the MCP client wrote the log:
+
+```bash
+AUDIT="$HOME/.agent-sudo/mcp-audit.jsonl"
+
+agent-sudo audit list "$AUDIT"                 # recent decisions (supports --since/--decision/--actor/…)
+agent-sudo audit review "$AUDIT" --window 24h  # chain check + summary + non-ALLOW records
+agent-sudo audit trace <token_id> "$AUDIT"     # one delegation token's lifecycle
+agent-sudo verify-audit "$AUDIT"               # verify the SHA-256 hash chain
+```
+
+`agent-sudo verify-routing` is the exception: it already checks both your current directory and `~/.agent-sudo/mcp-audit.jsonl`, so it works without an explicit path.
 
 ## Tool Behavior
 
