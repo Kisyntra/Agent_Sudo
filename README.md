@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
-  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.5.2-blue" alt="PyPI v0.5.2"></a>
+  <a href="https://pypi.org/project/agent-sudo-mcp/"><img src="https://img.shields.io/badge/PyPI-v0.5.3-blue" alt="PyPI v0.5.3"></a>
   <a href="https://registry.modelcontextprotocol.io/v0/servers?search=agent-sudo-mcp"><img src="https://img.shields.io/badge/MCP%20adapter-published-brightgreen" alt="MCP adapter: published"></a>
 </p>
 
