@@ -28,6 +28,31 @@ MCP client
 -> local demo executor
 ```
 
+## Quickest path: `agent-sudo setup`
+
+The fastest way to get a correct, pasteable config is to let Agent_Sudo generate it.
+
+**Beginner (interactive):** run `agent-sudo setup` with no arguments and pick from the menu:
+
+```bash
+agent-sudo setup
+#   1. Claude Code
+#   2. Codex CLI
+#   3. Claude Desktop
+#   4. Hermes
+#   5. OpenClaw
+```
+
+**Scripted / CI (non-interactive):** name the target directly:
+
+```bash
+agent-sudo setup claude-code
+agent-sudo setup codex
+agent-sudo setup claude-desktop
+```
+
+If you run `agent-sudo setup` with no target and no interactive terminal (e.g. in CI or a pipe), it prints the available targets and exits non-zero instead of prompting — so scripts fail loudly rather than hang. The sections below show the config each target generates, if you prefer to hand-write it.
+
 ## Generic MCP Config
 
 Use this shape for MCP clients that accept a command-based stdio server:

@@ -233,3 +233,79 @@ def render_setup(agent_name: str) -> str:
     if agent_name not in _MCP_SETUP_BUILDERS:
         body = [f"{index}. {line}" for index, line in enumerate(body, start=1)]
     return "\n".join(header + body)
+
+
+# Display order + human labels for the interactive selector. Beginners run
+# `agent-sudo setup` and pick from this menu; scripts pass the target name.
+SETUP_MENU: list[tuple[str, str]] = [
+    ("claude-code", "Claude Code"),
+    ("codex", "Codex CLI"),
+    ("claude-desktop", "Claude Desktop"),
+    ("hermes", "Hermes"),
+    ("openclaw", "OpenClaw"),
+]
+
+
+def format_target_menu() -> str:
+    """Numbered menu of setup targets, in display order."""
+    return "\n".join(
+        f"  {index}. {label}" for index, (_, label) in enumerate(SETUP_MENU, start=1)
+    )
+
+
+def resolve_menu_choice(raw: str) -> str | None:
+    """Map a user's menu input to a target name, or None if unrecognized/cancel.
+
+    Accepts a 1-based number, the target name (``claude-code``), or the spaced
+    label form (``claude code``). Empty / ``q`` / ``quit`` / ``exit`` cancel.
+    """
+    choice = raw.strip().lower()
+    if choice in ("", "q", "quit", "exit"):
+        return None
+    if choice.isdigit():
+        index = int(choice) - 1
+        if 0 <= index < len(SETUP_MENU):
+            return SETUP_MENU[index][0]
+        return None
+    normalized = choice.replace(" ", "-")
+    if normalized in {name for name, _ in SETUP_MENU}:
+        return normalized
+    return None
+
+
+def no_target_guidance() -> str:
+    """Guidance shown when no target is given and stdin is not interactive."""
+    names = ", ".join(name for name, _ in SETUP_MENU)
+    return "\n".join(
+        [
+            "agent-sudo setup: no target specified.",
+            "",
+            "Available targets:",
+            format_target_menu(),
+            "",
+            "Run interactively to pick one:   agent-sudo setup",
+            "Or name a target (scripts/CI):   agent-sudo setup <target>",
+            f"Targets: {names}",
+        ]
+    )
+
+
+def prompt_for_target(*, input_func=None, stream=None) -> str | None:
+    """Show the menu and read one selection. Returns a target name or None.
+
+    The menu and prompt go to ``stream`` (stderr by default) so stdout carries
+    only the pasteable config. ``input_func`` is injectable for testing; when
+    None, the builtin ``input`` is resolved at call time (so it stays mockable).
+    """
+    ask = input_func if input_func is not None else input
+    out = stream if stream is not None else sys.stderr
+    out.write("Select an MCP client / runtime to configure:\n")
+    out.write(format_target_menu() + "\n")
+    out.write("Enter a number or name (q to cancel): ")
+    out.flush()
+    try:
+        raw = ask("")
+    except (EOFError, KeyboardInterrupt):
+        out.write("\n")
+        return None
+    return resolve_menu_choice(raw)
