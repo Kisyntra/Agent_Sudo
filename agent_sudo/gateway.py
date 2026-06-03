@@ -722,10 +722,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     setup_parser = subparsers.add_parser(
-        "setup", help="Print dry-run setup checklist for an agent runtime"
+        "setup", help="Print dry-run setup instructions for an agent runtime"
     )
     setup_parser.add_argument(
-        "agent", choices=["hermes", "codex", "claude-desktop", "openclaw"]
+        "agent",
+        choices=["hermes", "codex", "claude-code", "claude-desktop", "openclaw"],
     )
 
     delegate_parser = subparsers.add_parser(
@@ -1002,12 +1003,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(format_routing_report(signals))
         return routing_exit_code(signals, strict=getattr(args, "strict", False))
     if args.command == "setup":
-        from agent_sudo.setup_guides import setup_lines
+        from agent_sudo.setup_guides import render_setup
 
-        print(f"agent-sudo setup checklist for {args.agent}")
-        print("dry-run only: no config files were edited")
-        for index, line in enumerate(setup_lines(args.agent), start=1):
-            print(f"{index}. {line}")
+        print(render_setup(args.agent))
         return 0
     if args.command == "approvals":
         store = PendingApprovalStore(args.pending_approvals_file)

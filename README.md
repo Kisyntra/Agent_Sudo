@@ -29,7 +29,7 @@ Approval prompts are one enforcement step inside that boundary. They are not the
 
 ## Who it's for
 
-- **Local AI power users** — Claude Code, Codex CLI, Aider, and other MCP-based agents. Protect secrets, prevent destructive actions, enforce trust boundaries, and keep an accountable record.
+- **Local AI power users** — [Claude Code](docs/integrations/mcp_server_setup.md#claude-code), [Codex CLI](docs/integrations/mcp_server_setup.md#codex-cli), Aider, and other MCP-based agents. Protect secrets, prevent destructive actions, enforce trust boundaries, and keep an accountable record.
 - **Agent runtimes & platforms** — embed authorization, scoped delegation, provenance-based decisions, and verifiable audit instead of building them yourself. MCP is the mature adapter today; other runtime integrations exist but are earlier (see [Ecosystem](#ecosystem)).
 
 ## What makes it different
@@ -107,31 +107,65 @@ MCP is the first production-ready adapter — the recommended way to connect Age
 ```bash
 pipx install agent-sudo-mcp
 agent-sudo --version
-agent-sudo init-approval
-agent-sudo workspace set /ABS/PATH/TO/your/project
 which agent-sudo-mcp
 ```
 
-Add Agent_Sudo to Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`:
+**Pick your client — each has a copy-paste path (no source checkout needed):**
+
+| Client | One-step setup | Guide |
+| :--- | :--- | :--- |
+| **Claude Code** | `agent-sudo setup claude-code` prints the `claude mcp add …` command | [Claude Code](docs/integrations/mcp_server_setup.md#claude-code) |
+| **Codex CLI** | `agent-sudo setup codex` prints the `~/.codex/config.toml` block | [Codex CLI](docs/integrations/mcp_server_setup.md#codex-cli) |
+| **Claude Desktop** | Edit `claude_desktop_config.json` (below) | [Claude Desktop](docs/integrations/claude_desktop_setup.md) |
+
+`agent-sudo setup <client>` resolves the absolute `agent-sudo-mcp` path for you. Interactive approvals additionally need `agent-sudo init-approval` (see [First Run](docs/first_run.md)); the delegation-based evaluation does not.
+
+For Claude Desktop, add Agent_Sudo at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`. Run `agent-sudo setup claude-desktop` to generate this block with paths resolved:
 
 ```json
 {
   "mcpServers": {
     "agent-sudo": {
       "command": "/ABS/PATH/TO/agent-sudo-mcp",
-      "args": []
+      "args": [
+        "--audit-log", "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+        "--delegations-file", "/ABS/HOME/.agent-sudo/delegations.json",
+        "--pending-approvals-file", "/ABS/HOME/.agent-sudo/pending_approvals.json",
+        "--workspace", "/ABS/PATH/TO/your/project",
+        "--notify", "--open-approval-terminal"
+      ]
     }
   }
 }
 ```
 
-Restart Claude Desktop, ask it to use an Agent_Sudo tool, then verify the action was routed through the engine:
+Use absolute paths: the client launches the server from a directory you do not control. **`--delegations-file` is required** — without it the server runs with no delegation store and `agent-sudo delegate create` tokens are silently ignored. `--notify` / `--open-approval-terminal` are macOS-only (no-ops elsewhere). Each flag and value is a separate string in `args`.
+
+Restart Claude Desktop, ask it to use an Agent_Sudo tool, then verify the action was routed through the engine — pass the **same** audit-log path you configured:
 
 ```bash
-agent-sudo audit list
+agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"
 ```
 
-If the action is not listed, it bypassed Agent_Sudo. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
+If the action is not listed, it bypassed Agent_Sudo. A bare `agent-sudo audit list` reads a *relative* default and will look empty — pass the absolute path. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
+
+### Platform support
+
+Agent_Sudo's core — **authorization, delegation, provenance, and the tamper-evident audit log** — works the same on **macOS, Linux, and Windows**.
+
+Two *optional* approval-UX flags are **macOS-only today**:
+
+- `--notify` — desktop notification when an approval is pending (macOS `osascript`). There is **no custom notification icon**: the macOS notification shows the invoking process's icon, not an Agent_Sudo logo.
+- `--open-approval-terminal` — auto-opens **Terminal.app** running the approval helper (macOS only).
+
+On **Linux and Windows** these flags are silent no-ops, so `agent-sudo setup` **omits them** off macOS. Approve pending actions manually from any terminal:
+
+```bash
+agent-sudo pending                 # list pending approval requests
+agent-sudo approve <approval_id>   # approve one (critical actions require your passphrase)
+```
+
+This manual workflow is the expected path on Linux/Windows and works on macOS too.
 
 ---
 

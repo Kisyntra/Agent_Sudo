@@ -91,9 +91,11 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
       "command": "/path/to/agent-sudo-mcp",
       "args": [
         "--audit-log",
-        "/path/to/mcp-audit.jsonl",
+        "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+        "--delegations-file",
+        "/ABS/HOME/.agent-sudo/delegations.json",
         "--pending-approvals-file",
-        "/path/to/pending_approvals.json",
+        "/ABS/HOME/.agent-sudo/pending_approvals.json",
         "--notify",
         "--open-approval-terminal"
       ]
@@ -102,18 +104,24 @@ Claude Desktop reads its MCP server configuration from a local JSON file.
 }
 ```
 
+Run `agent-sudo setup claude-desktop` to generate this block with the executable and `~/.agent-sudo` paths already resolved to absolute values.
+
 > [!IMPORTANT]
 > - **Separate arguments**: Each command line flag and its value must be specified as a **separate** JSON string in the `args` array.
+> - **Delegations require `--delegations-file`**: The MCP server has no default delegation store. Started without this flag it runs with no store, so tokens created by `agent-sudo delegate create` (in `~/.agent-sudo/delegations.json`) are silently ignored. Point this at the same file `agent-sudo delegate create` writes.
+> - **Verify with the matching path**: After a tool call, run `agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"` (the same path you set in `--audit-log`). A bare `agent-sudo audit list` reads a relative default and will look empty.
 > - **Workspace Config**: Run `agent-sudo workspace set /path/to/project` before starting Claude Desktop. `--workspace /path/to/project` is still supported as an explicit override, but the recommended Claude Desktop config can omit it once the persisted workspace is set. Claude Desktop launches MCP servers from the root `/` directory by default, so starting without either persisted workspace config or `--workspace` will cause context detection to fail.
 > - **Desktop Notifications**: Enabling `"--notify"` in `args` (or setting the environment variable `AGENT_SUDO_NOTIFY=1` before launching Claude) allows `Agent_Sudo` to trigger a native macOS user notification (using `osascript`) whenever an approval request is generated, warning the operator to run `agent-sudo pending` without having to poll the terminal constantly.
 >   - **Optional & Default OFF**: Notifications must be explicitly enabled using the flag or environment variable.
 >   - **macOS-only**: This is currently macOS-only MVP behavior.
+>   - **No custom icon**: The backend is macOS `osascript display notification`, which shows the invoking process's icon — there is **no branded Agent_Sudo notification icon**. Do not expect Agent_Sudo branding in the notification.
 >   - **Non-blocking & Safe**: If a notification fails to trigger or display, the operation will proceed normally without blocking approval creation or failing the MCP execution.
 > - **Auto-Open Guided Terminal**: Enabling `"--open-approval-terminal"` in `args` (or setting the environment variable `AGENT_SUDO_OPEN_APPROVAL_TERMINAL=1`) automatically opens a new macOS Terminal.app window running `agent-sudo approval-helper --auto-opened` when a pending approval request is generated.
 >   - **Optional & Default OFF**: This is disabled by default.
 >   - **macOS-only**: Spawning a terminal window automatically is currently macOS-only behavior.
 >   - **Clean UX & Auto-Close**: The auto-opened terminal clears the screen to suppress login shell warnings/motd noise. It sanitizes path details to filenames, and automatically closes the window exactly 3 seconds after successfully approving or denying a single pending request. If verification fails, multiple requests exist, or config is missing, it stays open and blocks on a `Press Enter to exit...` prompt so you can inspect the output/logs.
 >   - **Non-blocking & Safe**: Spawning failure will fail safe, writing a warning to stderr without blocking tool execution or approval creation. It never auto-approves, never requests automated passphrases, and never passes sensitive payloads.
+> - **Linux / Windows**: `--notify` and `--open-approval-terminal` are silent no-ops off macOS, so omit them. Core authorization, delegation, provenance, and audit work cross-platform; approve pending actions manually from any terminal with `agent-sudo pending` then `agent-sudo approve <approval_id>` (critical actions require your passphrase).
 
 ---
 
