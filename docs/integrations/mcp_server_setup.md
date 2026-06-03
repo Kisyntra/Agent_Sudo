@@ -84,7 +84,7 @@ First resolve the absolute path to the installed server, then register it:
 
 ```bash
 which agent-sudo-mcp
-# e.g. /Users/you/.local/bin/agent-sudo-mcp
+# e.g. /Users/username/.local/bin/agent-sudo-mcp
 
 claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp \
   --audit-log "$HOME/.agent-sudo/mcp-audit.jsonl" \
@@ -130,7 +130,7 @@ Codex CLI loads MCP servers from `~/.codex/config.toml`. Add an `[mcp_servers.ag
 
 ```bash
 which agent-sudo-mcp
-# e.g. /Users/you/.local/bin/agent-sudo-mcp
+# e.g. /Users/username/.local/bin/agent-sudo-mcp
 ```
 
 ```toml
