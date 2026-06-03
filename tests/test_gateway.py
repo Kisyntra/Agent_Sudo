@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -167,13 +168,19 @@ class GatewayTests(unittest.TestCase):
         buffer = io.StringIO()
         with redirect_stdout(buffer):
             code = main(["demo"])
+        output = buffer.getvalue()
         self.assertEqual(code, 0)
-        self.assertIn("AGENT_SUDO INTERACTIVE DEMO", buffer.getvalue())
-        self.assertIn("Scenario 1: Safe Tool Execution (ALLOW)", buffer.getvalue())
-        self.assertIn(
-            "Scenario 2: Unsafe / Blocked Execution (DENY)", buffer.getvalue()
-        )
-        self.assertIn("Verifying the audit log integrity", buffer.getvalue())
+        self.assertIn("AGENT_SUDO INTERACTIVE DEMO", output)
+        # Scenario 1 label must reflect the actual decision (REQUIRE_APPROVAL),
+        # not claim ALLOW.
+        self.assertIn("Scenario 1: Sensitive Read (REQUIRE_APPROVAL)", output)
+        self.assertNotIn("Safe Tool Execution (ALLOW)", output)
+        self.assertIn("Scenario 2: Unsafe / Blocked Execution (DENY)", output)
+        self.assertIn("Verifying the audit log integrity", output)
+        # The reported audit-log path must point to a real, existing file.
+        match = re.search(r"Logs written to: (\S+)", output)
+        self.assertIsNotNone(match)
+        self.assertTrue(Path(match.group(1)).exists())
 
 
 if __name__ == "__main__":

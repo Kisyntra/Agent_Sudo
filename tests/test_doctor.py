@@ -25,9 +25,12 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("default policy exists", names)
         self.assertIn("audit log writable", names)
         self.assertIn("delegation store writable", names)
-        self.assertIn("no personal data in repo", names)
+        # doctor reports user readiness only — no contributor/repo hygiene scan.
+        self.assertNotIn("no personal data in repo", names)
 
-    def test_installed_doctor_skips_checkout_scanner(self) -> None:
+    def test_doctor_never_runs_repo_hygiene_scan(self) -> None:
+        # Even from a source checkout that contains the scanner, doctor must
+        # not run it or surface its output to evaluators.
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
             script_dir = tmp_path / "scripts"

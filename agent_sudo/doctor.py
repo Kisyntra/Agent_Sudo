@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.resources
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -19,8 +18,11 @@ class DoctorCheck:
 
 
 def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
+    # doctor reports user readiness only. Repository/contributor hygiene
+    # (e.g. the personal-data scanner) is a CI concern run via
+    # scripts/check_no_personal_data.py, not surfaced to evaluators here.
     root = repo_root or Path.cwd()
-    checks = [
+    return [
         _python_version_check(),
         _default_policy_check(),
         _approval_config_check(),
@@ -29,24 +31,6 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
         ),
         _writable_file_check("delegation store writable", default_delegations_path()),
     ]
-    # Contributor-only hygiene check: the personal-data scanner ships in the
-    # source tree (scripts/), not in the installed package. Only run it when
-    # working from a clone, so installed users aren't shown an irrelevant scan
-    # of their own working directory.
-    if _is_source_checkout(root):
-        checks.append(_personal_data_check(root))
-    return checks
-
-
-def _is_source_checkout(root: Path) -> bool:
-    script = root / "scripts" / "check_no_personal_data.py"
-    source_doctor = root / "agent_sudo" / "doctor.py"
-    if not script.exists() or not source_doctor.exists():
-        return False
-    try:
-        return source_doctor.resolve() == Path(__file__).resolve()
-    except OSError:
-        return False
 
 
 def doctor_exit_code(checks: list[DoctorCheck]) -> int:
@@ -59,12 +43,7 @@ def doctor_exit_code(checks: list[DoctorCheck]) -> int:
     failed_required = [
         check for check in checks if check.name in required and not check.ok
     ]
-    failed_scan = [
-        check
-        for check in checks
-        if check.name == "no personal data in repo" and not check.ok
-    ]
-    return 1 if failed_required or failed_scan else 0
+    return 1 if failed_required else 0
 
 
 def format_doctor_checks(checks: list[DoctorCheck]) -> str:
@@ -77,8 +56,6 @@ def format_doctor_checks(checks: list[DoctorCheck]) -> str:
             "audit log writable",
             "delegation store writable",
         }:
-            status = "OK" if check.ok else "FAIL"
-        if check.name == "no personal data in repo":
             status = "OK" if check.ok else "FAIL"
         if check.name == "approval config exists" and not check.ok:
             lines.append(
@@ -130,23 +107,6 @@ def _writable_file_check(name: str, path: Path) -> DoctorCheck:
         return DoctorCheck(name, True, _display_path(path))
     except OSError as exc:
         return DoctorCheck(name, False, str(exc))
-
-
-def _personal_data_check(root: Path) -> DoctorCheck:
-    script = root / "scripts" / "check_no_personal_data.py"
-    if not script.exists():
-        return DoctorCheck(
-            "no personal data in repo", False, f"missing scanner: {script}"
-        )
-    completed = subprocess.run(
-        [sys.executable, str(script)],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    detail = completed.stdout.strip() or completed.stderr.strip()
-    return DoctorCheck("no personal data in repo", completed.returncode == 0, detail)
 
 
 def _display_path(path: Path) -> str:

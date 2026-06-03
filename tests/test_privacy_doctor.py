@@ -109,17 +109,16 @@ class PrivacyDoctorTests(unittest.TestCase):
                 exit_code = cnpd.main()
                 self.assertEqual(exit_code, 0)
 
-    def test_doctor_does_not_fail_due_to_agent_sudo_audit_logs(self) -> None:
+    def test_doctor_excludes_repo_hygiene_scan_and_personal_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir).resolve()
 
-            # Write a script mock in tmpdir to satisfy doctor requirements
+            # A source checkout layout that still ships the scanner.
             script_dir = tmp_path / "scripts"
             script_dir.mkdir()
-            # Copy check_no_personal_data.py to scripts/
             shutil.copy(cnpd.__file__, script_dir / "check_no_personal_data.py")
 
-            # Create .agent-sudo/audit.jsonl with personal data
+            # Personal data present in local runtime state.
             agent_sudo_dir = tmp_path / ".agent-sudo"
             agent_sudo_dir.mkdir()
             audit_file = agent_sudo_dir / "audit.jsonl"
@@ -128,13 +127,16 @@ class PrivacyDoctorTests(unittest.TestCase):
             )
             audit_file.write_text(audit_content, encoding="utf-8")
 
-            # Run doctor with the contributor-only scanner explicitly enabled.
-            with mock.patch("agent_sudo.doctor._is_source_checkout", return_value=True):
-                checks = run_doctor(repo_root=tmp_path)
-            personal_check = [
-                c for c in checks if c.name == "no personal data in repo"
-            ][0]
-            self.assertTrue(personal_check.ok)
+            checks = run_doctor(repo_root=tmp_path)
+
+            # doctor is readiness-only: the hygiene scan is gone entirely...
+            names = {c.name for c in checks}
+            self.assertNotIn("no personal data in repo", names)
+            # ...and no maintainer personal filesystem path is ever printed.
+            from agent_sudo.doctor import format_doctor_checks
+
+            rendered = format_doctor_checks(checks)
+            self.assertNotIn(self.sensitive_user, rendered)
 
     @mock.patch("agent_sudo.upgrade.get_git_root")
     @mock.patch("agent_sudo.upgrade.subprocess.run")
