@@ -814,6 +814,9 @@ def build_parser() -> argparse.ArgumentParser:
 def run_built_in_demo() -> int:
     import tempfile
 
+    from agent_sudo import branding
+
+    branding.print_wordmark()
     print("=" * 60)
     print("                AGENT_SUDO INTERACTIVE DEMO                 ")
     print("=" * 60)
@@ -996,6 +999,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         print("approval config initialized")
         return 0
     if args.command == "doctor":
+        from agent_sudo import branding
+
+        branding.print_wordmark()
         checks = run_doctor()
         print(format_doctor_checks(checks))
         return doctor_exit_code(checks)
@@ -1010,7 +1016,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(format_routing_report(signals))
         return routing_exit_code(signals, strict=getattr(args, "strict", False))
     if args.command == "setup":
-        from agent_sudo import setup_guides
+        from agent_sudo import branding, setup_guides
 
         target = args.agent
         if target is None:
@@ -1018,6 +1024,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             # otherwise (CI/pipes) print guidance to stderr and exit non-zero
             # so scripts fail loudly instead of hanging on input.
             if sys.stdin.isatty():
+                branding.print_wordmark()
                 target = setup_guides.prompt_for_target()
                 if target is None:
                     print("No target selected.", file=sys.stderr)
