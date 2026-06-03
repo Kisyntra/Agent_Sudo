@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.3
+
+- **README repositioning.** Agent_Sudo is framed as an authorization, delegation, provenance, and verifiable-audit engine for AI agents — MCP is the adapter, not the identity.
+- **Public metadata aligned.** The PyPI summary and the MCP Registry `server.json` description carry the same authorization/delegation/provenance/verifiable-audit positioning, so package indexes and crawlers surface consistent framing.
+- **Audit Explorer — `audit list` filters + origin column.** `agent-sudo audit list` gains `--since`, `--decision`, `--origin`, `--actor`, `--tool`, `--target`, and `--non-allow`, plus a provenance origin column. Read-only; `--json` output shape unchanged.
+- **Audit Explorer — `audit trace <token_id>`.** Token-first delegation lifecycle inspection: resolves a token by full id or unique prefix, joins its store metadata with audit references, and reports observed consumes/denials and the causes denial reasons cite, with a raw-reason fallback. Read-only.
+- **Compatibility.** No breaking changes, no schema changes, no policy-behavior changes, no new runtime dependencies.
+
 ## v0.5.2
 
 - **Sensitive read/search hardening.** Blocks sensitive `read_file` and `search_files` targets more consistently, including macOS Keychains, Messages, Mail, Cookies, and Safari stores; browser cookie/login profile stores; gcloud and kube config directories; and common credential files such as `.netrc`, `.npmrc`, and `.pypirc`.
