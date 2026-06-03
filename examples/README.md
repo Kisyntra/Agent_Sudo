@@ -16,7 +16,7 @@ All examples use fake actors, fake paths, and placeholder `.invalid` email addre
 
 ## Framework Integration Examples
 
-These examples demonstrate how to integrate the `Agent_Sudo` permission gateway in-process within popular Python agent frameworks:
+These examples demonstrate how to integrate the `Agent_Sudo` authorization/provenance engine in-process within popular Python agent frameworks:
 
 - **[pydantic_ai/](pydantic_ai/)**: Gating tools inside `pydantic-ai` applications using Python decorators.
 - **[openai_agents_sdk/](openai_agents_sdk/)**: Pre-wrapping tool functions passed to the OpenAI Agents SDK.

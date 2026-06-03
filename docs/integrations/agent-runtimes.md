@@ -73,7 +73,7 @@ To keep responsibility separated clearly between the runtime ecosystem and the s
 
 ## 5. Limitations
 
-* **No OS Isolation**: `Agent_Sudo` is a local permission gateway and policy engine; it is **not** an OS-level sandbox. It checks permissions but does not isolate filesystem paths or sub-process resources.
+* **No OS Isolation**: `Agent_Sudo` is a local authorization and policy engine; it is **not** an OS-level sandbox. It checks permissions but does not isolate filesystem paths or sub-process resources.
 * **Execution Bypass**: Host runtimes still control actual execution. Any hooks registered outside of `before_tool_execute` (or bypass functions) are not gated by default unless specifically routed.
 * **Subject to Change**: The integration is compatible with the current runtime hooks model, but may undergo structural updates when the unified generic plugins architecture (Issue #99) is implemented.
 

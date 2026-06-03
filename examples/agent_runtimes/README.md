@@ -1,6 +1,6 @@
 # agent-runtimes Integration Example
 
-This example demonstrates how to configure and register the `Agent_Sudo` local permission gateway plugin within the `agent-runtimes` ecosystem.
+This example demonstrates how to configure and register the `Agent_Sudo` local authorization/provenance plugin within the `agent-runtimes` ecosystem.
 
 ## Key Pattern: Configuration and Tool Hooks
 

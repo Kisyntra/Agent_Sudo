@@ -1,6 +1,6 @@
 # Integrations
 
-One local gateway. Any agent. Every tool call checked.
+One local authorization and provenance engine. Any agent. Routed tool calls checked.
 
 The integration pattern is the same for every runtime:
 

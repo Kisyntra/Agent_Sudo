@@ -1,6 +1,6 @@
 # Agent_Sudo Ecosystem Status
 
-This document tracks the integration progress, compatibility levels, and strategic alignment for running the `Agent_Sudo` local permission gateway across major AI agent frameworks and runtimes.
+This document tracks the integration progress, compatibility levels, and strategic alignment for running the `Agent_Sudo` authorization, delegation, provenance, and verifiable-audit engine across major AI agent frameworks and runtimes.
 
 ---
 

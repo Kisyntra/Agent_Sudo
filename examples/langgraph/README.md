@@ -6,7 +6,7 @@ This example demonstrates how to integrate `Agent_Sudo` within a `langchain-ai/l
 
 In LangGraph, tools are typically executed inside a centralized node (such as the prebuilt `ToolNode`). To integrate `Agent_Sudo` cleanly:
 1. **Tool-Level Wrapping**: Wrap the tool functions with the gateway decorator before passing them to the `ToolNode`.
-2. **Node-Level Interception**: Run a custom node handler that acts as the permission gateway interceptor.
+2. **Node-Level Interception**: Run a custom node handler that acts as the authorization/provenance interceptor.
 
 ## Quickstart
 

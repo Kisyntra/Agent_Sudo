@@ -79,7 +79,7 @@ To maximize ecosystem impact, our distribution work is structured into the follo
 
 ### Tier 5: First External User Adoption
 *   **Goal**: Verify first real-world developer integration of `Agent_Sudo` tools.
-*   **Completion Criteria**: A non-maintainer project implements the permission gateway or consumes the audit log verification libraries in a production AI agent pipeline.
+*   **Completion Criteria**: A non-maintainer project integrates the authorization/provenance engine or consumes the audit log verification libraries in a production AI agent pipeline.
 
 ---
 

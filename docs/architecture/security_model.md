@@ -6,7 +6,7 @@ This document outlines the security boundaries, threat mitigation strategies, an
 
 ## 1. Authorization and Responsibility Boundaries
 
-`Agent_Sudo` is a **local permission gateway**. It intercepts and authorizes tool actions requested by an AI agent before they are executed.
+`Agent_Sudo` is a **local authorization, delegation, provenance, and verifiable-audit engine for AI agents**. It intercepts and authorizes tool actions requested by an AI agent before they are executed.
 
 > [!IMPORTANT]
 > - **Not the action owner**: `Agent_Sudo` does not execute downstream actions itself. The operator and concrete tool provider (e.g. your shell executor or file writer) remain responsible for the safe handling of the action.
