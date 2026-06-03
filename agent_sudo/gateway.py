@@ -12,6 +12,7 @@ from agent_sudo.approvals import ApprovalProvider, init_approval_config, CONFIG_
 from agent_sudo.audit import (
     AuditLogger,
     audit_entries_since,
+    filter_entries,
     format_audit_log,
     format_audit_review,
     parse_since_window,
@@ -546,6 +547,41 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output raw JSON records instead of a table",
     )
+    audit_list.add_argument(
+        "--since",
+        help="Only records within a window (examples: 30m, 24h, 7d)",
+    )
+    audit_list.add_argument(
+        "--decision",
+        choices=["ALLOW", "DENY", "REQUIRE_APPROVAL", "REQUIRE_STRONG_APPROVAL"],
+        help="Keep only records with this decision",
+    )
+    audit_list.add_argument(
+        "--origin",
+        choices=[
+            "USER_DIRECT",
+            "LOCAL_UI",
+            "AGENT_INTERNAL",
+            "EXTERNAL_CONTENT",
+            "EXTERNAL_API",
+            "UNKNOWN",
+        ],
+        help="Keep only records whose provenance origin matches",
+    )
+    audit_list.add_argument(
+        "--actor", help="Keep only records whose actor contains this substring"
+    )
+    audit_list.add_argument(
+        "--tool", help="Keep only records whose tool contains this substring"
+    )
+    audit_list.add_argument(
+        "--target", help="Keep only records whose target contains this substring"
+    )
+    audit_list.add_argument(
+        "--non-allow",
+        action="store_true",
+        help="Exclude ALLOW decisions (show denials, approvals, escalations)",
+    )
     audit_review = audit_subparsers.add_parser(
         "review",
         help="Review the recent audit window with verification and non-ALLOW rows",
@@ -851,6 +887,23 @@ def main(argv: Iterable[str] | None = None) -> int:
             return 1
         if args.audit_command == "list":
             entries = read_audit_entries(args.audit_log)
+            if args.since:
+                try:
+                    entries = audit_entries_since(
+                        entries, parse_since_window(args.since)
+                    )
+                except ValueError as exc:
+                    print(str(exc), file=sys.stderr)
+                    return 1
+            entries = filter_entries(
+                entries,
+                decision=args.decision,
+                origin=args.origin,
+                actor=args.actor,
+                tool=args.tool,
+                target=args.target,
+                non_allow=args.non_allow,
+            )
             limit = None if args.limit <= 0 else args.limit
             if args.json:
                 selected = entries if limit is None else entries[-limit:]

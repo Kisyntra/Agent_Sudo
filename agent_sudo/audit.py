@@ -73,20 +73,35 @@ def read_audit_entries(path: Path) -> list[dict[str, Any]]:
     return entries
 
 
-def _audit_view(entry: dict[str, Any]) -> dict[str, str]:
-    """Reduce a raw audit entry to the human-facing columns.
+def _entry_request(entry: dict[str, Any]) -> dict[str, Any]:
+    """Resolve the action request inside an audit entry.
 
     Handles both ``gateway_decision`` records (which carry a ``request``) and
     approval lifecycle events (which carry an ``approval_request``).
     """
-    event_type = str(entry.get("event_type", "event"))
-
     request = entry.get("request")
     approval = entry.get("approval_request")
     if not isinstance(request, dict) and isinstance(approval, dict):
         request = approval.get("action_request")
     if not isinstance(request, dict):
         request = {}
+    return request
+
+
+def _entry_origin(entry: dict[str, Any]) -> str:
+    """Origin type recorded in the entry's provenance (empty if absent)."""
+    provenance = _entry_request(entry).get("provenance")
+    if isinstance(provenance, dict):
+        return str(provenance.get("origin_type", ""))
+    return ""
+
+
+def _audit_view(entry: dict[str, Any]) -> dict[str, str]:
+    """Reduce a raw audit entry to the human-facing columns."""
+    event_type = str(entry.get("event_type", "event"))
+
+    request = _entry_request(entry)
+    approval = entry.get("approval_request")
 
     if event_type == "gateway_decision":
         label = str(entry.get("decision", ""))
@@ -100,6 +115,7 @@ def _audit_view(entry: dict[str, Any]) -> dict[str, str]:
     return {
         "time": str(entry.get("timestamp", ""))[:19],
         "label": label,
+        "origin": _entry_origin(entry),
         "actor": str(request.get("actor", "")),
         "action": str(request.get("action", "")),
         "target": str(request.get("target", "")),
@@ -107,10 +123,57 @@ def _audit_view(entry: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def filter_entries(
+    entries: list[dict[str, Any]],
+    *,
+    decision: str | None = None,
+    origin: str | None = None,
+    actor: str | None = None,
+    tool: str | None = None,
+    target: str | None = None,
+    non_allow: bool = False,
+) -> list[dict[str, Any]]:
+    """Return the subset of ``entries`` matching the given filters.
+
+    ``decision`` and ``origin`` are exact matches (validated upstream against the
+    known enum values). ``actor``/``tool``/``target`` are case-insensitive
+    substring matches. ``non_allow`` drops every ``ALLOW`` decision. No filter
+    argument means "keep everything", so an unfiltered call is a no-op.
+    """
+    selected: list[dict[str, Any]] = []
+    for entry in entries:
+        request = _entry_request(entry)
+        entry_decision = str(entry.get("decision", ""))
+        if non_allow and entry_decision == "ALLOW":
+            continue
+        if decision is not None and entry_decision != decision:
+            continue
+        if origin is not None and _entry_origin(entry) != origin:
+            continue
+        if (
+            actor is not None
+            and actor.lower() not in str(request.get("actor", "")).lower()
+        ):
+            continue
+        if (
+            tool is not None
+            and tool.lower() not in str(request.get("tool", "")).lower()
+        ):
+            continue
+        if (
+            target is not None
+            and target.lower() not in str(request.get("target", "")).lower()
+        ):
+            continue
+        selected.append(entry)
+    return selected
+
+
 # (column header, width) pairs for the audit table.
 _AUDIT_COLUMNS = [
     ("time", 19),
     ("decision", 17),
+    ("origin", 16),
     ("actor", 12),
     ("action", 20),
     ("target", 22),
