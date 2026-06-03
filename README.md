@@ -62,41 +62,37 @@ Walkthrough and expected output: [`examples/exfil_demo/`](examples/exfil_demo/).
 
 ## Evaluate Agent_Sudo in 5 Minutes
 
-The fastest way to see the full boundary in action is the MCP adapter. Start here:
+Two commands. The second runs the whole boundary — blocked → delegated → allowed once → denied → audit verified — in one shot:
 
 ```bash
 pipx install agent-sudo-mcp
-agent-sudo --version
+agent-sudo eval
 ```
 
-Then run the 5-minute evaluator path:
-
-**[Evaluate Agent_Sudo in 5 Minutes](docs/evaluate_5_minutes.md)**
-
-You should finish with this proof — a request that is denied, narrowly delegated, allowed exactly once, denied again when the delegation is exhausted, and recorded in a verifiable audit log:
+You should see:
 
 ```text
-blocked
-↓
-delegated
-↓
-allowed once
-↓
-blocked again
-↓
-audit verified
+Agent_Sudo Evaluation
+
+[1/5] Blocked unsafe request ........ PASS
+[2/5] Created delegation ............ PASS
+[3/5] Delegated request allowed ..... PASS
+[4/5] Token exhausted, denied again . PASS
+[5/5] Audit chain verified .......... PASS
+
+Result: PASS
+Audit log: /tmp/agent-sudo-eval-.../audit.jsonl
+Next: agent-sudo audit list /tmp/agent-sudo-eval-.../audit.jsonl
 ```
 
-If you are working from a source checkout and `agent-sudo --version` is stale, use `python3 -m agent_sudo.gateway --version` or reinstall the package in your active environment.
+`agent-sudo eval` runs entirely in a temporary directory (no changes to your `~/.agent-sudo` state), prints where the audit log lives, and exits non-zero if any step fails. For the step-by-step walkthrough, see **[Evaluate Agent_Sudo in 5 Minutes](docs/evaluate_5_minutes.md)**.
 
 ### What You Will Validate
 
-- A critical shell request through the `agent-sudo` MCP adapter does not execute by default.
+- A critical shell request through the Agent_Sudo engine does not execute by default.
 - A one-use delegation allows exactly one matching request.
 - The same request is denied after the delegation is consumed.
-- `agent-sudo audit list` shows the decisions.
-- `agent-sudo verify-audit` verifies the hash-chained audit log.
-- `agent-sudo verify-routing` reports configured routing and audit signals without claiming complete protection.
+- The decisions are written to a hash-chained audit log that verifies cleanly (`agent-sudo verify-audit`).
 
 ---
 

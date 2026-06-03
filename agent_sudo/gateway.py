@@ -665,6 +665,25 @@ def build_parser() -> argparse.ArgumentParser:
         "demo", help="Run a built-in interactive demo of Agent_Sudo gateway decisions"
     )
 
+    eval_parser = subparsers.add_parser(
+        "eval",
+        help=(
+            "Run the full blocked -> delegated -> allowed-once -> denied -> "
+            "verified evaluation in one command"
+        ),
+    )
+    eval_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Write eval artifacts here instead of a temp dir",
+    )
+    eval_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON instead of a table",
+    )
+
     approvals_parser = subparsers.add_parser(
         "approvals", help="Manage pending approval requests"
     )
@@ -920,6 +939,19 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.command == "demo":
         return run_built_in_demo()
+    if args.command == "eval":
+        from agent_sudo import evaluation
+
+        try:
+            report = evaluation.run_eval(output_dir=args.output_dir)
+        except Exception as exc:  # environment/IO error, not a demo failure
+            print(f"agent-sudo eval: could not run evaluation: {exc}", file=sys.stderr)
+            return evaluation.EXIT_ERROR
+        if getattr(args, "json", False):
+            print(evaluation.format_report_json(report))
+        else:
+            print(evaluation.format_report(report))
+        return evaluation.EXIT_PASS if report.passed else evaluation.EXIT_FAIL
     if args.command == "verify-audit":
         ok, message = verify_audit_log(args.audit_log)
         print(message)

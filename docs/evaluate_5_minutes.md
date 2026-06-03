@@ -16,6 +16,33 @@ blocked again
 audit verified
 ```
 
+## Fastest path: `agent-sudo eval`
+
+```bash
+pipx install agent-sudo-mcp
+agent-sudo eval
+```
+
+`agent-sudo eval` runs the entire loop in one shot — in a temporary directory, with no changes to your `~/.agent-sudo` state — and prints a PASS/FAIL ladder plus the audit-log path:
+
+```text
+Agent_Sudo Evaluation
+
+[1/5] Blocked unsafe request ........ PASS
+[2/5] Created delegation ............ PASS
+[3/5] Delegated request allowed ..... PASS
+[4/5] Token exhausted, denied again . PASS
+[5/5] Audit chain verified .......... PASS
+
+Result: PASS
+Audit log: /tmp/agent-sudo-eval-.../audit.jsonl
+Next: agent-sudo audit list /tmp/agent-sudo-eval-.../audit.jsonl
+```
+
+It exits `0` when all five steps pass and non-zero otherwise (so it is safe in CI). `--json` emits a machine-readable report; `--output-dir DIR` writes the artifacts to a location you choose. Inspect the recorded decisions with the printed `Next:` command, or verify the chain with `agent-sudo verify-audit <audit log>`.
+
+That is the whole evaluation. The manual, step-by-step walkthrough below is optional — it shows the same loop driven explicitly through the MCP server, for readers who want to see each request.
+
 ## What You Will Prove
 
 - `agent-sudo-mcp` receives a critical shell request.
