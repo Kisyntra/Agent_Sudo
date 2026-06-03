@@ -1,6 +1,6 @@
 # First Run Reference
 
-For first-time evaluation, start with [Evaluate Agent_Sudo in 5 Minutes](evaluate_5_minutes.md). This page is the expanded reference version of the same validated MCP workflow:
+For first-time evaluation, the fastest path is one command — `pipx install agent-sudo-mcp` then `agent-sudo eval`, which runs the whole loop in a temp directory and prints a PASS/FAIL ladder (see [Evaluate Agent_Sudo in 5 Minutes](evaluate_5_minutes.md)). This page is the expanded reference version of the same validated MCP workflow, driven manually step by step:
 
 ```text
 blocked

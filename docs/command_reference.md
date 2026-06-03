@@ -49,10 +49,22 @@ and troubleshooting); they are listed under their primary use.
 - **Common mistakes:** running it in CI with no target — it lists targets and exits
   non-zero rather than prompting; name the target explicitly in scripts.
 
+### `eval`
+- **Purpose:** the one-shot first-value demonstration — runs blocked → delegated →
+  allowed-once → denied → audit-verified and prints a PASS/FAIL ladder plus the
+  audit-log path.
+- **Example:** `agent-sudo eval` · `agent-sudo eval --json` · `agent-sudo eval --output-dir ./eval-out`
+- **When to use:** immediately after install to confirm the whole boundary works; it's
+  the recommended first command and is CI-safe (exit 0 on pass, non-zero on fail).
+- **Common mistakes:** expecting it to touch your real `~/.agent-sudo` — it runs in a
+  temporary directory by default (use `--output-dir` for a stable location). The printed
+  `Next:` command inspects that same audit log.
+
 ### `demo`
 - **Purpose:** run a built-in, offline demo of allow/deny/audit decisions.
 - **Example:** `agent-sudo demo`
-- **When to use:** to see the engine make decisions in ~10 seconds before wiring it up.
+- **When to use:** a quick look at individual decisions; for the full value loop use
+  `agent-sudo eval`.
 - **Common mistakes:** treating it as a config check — it uses a temporary audit log,
   not your real one.
 
