@@ -150,15 +150,20 @@ def filter_entries(
             continue
         if origin is not None and _entry_origin(entry) != origin:
             continue
-        if actor is not None and actor.lower() not in str(
-            request.get("actor", "")
-        ).lower():
+        if (
+            actor is not None
+            and actor.lower() not in str(request.get("actor", "")).lower()
+        ):
             continue
-        if tool is not None and tool.lower() not in str(request.get("tool", "")).lower():
+        if (
+            tool is not None
+            and tool.lower() not in str(request.get("tool", "")).lower()
+        ):
             continue
-        if target is not None and target.lower() not in str(
-            request.get("target", "")
-        ).lower():
+        if (
+            target is not None
+            and target.lower() not in str(request.get("target", "")).lower()
+        ):
             continue
         selected.append(entry)
     return selected
