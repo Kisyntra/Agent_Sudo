@@ -598,6 +598,34 @@ def build_parser() -> argparse.ArgumentParser:
         default="24h",
         help="Window to review (default: 24h; examples: 30m, 24h, 7d)",
     )
+    audit_trace = audit_subparsers.add_parser(
+        "trace",
+        help="Trace one delegation token's lifecycle across the audit log",
+    )
+    audit_trace.add_argument(
+        "token_id", help="Delegation token id (full or unique prefix)"
+    )
+    audit_trace.add_argument(
+        "audit_log",
+        type=Path,
+        nargs="?",
+        default=Path(".agent-sudo/mcp-audit.jsonl"),
+        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+    )
+    audit_trace.add_argument(
+        "--delegations-file",
+        type=Path,
+        default=None,
+        help=(
+            "Path to delegations.json (default: alongside the audit log, "
+            "else ~/.agent-sudo/delegations.json)"
+        ),
+    )
+    audit_trace.add_argument(
+        "--json",
+        action="store_true",
+        help="Output the trace as JSON instead of a table",
+    )
 
     init_parser = subparsers.add_parser(
         "init-approval",
@@ -925,6 +953,15 @@ def main(argv: Iterable[str] | None = None) -> int:
             print(message)
             print(format_audit_review(entries, since_label=args.since))
             return 0
+        if args.audit_command == "trace":
+            from agent_sudo.audit_trace import run_trace
+
+            return run_trace(
+                args.token_id,
+                args.audit_log,
+                args.delegations_file,
+                as_json=args.json,
+            )
     if args.command == "init-approval":
         try:
             init_approval_config(
