@@ -191,7 +191,7 @@ All audit commands take the audit-log path as their first positional argument. *
 AUDIT="$HOME/.agent-sudo/mcp-audit.jsonl"
 
 agent-sudo audit list "$AUDIT"                 # recent decisions (supports --since/--decision/--actor/…)
-agent-sudo audit review "$AUDIT" --window 24h  # chain check + summary + non-ALLOW records
+agent-sudo audit review "$AUDIT" --since 24h   # chain check + summary + non-ALLOW records
 agent-sudo audit trace <token_id> "$AUDIT"     # one delegation token's lifecycle
 agent-sudo verify-audit "$AUDIT"               # verify the SHA-256 hash chain
 ```
