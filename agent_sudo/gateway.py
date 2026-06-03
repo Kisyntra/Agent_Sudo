@@ -722,11 +722,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     setup_parser = subparsers.add_parser(
-        "setup", help="Print dry-run setup instructions for an agent runtime"
+        "setup",
+        help=(
+            "Print dry-run setup instructions for an agent runtime "
+            "(run with no target for an interactive picker)"
+        ),
     )
     setup_parser.add_argument(
         "agent",
+        nargs="?",
+        default=None,
         choices=["hermes", "codex", "claude-code", "claude-desktop", "openclaw"],
+        help="Target runtime; omit to choose interactively",
     )
 
     delegate_parser = subparsers.add_parser(
@@ -1003,9 +1010,22 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(format_routing_report(signals))
         return routing_exit_code(signals, strict=getattr(args, "strict", False))
     if args.command == "setup":
-        from agent_sudo.setup_guides import render_setup
+        from agent_sudo import setup_guides
 
-        print(render_setup(args.agent))
+        target = args.agent
+        if target is None:
+            # No target named. Offer an interactive picker on a real TTY;
+            # otherwise (CI/pipes) print guidance to stderr and exit non-zero
+            # so scripts fail loudly instead of hanging on input.
+            if sys.stdin.isatty():
+                target = setup_guides.prompt_for_target()
+                if target is None:
+                    print("No target selected.", file=sys.stderr)
+                    return 1
+            else:
+                print(setup_guides.no_target_guidance(), file=sys.stderr)
+                return 2
+        print(setup_guides.render_setup(target))
         return 0
     if args.command == "approvals":
         store = PendingApprovalStore(args.pending_approvals_file)
