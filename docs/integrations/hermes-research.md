@@ -1,6 +1,6 @@
 # Hermes Integration Research Note
 
-This document details the architectural findings and integration path for running the `Agent_Sudo` permission gateway within the `Hermes` personal AI runtime. 
+This document details the architectural findings and integration path for running the `Agent_Sudo` authorization/provenance engine within the `Hermes` personal AI runtime.
 
 > [!NOTE]
 > This document represents a **research study / local Proof of Concept (PoC)**. Hermes does not officially support Agent_Sudo at this stage.

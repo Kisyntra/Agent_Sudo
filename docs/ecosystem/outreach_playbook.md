@@ -12,7 +12,7 @@ The target reader is already building agents, MCP tooling, approval flows, audit
 
 The first ask should be narrow:
 
-> I built a local MCP permission gateway that demonstrates blocked -> delegated -> allowed once -> blocked again -> audit verified. Does this match the tool-governance problem you were discussing here?
+> I built an authorization, delegation, provenance, and verifiable-audit engine for AI agents. The published MCP adapter demonstrates blocked -> delegated -> allowed once -> blocked again -> audit verified. Does this match the tool-governance problem you were discussing here?
 
 Every outreach attempt must be tied to a specific source URL and a specific reason the person or thread was selected.
 
@@ -59,7 +59,7 @@ Selection signals:
 
 *   Maintains a server that exposes shell, filesystem, browser, network, or write-capable tools.
 *   Discusses MCP safety, permissions, logging, human review, tool provenance, or deployment hardening.
-*   Publishes examples where a local permission gateway could be evaluated as a wrapper or companion.
+*   Publishes examples where an authorization/provenance engine could be evaluated as a wrapper or companion.
 
 ### Priority 3: PydanticAI Ecosystem
 
@@ -206,7 +206,7 @@ Do not count a positive reply as adoption. Track validation, compatibility inter
 ```text
 This looks close to a problem I have been working on: bounding what an agent can do after it requests a risky tool call.
 
-I built Agent_Sudo as a local MCP permission gateway and the current 5-minute evaluation path is intentionally narrow: blocked -> delegated -> allowed once -> blocked again -> audit verified.
+I built Agent_Sudo as an authorization, delegation, provenance, and verifiable-audit engine for AI agents. The current MCP adapter evaluation path is intentionally narrow: blocked -> delegated -> allowed once -> blocked again -> audit verified.
 
 Would that evaluation model fit the issue you are describing here, or is your main concern somewhere else in the tool flow?
 ```

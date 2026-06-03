@@ -6,7 +6,7 @@ This document reviews the current distribution channels, active bottlenecks, upc
 
 ## 1. Current Reach
 
-*   **GitHub**: `Kisyntra/Agent_Sudo` is the repository home. It hosts the core permission gateway, CLI tool, standard spec schemas, and documentation.
+*   **GitHub**: `Kisyntra/Agent_Sudo` is the repository home. It hosts the core authorization/provenance engine, CLI tool, standard spec schemas, and documentation.
 *   **PyPI**: Registered as [`agent-sudo-mcp` v0.5.0](https://pypi.org/project/agent-sudo-mcp/), exposing both `agent-sudo` and `agent-sudo-mcp` CLI commands.
 *   **Glama.ai**: ✅ **Active**. Live and verified listing page at [Glama Listing](https://glama.ai/mcp/servers/Kisyntra/Agent_Sudo).
 *   **awesome-mcp-servers**: [PR #7111](https://github.com/punkpeye/awesome-mcp-servers/pull/7111) is currently open, containing the description and Glama badge.
@@ -34,7 +34,7 @@ Our ecosystem distribution and adoption activities are prioritized as follows:
 *   **Priority 4: agent-runtimes Merge**
     *   *Description*: Close out PR #97 review comments with Eric Charles to enable direct integration inside the datalayer runtime core.
 *   **Priority 5: First External Adopter**
-    *   *Description*: A non-maintainer project integrates the permission gateway or consumes verification libraries in a production AI agent pipeline.
+    *   *Description*: A non-maintainer project integrates the authorization/provenance engine or consumes verification libraries in a production AI agent pipeline.
 
 ### Completed Milestones
 *   ✅ **Glama Activation** (Completed: 2026-05-29) - Manual GitHub OAuth registration successfully completed and introspection checks verified.
