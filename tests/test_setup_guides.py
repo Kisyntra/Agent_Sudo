@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import io
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
 from agent_sudo.gateway import main
 from agent_sudo.setup_guides import (
     MCP_SETUP_TARGETS,
+    SETUP_MENU,
     SETUP_TARGETS,
     _mcp_state_paths,
+    format_target_menu,
+    prompt_for_target,
     render_setup,
+    resolve_menu_choice,
     resolve_mcp_command,
 )
 
@@ -150,6 +154,109 @@ class SetupGuideTests(unittest.TestCase):
         text = render_setup("openclaw")
         self.assertIn("dry-run only", text)
         self.assertIn("1. ", text)
+
+
+class SetupSelectorTests(unittest.TestCase):
+    def test_menu_order_and_labels(self) -> None:
+        self.assertEqual(
+            [name for name, _ in SETUP_MENU],
+            ["claude-code", "codex", "claude-desktop", "hermes", "openclaw"],
+        )
+        menu = format_target_menu()
+        self.assertIn("1. Claude Code", menu)
+        self.assertIn("2. Codex CLI", menu)
+        self.assertIn("3. Claude Desktop", menu)
+        self.assertIn("4. Hermes", menu)
+        self.assertIn("5. OpenClaw", menu)
+
+    def test_resolve_menu_choice(self) -> None:
+        self.assertEqual(resolve_menu_choice("1"), "claude-code")
+        self.assertEqual(resolve_menu_choice("2"), "codex")
+        self.assertEqual(resolve_menu_choice("5"), "openclaw")
+        self.assertEqual(resolve_menu_choice("codex"), "codex")
+        self.assertEqual(
+            resolve_menu_choice("claude code"), "claude-code"
+        )  # label form
+        self.assertEqual(resolve_menu_choice(" CODEX "), "codex")  # trim + case
+        for cancel_or_bad in ("", "q", "quit", "exit", "0", "9", "bogus"):
+            self.assertIsNone(resolve_menu_choice(cancel_or_bad), cancel_or_bad)
+
+    def test_prompt_for_target_uses_injected_input(self) -> None:
+        # Menu/prompt go to the provided stream; selection comes from input_func.
+        stream = io.StringIO()
+        chosen = prompt_for_target(input_func=lambda _: "2", stream=stream)
+        self.assertEqual(chosen, "codex")
+        self.assertIn("Codex CLI", stream.getvalue())
+
+    def test_prompt_for_target_cancel_and_eof(self) -> None:
+        self.assertIsNone(
+            prompt_for_target(input_func=lambda _: "q", stream=io.StringIO())
+        )
+
+        def _raise_eof(_):
+            raise EOFError
+
+        self.assertIsNone(
+            prompt_for_target(input_func=_raise_eof, stream=io.StringIO())
+        )
+
+    def test_interactive_selection_prints_chosen_config(self) -> None:
+        # tty + user picks "2" -> Codex config on stdout, menu on stderr.
+        out, err = io.StringIO(), io.StringIO()
+        with (
+            mock.patch("sys.stdin.isatty", return_value=True),
+            mock.patch("builtins.input", return_value="2"),
+        ):
+            with redirect_stdout(out), redirect_stderr(err):
+                code = main(["setup"])
+        self.assertEqual(code, 0)
+        self.assertIn("[mcp_servers.agent-sudo]", out.getvalue())  # codex TOML
+        self.assertIn("Codex CLI", err.getvalue())  # menu went to stderr
+
+    def test_interactive_output_matches_explicit_target(self) -> None:
+        # Generated config content is unchanged vs. the explicit-target path.
+        out = io.StringIO()
+        with (
+            mock.patch("sys.stdin.isatty", return_value=True),
+            mock.patch("builtins.input", return_value="1"),
+        ):
+            with redirect_stdout(out), redirect_stderr(io.StringIO()):
+                main(["setup"])
+        self.assertEqual(out.getvalue(), render_setup("claude-code") + "\n")
+
+    def test_interactive_cancel_returns_nonzero_and_no_config(self) -> None:
+        out = io.StringIO()
+        with (
+            mock.patch("sys.stdin.isatty", return_value=True),
+            mock.patch("builtins.input", return_value="q"),
+        ):
+            with redirect_stdout(out), redirect_stderr(io.StringIO()):
+                code = main(["setup"])
+        self.assertEqual(code, 1)
+        self.assertEqual(out.getvalue().strip(), "")
+
+    def test_non_interactive_no_target_shows_guidance_and_exits_2(self) -> None:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("sys.stdin.isatty", return_value=False):
+            with redirect_stdout(out), redirect_stderr(err):
+                code = main(["setup"])
+        self.assertEqual(code, 2)  # non-zero so scripts/CI fail loudly
+        self.assertEqual(out.getvalue().strip(), "")  # nothing on stdout
+        guidance = err.getvalue()
+        self.assertIn("no target specified", guidance)
+        for name, label in SETUP_MENU:
+            self.assertIn(label, guidance)
+            self.assertIn(name, guidance)
+
+    def test_explicit_target_still_works_noninteractively(self) -> None:
+        # The script path is unaffected: explicit target prints config, exit 0,
+        # even when stdin is not a tty.
+        out = io.StringIO()
+        with mock.patch("sys.stdin.isatty", return_value=False):
+            with redirect_stdout(out):
+                code = main(["setup", "claude-code"])
+        self.assertEqual(code, 0)
+        self.assertEqual(out.getvalue(), render_setup("claude-code") + "\n")
 
 
 if __name__ == "__main__":

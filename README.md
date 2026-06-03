@@ -110,15 +110,26 @@ agent-sudo --version
 which agent-sudo-mcp
 ```
 
-**Pick your client — each has a copy-paste path (no source checkout needed):**
+**Beginner path — just run `agent-sudo setup`** and pick your client from the menu; it prints the correct pasteable config:
+
+```bash
+agent-sudo setup
+#   1. Claude Code
+#   2. Codex CLI
+#   3. Claude Desktop
+#   4. Hermes
+#   5. OpenClaw
+```
+
+**Advanced / scripted path — name the target directly** (no prompt, CI-friendly):
 
 | Client | One-step setup | Guide |
 | :--- | :--- | :--- |
 | **Claude Code** | `agent-sudo setup claude-code` prints the `claude mcp add …` command | [Claude Code](docs/integrations/mcp_server_setup.md#claude-code) |
 | **Codex CLI** | `agent-sudo setup codex` prints the `~/.codex/config.toml` block | [Codex CLI](docs/integrations/mcp_server_setup.md#codex-cli) |
-| **Claude Desktop** | Edit `claude_desktop_config.json` (below) | [Claude Desktop](docs/integrations/claude_desktop_setup.md) |
+| **Claude Desktop** | `agent-sudo setup claude-desktop` prints the `claude_desktop_config.json` block | [Claude Desktop](docs/integrations/claude_desktop_setup.md) |
 
-`agent-sudo setup <client>` resolves the absolute `agent-sudo-mcp` path for you. Interactive approvals additionally need `agent-sudo init-approval` (see [First Run](docs/first_run.md)); the delegation-based evaluation does not.
+`agent-sudo setup <client>` resolves the absolute `agent-sudo-mcp` path for you. (With no client *and* no terminal — e.g. in CI — `agent-sudo setup` lists the targets and exits non-zero rather than prompting.) Interactive approvals additionally need `agent-sudo init-approval` (see [First Run](docs/first_run.md)); the delegation-based evaluation does not.
 
 For Claude Desktop, add Agent_Sudo at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`. Run `agent-sudo setup claude-desktop` to generate this block with paths resolved:
 
