@@ -76,6 +76,71 @@ Add an entry like this to the local Claude Desktop MCP config:
 
 Use only fake examples in committed docs and tests. Keep local policy files, audit logs, and approval config out of source control.
 
+## Claude Code
+
+Claude Code manages MCP servers with the `claude mcp` command — no manual JSON editing required. You only need `agent-sudo-mcp` on your `PATH` (`pipx install agent-sudo-mcp` provides it); a source checkout is **not** required.
+
+First resolve the absolute path to the installed server, then register it:
+
+```bash
+which agent-sudo-mcp
+# e.g. /Users/you/.local/bin/agent-sudo-mcp
+
+claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp --workspace /ABS/PATH/TO/your/project
+```
+
+Everything after `--` is the server command and its arguments. Replace `/ABS/PATH/TO/your/project` with the absolute path to the project Claude Code should operate in.
+
+To generate this command with the path already resolved for you:
+
+```bash
+agent-sudo setup claude-code
+```
+
+Verify the server is registered, then confirm calls are actually routed through it:
+
+```bash
+claude mcp list            # agent-sudo should be listed
+claude mcp get agent-sudo  # shows the resolved command and args
+agent-sudo audit list      # after a tool call in Claude Code, the call should appear
+```
+
+If a tool call does **not** appear in `agent-sudo audit list`, it bypassed Agent_Sudo (see [Bypass Risk](#bypass-risk)).
+
+Remove it with:
+
+```bash
+claude mcp remove agent-sudo
+```
+
+## Codex CLI
+
+Codex CLI loads MCP servers from `~/.codex/config.toml`. Add an `[mcp_servers.agent-sudo]` block (create the file if it does not exist). As with Claude Code, you only need `agent-sudo-mcp` on your `PATH` — no source checkout.
+
+```bash
+which agent-sudo-mcp
+# e.g. /Users/you/.local/bin/agent-sudo-mcp
+```
+
+```toml
+# ~/.codex/config.toml
+[mcp_servers.agent-sudo]
+command = "/ABS/PATH/TO/agent-sudo-mcp"
+args = ["--workspace", "/ABS/PATH/TO/your/project"]
+```
+
+Replace both paths with the absolute values for your machine, then restart Codex CLI. To generate this block with the executable path already resolved:
+
+```bash
+agent-sudo setup codex
+```
+
+Verify routing by running a tool inside a Codex session, then:
+
+```bash
+agent-sudo audit list   # the call should appear; if it does not, it bypassed agent-sudo
+```
+
 ## Tool Behavior
 
 - `read_file` is allowed by the default policy (unless targeting a protected configuration or sensitive file, which is BLOCKED).

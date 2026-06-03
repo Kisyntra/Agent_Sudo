@@ -29,7 +29,7 @@ Approval prompts are one enforcement step inside that boundary. They are not the
 
 ## Who it's for
 
-- **Local AI power users** — Claude Code, Codex CLI, Aider, and other MCP-based agents. Protect secrets, prevent destructive actions, enforce trust boundaries, and keep an accountable record.
+- **Local AI power users** — [Claude Code](docs/integrations/mcp_server_setup.md#claude-code), [Codex CLI](docs/integrations/mcp_server_setup.md#codex-cli), Aider, and other MCP-based agents. Protect secrets, prevent destructive actions, enforce trust boundaries, and keep an accountable record.
 - **Agent runtimes & platforms** — embed authorization, scoped delegation, provenance-based decisions, and verifiable audit instead of building them yourself. MCP is the mature adapter today; other runtime integrations exist but are earlier (see [Ecosystem](#ecosystem)).
 
 ## What makes it different
@@ -107,12 +107,20 @@ MCP is the first production-ready adapter — the recommended way to connect Age
 ```bash
 pipx install agent-sudo-mcp
 agent-sudo --version
-agent-sudo init-approval
-agent-sudo workspace set /ABS/PATH/TO/your/project
 which agent-sudo-mcp
 ```
 
-Add Agent_Sudo to Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`:
+**Pick your client — each has a copy-paste path (no source checkout needed):**
+
+| Client | One-step setup | Guide |
+| :--- | :--- | :--- |
+| **Claude Code** | `agent-sudo setup claude-code` prints the `claude mcp add …` command | [Claude Code](docs/integrations/mcp_server_setup.md#claude-code) |
+| **Codex CLI** | `agent-sudo setup codex` prints the `~/.codex/config.toml` block | [Codex CLI](docs/integrations/mcp_server_setup.md#codex-cli) |
+| **Claude Desktop** | Edit `claude_desktop_config.json` (below) | [Claude Desktop](docs/integrations/claude_desktop_setup.md) |
+
+`agent-sudo setup <client>` resolves the absolute `agent-sudo-mcp` path for you. Interactive approvals additionally need `agent-sudo init-approval` (see [First Run](docs/first_run.md)); the delegation-based evaluation does not.
+
+For Claude Desktop, add Agent_Sudo at `~/Library/Application Support/Claude/claude_desktop_config.json`, using the absolute path returned by `which agent-sudo-mcp`:
 
 ```json
 {
