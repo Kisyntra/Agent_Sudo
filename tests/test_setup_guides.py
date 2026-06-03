@@ -66,6 +66,31 @@ class SetupGuideTests(unittest.TestCase):
         ), mock.patch("agent_sudo.setup_guides.Path.exists", return_value=False):
             self.assertEqual(resolve_mcp_command(), "agent-sudo-mcp")
 
+    def test_mcp_config_pins_absolute_audit_and_pending_paths(self) -> None:
+        # Relative audit-log defaults would land where the verify step cannot
+        # read them; setup must pin absolute paths under ~/.agent-sudo.
+        for target in ("codex", "claude-code"):
+            text = render_setup(target)
+            self.assertIn("--audit-log", text)
+            self.assertIn("--pending-approvals-file", text)
+            self.assertIn("/.agent-sudo/mcp-audit.jsonl", text)
+            # The verify command references that same absolute audit path.
+            self.assertIn("agent-sudo audit list /", text)
+
+    def test_macos_emits_interactive_approval_flags(self) -> None:
+        with mock.patch("agent_sudo.setup_guides.sys.platform", "darwin"):
+            for target in ("codex", "claude-code"):
+                text = render_setup(target)
+                self.assertIn("--notify", text)
+                self.assertIn("--open-approval-terminal", text)
+
+    def test_non_macos_omits_macos_only_flags(self) -> None:
+        with mock.patch("agent_sudo.setup_guides.sys.platform", "linux"):
+            for target in ("codex", "claude-code"):
+                text = render_setup(target)
+                self.assertNotIn("--open-approval-terminal", text)
+                self.assertNotIn("--notify", text)
+
     def test_prose_targets_still_render_numbered_checklist(self) -> None:
         text = render_setup("claude-desktop")
         self.assertIn("dry-run only", text)

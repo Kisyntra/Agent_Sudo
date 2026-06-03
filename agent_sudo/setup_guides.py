@@ -8,6 +8,30 @@ MCP_EXECUTABLE = "agent-sudo-mcp"
 WORKSPACE_PLACEHOLDER = "/ABS/PATH/TO/your/project"
 
 
+def _approval_state_paths() -> tuple[str, str]:
+    """Absolute audit-log and pending-approvals paths under ~/.agent-sudo.
+
+    MCP clients spawn the server with an unpredictable working directory (GUI
+    clients often use ``/``), so the server's *relative* defaults
+    (``.agent-sudo/mcp-audit.jsonl``) would land somewhere the user cannot find
+    and ``agent-sudo audit list`` would not read. Pinning absolute paths keeps
+    the write location and the verification read location aligned.
+    """
+    base = Path.home() / ".agent-sudo"
+    return str(base / "mcp-audit.jsonl"), str(base / "pending_approvals.json")
+
+
+def _macos_approval_flags() -> list[str]:
+    """Interactive-approval flags that are macOS-only no-ops elsewhere.
+
+    ``--notify`` and ``--open-approval-terminal`` early-return on non-darwin
+    platforms, so they are only emitted where they actually do something.
+    """
+    if sys.platform == "darwin":
+        return ["--notify", "--open-approval-terminal"]
+    return []
+
+
 def resolve_mcp_command() -> str:
     """Best-effort absolute path to the ``agent-sudo-mcp`` console script.
 
@@ -64,43 +88,88 @@ SETUP_TARGETS = (*SETUP_GUIDES.keys(), *MCP_SETUP_TARGETS)
 
 def _codex_setup() -> list[str]:
     command = resolve_mcp_command()
-    return [
+    audit_log, pending = _approval_state_paths()
+    args = [
+        "--audit-log",
+        audit_log,
+        "--pending-approvals-file",
+        pending,
+        "--workspace",
+        WORKSPACE_PLACEHOLDER,
+        *_macos_approval_flags(),
+    ]
+    args_toml = ", ".join(f'"{value}"' for value in args)
+    lines = [
         "Codex CLI runs MCP servers defined in ~/.codex/config.toml.",
         "Add this block (create the file if it does not exist):",
         "",
         "[mcp_servers.agent-sudo]",
         f'command = "{command}"',
-        f'args = ["--workspace", "{WORKSPACE_PLACEHOLDER}"]',
+        f"args = [{args_toml}]",
         "",
         f"Replace {WORKSPACE_PLACEHOLDER} with the absolute path to the project",
         "you want Codex to operate in. Restart Codex CLI after editing the file.",
         "",
+        "Absolute --audit-log / --pending-approvals-file paths are used on purpose:",
+        "the MCP client may launch the server from any directory, so relative",
+        "paths would scatter (and hide) the audit log.",
+    ]
+    if _macos_approval_flags():
+        lines += [
+            "--notify and --open-approval-terminal give you an interactive macOS",
+            "approval prompt for sensitive/critical actions.",
+        ]
+    lines += [
+        "",
         "Verify with:",
         "  - In a Codex session, confirm the agent-sudo tools (read_file,",
         "    write_file, run_shell_command) are available.",
-        "  - Run a tool, then: agent-sudo audit list   (the call should appear).",
-        "    If the call is not listed, it bypassed agent-sudo.",
+        f"  - Run a tool, then: agent-sudo audit list {audit_log}",
+        "    The call should appear; if it does not, it bypassed agent-sudo.",
     ]
+    return lines
 
 
 def _claude_code_setup() -> list[str]:
     command = resolve_mcp_command()
-    return [
+    audit_log, pending = _approval_state_paths()
+    server_args = " ".join(
+        [
+            f"--audit-log {audit_log}",
+            f"--pending-approvals-file {pending}",
+            f"--workspace {WORKSPACE_PLACEHOLDER}",
+            *_macos_approval_flags(),
+        ]
+    )
+    lines = [
         "Claude Code manages MCP servers with the `claude mcp` command.",
         "Add Agent_Sudo (everything after -- is the server command and its args):",
         "",
-        f"  claude mcp add agent-sudo -- {command} --workspace {WORKSPACE_PLACEHOLDER}",
+        f"  claude mcp add agent-sudo -- {command} {server_args}",
         "",
         f"Replace {WORKSPACE_PLACEHOLDER} with the absolute path to your project.",
+        "",
+        "Absolute --audit-log / --pending-approvals-file paths are used on purpose:",
+        "Claude Code may launch the server from any directory, so relative paths",
+        "would scatter (and hide) the audit log.",
+    ]
+    if _macos_approval_flags():
+        lines += [
+            "--notify and --open-approval-terminal give you an interactive macOS",
+            "approval prompt for sensitive/critical actions.",
+        ]
+    lines += [
         "",
         "Verify with:",
         "  claude mcp list              (agent-sudo should be listed)",
         "  claude mcp get agent-sudo",
-        "  agent-sudo audit list        (after a tool call, confirms routing)",
+        f"  agent-sudo audit list {audit_log}",
+        "                               (after a tool call, confirms routing)",
         "",
         "Remove with:",
         "  claude mcp remove agent-sudo",
     ]
+    return lines
 
 
 _MCP_SETUP_BUILDERS = {

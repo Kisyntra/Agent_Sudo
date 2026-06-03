@@ -86,26 +86,35 @@ First resolve the absolute path to the installed server, then register it:
 which agent-sudo-mcp
 # e.g. /Users/you/.local/bin/agent-sudo-mcp
 
-claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp --workspace /ABS/PATH/TO/your/project
+claude mcp add agent-sudo -- /ABS/PATH/TO/agent-sudo-mcp \
+  --audit-log "$HOME/.agent-sudo/mcp-audit.jsonl" \
+  --pending-approvals-file "$HOME/.agent-sudo/pending_approvals.json" \
+  --workspace /ABS/PATH/TO/your/project \
+  --notify --open-approval-terminal
 ```
 
 Everything after `--` is the server command and its arguments. Replace `/ABS/PATH/TO/your/project` with the absolute path to the project Claude Code should operate in.
 
-To generate this command with the path already resolved for you:
+Why these flags matter — do **not** drop `--audit-log` / `--pending-approvals-file`:
+
+- **Absolute `--audit-log` and `--pending-approvals-file`.** The server's defaults are *relative* (`.agent-sudo/...`), resolved against the directory the MCP client launches the server from — which you do not control and is often not your project. With relative paths the audit log is written somewhere the verification step below cannot read, so it looks like nothing was protected even when it was. Pin absolute paths so the write location and your `agent-sudo audit list` read location match.
+- **`--notify --open-approval-terminal`** (macOS only; no-ops elsewhere) give you an interactive approval prompt when a sensitive/critical action needs one. Without them an MCP client just receives `approval_required` and you must approve manually via `agent-sudo pending` / `agent-sudo approve`.
+
+To generate this command with the executable path already resolved and the macOS flags included where applicable:
 
 ```bash
 agent-sudo setup claude-code
 ```
 
-Verify the server is registered, then confirm calls are actually routed through it:
+Verify the server is registered, then confirm calls are actually routed through it — pass the **same** absolute audit-log path you configured above:
 
 ```bash
 claude mcp list            # agent-sudo should be listed
 claude mcp get agent-sudo  # shows the resolved command and args
-agent-sudo audit list      # after a tool call in Claude Code, the call should appear
+agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"   # the call should appear
 ```
 
-If a tool call does **not** appear in `agent-sudo audit list`, it bypassed Agent_Sudo (see [Bypass Risk](#bypass-risk)).
+If a tool call does **not** appear, it bypassed Agent_Sudo (see [Bypass Risk](#bypass-risk)). A bare `agent-sudo audit list` with no path reads the *relative* default and will look empty unless you run it from the right directory — pass the absolute path.
 
 Remove it with:
 
@@ -126,19 +135,24 @@ which agent-sudo-mcp
 # ~/.codex/config.toml
 [mcp_servers.agent-sudo]
 command = "/ABS/PATH/TO/agent-sudo-mcp"
-args = ["--workspace", "/ABS/PATH/TO/your/project"]
+args = [
+  "--audit-log", "/ABS/HOME/.agent-sudo/mcp-audit.jsonl",
+  "--pending-approvals-file", "/ABS/HOME/.agent-sudo/pending_approvals.json",
+  "--workspace", "/ABS/PATH/TO/your/project",
+  "--notify", "--open-approval-terminal",
+]
 ```
 
-Replace both paths with the absolute values for your machine, then restart Codex CLI. To generate this block with the executable path already resolved:
+Replace the paths with absolute values for your machine, then restart Codex CLI. The same reasoning as Claude Code applies: pin **absolute** `--audit-log` / `--pending-approvals-file` (the client launches the server from a directory you do not control, and relative defaults would hide the audit log), and `--notify --open-approval-terminal` enable the interactive macOS approval prompt (no-ops on other platforms). To generate this block with the executable path already resolved and the macOS flags included where applicable:
 
 ```bash
 agent-sudo setup codex
 ```
 
-Verify routing by running a tool inside a Codex session, then:
+Verify routing by running a tool inside a Codex session, then read the **same** absolute audit-log path you configured:
 
 ```bash
-agent-sudo audit list   # the call should appear; if it does not, it bypassed agent-sudo
+agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"   # the call should appear; if not, it bypassed agent-sudo
 ```
 
 ## Tool Behavior
