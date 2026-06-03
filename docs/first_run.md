@@ -48,19 +48,12 @@ If `agent-sudo-mcp` is not on `PATH`, run the MCP server as:
 python3 -m agent_sudo.mcp_server --help
 ```
 
-## 2. Initialize Approval
+> Passphrase setup (`agent-sudo init-approval`) is **not** required for this
+> first-run path. The deny → delegate → allow-once → deny loop below uses a
+> scoped delegation, not interactive approval. Passphrase setup is covered in
+> step 9, after you have seen the engine work.
 
-Create the local approval passphrase hash:
-
-```bash
-agent-sudo init-approval
-```
-
-Use a unique local passphrase. Do not reuse an account password.
-
-This writes local approval state under `~/.agent-sudo/`. Do not commit that directory.
-
-## 3. Prepare Local Demo State
+## 2. Prepare Local Demo State
 
 Use `/tmp` for first-run state so no local audit or delegation files are created in the checkout:
 
@@ -72,7 +65,7 @@ export AGENT_SUDO_AUDIT=/tmp/agent-sudo-first-run/audit.jsonl
 export AGENT_SUDO_DELEGATIONS=/tmp/agent-sudo-first-run/delegations.json
 ```
 
-## 4. Start MCP Server
+## 3. Start MCP Server
 
 In a real MCP client, configure the server command:
 
@@ -82,9 +75,9 @@ agent-sudo-mcp \
   --delegations-file "$AGENT_SUDO_DELEGATIONS"
 ```
 
-For a checkout-first demo, the command below starts `agent_sudo.mcp_server` as a subprocess and sends one MCP `run_shell_command` request for `pwd`.
+For a self-contained demo, the command below starts the `agent-sudo-mcp` server as a subprocess and sends one MCP `run_shell_command` request for `pwd`.
 
-## 5. Run Demo: Initial Deny
+## 4. Run Demo: Initial Deny
 
 ```bash
 python3 - <<'PY'
@@ -97,9 +90,7 @@ delegations = os.environ["AGENT_SUDO_DELEGATIONS"]
 
 process = subprocess.Popen(
     [
-        "python3",
-        "-m",
-        "agent_sudo.mcp_server",
+        "agent-sudo-mcp",
         "--audit-log",
         audit,
         "--delegations-file",
@@ -155,7 +146,7 @@ pwd-1 REQUIRE_STRONG_APPROVAL False
 
 That is the expected first result. Shell is `CRITICAL`, so MCP does not execute it without approval or delegation.
 
-## 6. Verify Audit Log
+## 5. Verify Audit Log
 
 ```bash
 agent-sudo verify-audit "$AGENT_SUDO_AUDIT"
@@ -173,7 +164,7 @@ If `agent-sudo` is not on `PATH`, use:
 python3 -m agent_sudo.gateway verify-audit "$AGENT_SUDO_AUDIT"
 ```
 
-## 7. Create One-Use Delegation
+## 6. Create One-Use Delegation
 
 Grant only actor `codex` one use of `run_shell_command` for target `pwd`:
 
@@ -203,7 +194,7 @@ python3 -m agent_sudo.gateway delegate create \
   --delegations-file "$AGENT_SUDO_DELEGATIONS"
 ```
 
-## 8. Run Demo: Allow Once, Then Deny
+## 7. Run Demo: Allow Once, Then Deny
 
 ```bash
 python3 - <<'PY'
@@ -216,9 +207,7 @@ delegations = os.environ["AGENT_SUDO_DELEGATIONS"]
 
 process = subprocess.Popen(
     [
-        "python3",
-        "-m",
-        "agent_sudo.mcp_server",
+        "agent-sudo-mcp",
         "--audit-log",
         audit,
         "--delegations-file",
@@ -280,7 +269,7 @@ pwd-2 ALLOW DELEGATION True executed
 pwd-3 DENY DELEGATION False delegation token <token_id> mismatched: token exhausted
 ```
 
-## 9. Verify Final Audit Log
+## 8. Verify Final Audit Log
 
 List the decisions you just produced:
 
@@ -329,6 +318,22 @@ You have now validated:
 - readable audit decisions
 - audit-chain verification
 - observed routing signals
+
+## 9. Initialize Approval (optional — for interactive approvals)
+
+The first-value loop above needed no passphrase. You only need this step when
+you want **interactive human approval** of sensitive actions (instead of, or in
+addition to, scoped delegations) — for example when wiring Agent_Sudo into a
+real MCP client.
+
+Create the local approval passphrase hash:
+
+```bash
+agent-sudo init-approval
+```
+
+Use a unique local passphrase. Do not reuse an account password. This writes
+local approval state under `~/.agent-sudo/`. Do not commit that directory.
 
 ## GIF Or Video Capture Workflow
 

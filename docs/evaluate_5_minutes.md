@@ -1,6 +1,6 @@
 # Evaluate Agent_Sudo in 5 Minutes
 
-This is the primary first-time evaluator path for Agent_Sudo v0.5.0.
+This is the primary first-time evaluator path for Agent_Sudo (v0.5.x).
 
 You do not need to understand the internal architecture first. You only need to see this loop work:
 
@@ -41,13 +41,11 @@ python3 -m pip install -e .
 python3 -m agent_sudo.gateway --version
 ```
 
-Expected version:
+`agent-sudo --version` prints the installed version (e.g. `agent-sudo v0.5.x`). It should match the version shown on the [PyPI badge](https://pypi.org/project/agent-sudo-mcp/) in the README.
 
-```text
-agent-sudo v0.5.0
-```
+If `agent-sudo --version` shows an older version than the one you just installed, your shell is resolving a stale `agent-sudo` ahead of this install. Use the `python3 -m agent_sudo.gateway ...` fallback commands below, or reinstall Agent_Sudo in your active environment.
 
-If `agent-sudo --version` shows an older version while the checkout shows v0.5.0, use the `python3 -m agent_sudo.gateway ...` fallback commands below or reinstall Agent_Sudo in your active environment.
+> The `agent-sudo-mcp` MCP server used in the steps below is installed by both `pipx install agent-sudo-mcp` and `pip install -e .`, so the evaluation runs the same way from a published install or a source checkout.
 
 ## 1. Prepare Temporary Evaluation State
 
@@ -73,9 +71,7 @@ import subprocess
 
 process = subprocess.Popen(
     [
-        "python3",
-        "-m",
-        "agent_sudo.mcp_server",
+        "agent-sudo-mcp",
         "--audit-log",
         os.environ["AGENT_SUDO_AUDIT"],
         "--delegations-file",
@@ -171,9 +167,7 @@ import subprocess
 
 process = subprocess.Popen(
     [
-        "python3",
-        "-m",
-        "agent_sudo.mcp_server",
+        "agent-sudo-mcp",
         "--audit-log",
         os.environ["AGENT_SUDO_AUDIT"],
         "--delegations-file",

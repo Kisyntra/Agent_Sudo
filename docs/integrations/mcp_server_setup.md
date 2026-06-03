@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-Release: `v0.5.0`.
+Applies to Agent_Sudo v0.5.x.
 
 If you are evaluating Agent_Sudo for the first time, start with [Evaluate Agent_Sudo in 5 Minutes](../evaluate_5_minutes.md). This setup page is reference material after the first blocked -> delegated -> allowed once -> blocked again -> audit verified path succeeds.
 
