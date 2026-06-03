@@ -56,9 +56,7 @@ class SetupGuideTests(unittest.TestCase):
 
     def test_setup_uses_resolved_executable_path(self) -> None:
         resolved = "/opt/example/bin/agent-sudo-mcp"
-        with mock.patch(
-            "agent_sudo.setup_guides.shutil.which", return_value=resolved
-        ):
+        with mock.patch("agent_sudo.setup_guides.shutil.which", return_value=resolved):
             codex = render_setup("codex")
             claude_code = render_setup("claude-code")
 
@@ -66,9 +64,10 @@ class SetupGuideTests(unittest.TestCase):
         self.assertIn(resolved, claude_code)
 
     def test_resolve_mcp_command_falls_back_to_bare_name(self) -> None:
-        with mock.patch(
-            "agent_sudo.setup_guides.shutil.which", return_value=None
-        ), mock.patch("agent_sudo.setup_guides.Path.exists", return_value=False):
+        with (
+            mock.patch("agent_sudo.setup_guides.shutil.which", return_value=None),
+            mock.patch("agent_sudo.setup_guides.Path.exists", return_value=False),
+        ):
             self.assertEqual(resolve_mcp_command(), "agent-sudo-mcp")
 
     def test_setup_claude_desktop_prints_pasteable_json(self) -> None:
