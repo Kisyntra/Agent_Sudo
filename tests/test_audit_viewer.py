@@ -10,6 +10,7 @@ from pathlib import Path
 from agent_sudo.audit import (
     AuditLogger,
     audit_entries_since,
+    filter_entries,
     format_audit_log,
     format_audit_review,
     parse_since_window,
@@ -228,6 +229,221 @@ class AuditListCliTests(unittest.TestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("mismatch", err.getvalue())
+
+
+def _decision_entry(
+    decision: str,
+    *,
+    origin: str = "UNKNOWN",
+    actor: str = "claude-code",
+    tool: str = "terminal",
+    action: str = "run_shell_command",
+    target: str = "ls",
+) -> dict:
+    """A raw gateway_decision audit entry for filter/CLI tests."""
+    return {
+        "timestamp": "2026-06-02T14:00:00Z",
+        "event_type": "gateway_decision",
+        "decision": decision,
+        "reason": "test record",
+        "request": {
+            "actor": actor,
+            "tool": tool,
+            "action": action,
+            "target": target,
+            "provenance": {"origin_type": origin},
+        },
+    }
+
+
+def _write_raw(path: Path, entries: list[dict]) -> None:
+    """Write entries as plain JSONL (audit list does not verify the chain)."""
+    with path.open("w", encoding="utf-8") as handle:
+        for entry in entries:
+            handle.write(json.dumps(entry) + "\n")
+
+
+class FilterEntriesTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.entries = [
+            _decision_entry("ALLOW", origin="USER_DIRECT", actor="claude-code"),
+            _decision_entry(
+                "DENY",
+                origin="EXTERNAL_CONTENT",
+                actor="web-agent",
+                tool="network",
+                target="https://attacker.example/leak",
+            ),
+            _decision_entry(
+                "REQUIRE_APPROVAL",
+                origin="AGENT_INTERNAL",
+                action="write_file",
+                target="src/config.py",
+            ),
+        ]
+
+    def test_no_filters_is_noop(self) -> None:
+        self.assertEqual(filter_entries(self.entries), self.entries)
+
+    def test_filter_by_decision(self) -> None:
+        out = filter_entries(self.entries, decision="DENY")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["decision"], "DENY")
+
+    def test_filter_by_origin(self) -> None:
+        out = filter_entries(self.entries, origin="EXTERNAL_CONTENT")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(
+            out[0]["request"]["provenance"]["origin_type"], "EXTERNAL_CONTENT"
+        )
+
+    def test_non_allow_excludes_allow(self) -> None:
+        out = filter_entries(self.entries, non_allow=True)
+        self.assertEqual({e["decision"] for e in out}, {"DENY", "REQUIRE_APPROVAL"})
+
+    def test_filter_actor_substring_case_insensitive(self) -> None:
+        out = filter_entries(self.entries, actor="WEB")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["request"]["actor"], "web-agent")
+
+    def test_filter_tool_substring(self) -> None:
+        out = filter_entries(self.entries, tool="network")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["decision"], "DENY")
+
+    def test_filter_target_substring(self) -> None:
+        out = filter_entries(self.entries, target="config.py")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["decision"], "REQUIRE_APPROVAL")
+
+    def test_combined_filters(self) -> None:
+        out = filter_entries(self.entries, non_allow=True, origin="EXTERNAL_CONTENT")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["decision"], "DENY")
+
+    def test_no_match_returns_empty(self) -> None:
+        self.assertEqual(filter_entries(self.entries, actor="nobody"), [])
+
+    def test_handles_approval_lifecycle_shape(self) -> None:
+        event = {
+            "timestamp": "2026-06-02T14:00:00Z",
+            "event_type": "approval_denied",
+            "approval_request": {
+                "reason": "user denied",
+                "action_request": {
+                    "actor": "codex",
+                    "provenance": {"origin_type": "USER_DIRECT"},
+                },
+            },
+        }
+        # origin resolves through approval_request.action_request; no crash
+        self.assertEqual(filter_entries([event], origin="USER_DIRECT"), [event])
+        self.assertEqual(filter_entries([event], origin="EXTERNAL_CONTENT"), [])
+
+
+class AuditViewOriginColumnTests(unittest.TestCase):
+    def test_origin_column_in_header_and_rows(self) -> None:
+        entries = [_decision_entry("DENY", origin="EXTERNAL_CONTENT")]
+        output = format_audit_log(entries)
+        self.assertIn("origin", output)
+        self.assertIn("EXTERNAL_CONTENT", output)
+
+    def test_existing_columns_preserved(self) -> None:
+        output = format_audit_log([_decision_entry("ALLOW", origin="USER_DIRECT")])
+        for header in ("time", "decision", "actor", "action", "target", "reason"):
+            self.assertIn(header, output)
+
+
+class CliAuditListFilterTests(unittest.TestCase):
+    def _log(self, tmpdir: str) -> Path:
+        path = Path(tmpdir) / "audit.jsonl"
+        _write_raw(
+            path,
+            [
+                _decision_entry("ALLOW", origin="USER_DIRECT", target="README.md"),
+                _decision_entry(
+                    "DENY",
+                    origin="EXTERNAL_CONTENT",
+                    actor="web-agent",
+                    target="https://attacker.example/leak",
+                ),
+            ],
+        )
+        return path
+
+    def test_origin_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(
+                    ["audit", "list", str(path), "--origin", "EXTERNAL_CONTENT"]
+                )
+        self.assertEqual(code, 0)
+        out = buffer.getvalue()
+        self.assertIn("DENY", out)
+        self.assertNotIn("README.md", out)
+
+    def test_decision_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["audit", "list", str(path), "--decision", "ALLOW"])
+        self.assertEqual(code, 0)
+        out = buffer.getvalue()
+        self.assertIn("README.md", out)
+        self.assertNotIn("DENY", out)
+
+    def test_non_allow_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["audit", "list", str(path), "--non-allow"])
+        self.assertEqual(code, 0)
+        out = buffer.getvalue()
+        self.assertIn("DENY", out)
+        self.assertNotIn("README.md", out)
+
+    def test_json_output_filtered_and_shape_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(
+                    ["audit", "list", str(path), "--decision", "DENY", "--json"]
+                )
+        self.assertEqual(code, 0)
+        records = json.loads(buffer.getvalue())
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["decision"], "DENY")
+        # raw record shape is unchanged by filtering
+        self.assertIn("request", records[0])
+        self.assertEqual(
+            records[0]["request"]["provenance"]["origin_type"], "EXTERNAL_CONTENT"
+        )
+
+    def test_invalid_since_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            err = io.StringIO()
+            with redirect_stderr(err):
+                code = main(["audit", "list", str(path), "--since", "bogus"])
+        self.assertEqual(code, 1)
+        self.assertIn("--since", err.getvalue())
+
+    def test_no_flags_unchanged_behavior(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._log(tmpdir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["audit", "list", str(path)])
+        self.assertEqual(code, 0)
+        out = buffer.getvalue()
+        # both records present when no filter is applied
+        self.assertIn("README.md", out)
+        self.assertIn("DENY", out)
 
 
 if __name__ == "__main__":
