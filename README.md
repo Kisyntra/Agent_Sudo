@@ -149,6 +149,24 @@ agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"
 
 If the action is not listed, it bypassed Agent_Sudo. A bare `agent-sudo audit list` reads a *relative* default and will look empty — pass the absolute path. For the full setup and trust-boundary details, see the [Claude Desktop Setup Guide](docs/integrations/claude_desktop_setup.md).
 
+### Platform support
+
+Agent_Sudo's core — **authorization, delegation, provenance, and the tamper-evident audit log** — works the same on **macOS, Linux, and Windows**.
+
+Two *optional* approval-UX flags are **macOS-only today**:
+
+- `--notify` — desktop notification when an approval is pending (macOS `osascript`). There is **no custom notification icon**: the macOS notification shows the invoking process's icon, not an Agent_Sudo logo.
+- `--open-approval-terminal` — auto-opens **Terminal.app** running the approval helper (macOS only).
+
+On **Linux and Windows** these flags are silent no-ops, so `agent-sudo setup` **omits them** off macOS. Approve pending actions manually from any terminal:
+
+```bash
+agent-sudo pending                 # list pending approval requests
+agent-sudo approve <approval_id>   # approve one (critical actions require your passphrase)
+```
+
+This manual workflow is the expected path on Linux/Windows and works on macOS too.
+
 ---
 
 ## Trust Boundaries: What Is and Is Not Protected

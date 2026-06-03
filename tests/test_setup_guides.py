@@ -134,6 +134,18 @@ class SetupGuideTests(unittest.TestCase):
         # The recommended README config must wire delegations.
         self.assertIn("--delegations-file", readme)
 
+    def test_docs_state_macos_only_platform_support(self) -> None:
+        # README and the MCP setup doc must state the macOS-only flags and the
+        # manual cross-platform approval workflow, and must not promise icons.
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        mcp_doc = (
+            REPO_ROOT / "docs" / "integrations" / "mcp_server_setup.md"
+        ).read_text(encoding="utf-8")
+        for text in (readme, mcp_doc):
+            self.assertIn("macOS-only", text)
+            self.assertIn("agent-sudo approve", text)
+            self.assertIn("no custom", text.lower())
+
     def test_prose_targets_still_render_numbered_checklist(self) -> None:
         # hermes/openclaw remain native-wrap prose checklists.
         text = render_setup("openclaw")

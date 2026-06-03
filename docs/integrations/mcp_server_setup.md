@@ -173,6 +173,31 @@ agent-sudo verify-audit "$AUDIT"               # verify the SHA-256 hash chain
 
 `agent-sudo verify-routing` is the exception: it already checks both your current directory and `~/.agent-sudo/mcp-audit.jsonl`, so it works without an explicit path.
 
+## Platform Support
+
+The core — **authorization, delegation, provenance, and the tamper-evident audit log** — works identically on **macOS, Linux, and Windows**.
+
+Two *optional* approval-UX flags are **macOS-only today**:
+
+| Flag | macOS | Linux / Windows |
+| :--- | :--- | :--- |
+| `--notify` (desktop notification via `osascript`) | works | silent no-op |
+| `--open-approval-terminal` (auto-opens **Terminal.app** with the approval helper) | works | silent no-op |
+
+Because they do nothing off macOS, **`agent-sudo setup` includes these flags only on macOS** and omits them on Linux/Windows. If you hand-write a config:
+
+- **macOS:** the generated config may include `--notify` and `--open-approval-terminal`.
+- **Linux / Windows:** omit both flags and approve manually:
+
+  ```bash
+  agent-sudo pending                 # list pending approval requests
+  agent-sudo approve <approval_id>   # critical actions require your passphrase
+  ```
+
+  This manual workflow is the expected path on Linux/Windows (and works on macOS too).
+
+**Notification icon:** there is **no custom Agent_Sudo notification icon**. The backend is macOS `osascript display notification`, which shows the invoking process's icon — it does not display a branded image. Do not expect Agent_Sudo branding in the notification.
+
 ## Tool Behavior
 
 - `read_file` is allowed by the default policy (unless targeting a protected configuration or sensitive file, which is BLOCKED).
