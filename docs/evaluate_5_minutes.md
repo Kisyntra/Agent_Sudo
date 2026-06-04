@@ -18,8 +18,16 @@ audit verified
 
 ## Fastest path: `agent-sudo eval`
 
+**Recommended (via pipx):**
 ```bash
 pipx install agent-sudo-mcp
+agent-sudo eval
+```
+
+**Alternative (via virtual environment):**
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install agent-sudo-mcp
 agent-sudo eval
 ```
 
@@ -56,8 +64,16 @@ That is the whole evaluation. The manual, step-by-step walkthrough below is opti
 
 For a published install:
 
+**Option 1: Recommended (via pipx)**
 ```bash
 pipx install agent-sudo-mcp
+agent-sudo --version
+```
+
+**Option 2: Alternative (via virtual environment)**
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install agent-sudo-mcp
 agent-sudo --version
 ```
 
@@ -72,7 +88,7 @@ python3 -m agent_sudo.gateway --version
 
 If `agent-sudo --version` shows an older version than the one you just installed, your shell is resolving a stale `agent-sudo` ahead of this install. Use the `python3 -m agent_sudo.gateway ...` fallback commands below, or reinstall Agent_Sudo in your active environment.
 
-> The `agent-sudo-mcp` MCP server used in the steps below is installed by both `pipx install agent-sudo-mcp` and `pip install -e .`, so the evaluation runs the same way from a published install or a source checkout.
+> The `agent-sudo-mcp` MCP server used in the steps below is installed by `pipx install agent-sudo-mcp`, `pip install agent-sudo-mcp`, and `pip install -e .`, so the evaluation runs the same way from a published install or a source checkout.
 
 ## 1. Prepare Temporary Evaluation State
 
