@@ -241,18 +241,23 @@ class MCPGatewayTests(unittest.TestCase):
 
     def test_server_workspace_initialization(self) -> None:
         from agent_sudo.mcp_server import AgentSudoMCPServer
+
         gateway = PermissionGateway(self.policy)
         server_with_ws = AgentSudoMCPServer(gateway, workspace="/foo/bar")
         self.assertEqual(server_with_ws.mcp_gateway.write_root, Path("/foo/bar"))
 
         server_no_ws = AgentSudoMCPServer(gateway)
-        self.assertEqual(server_no_ws.mcp_gateway.write_root, Path("/tmp/agent-sudo-demo"))
+        self.assertEqual(
+            server_no_ws.mcp_gateway.write_root, Path("/tmp/agent-sudo-demo")
+        )
 
     def test_write_file_inside_workspace_succeeds(self) -> None:
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace_path = Path(tmpdir)
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             target = workspace_path / "test.txt"
             result = mcp_gateway.dispatch(
                 {
@@ -275,7 +280,9 @@ class MCPGatewayTests(unittest.TestCase):
             workspace_path.mkdir()
             outside_path = Path(tmpdir) / "outside.txt"
 
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             result = mcp_gateway.dispatch(
                 {
                     "actor": "mcp-client",
@@ -288,7 +295,9 @@ class MCPGatewayTests(unittest.TestCase):
                 }
             )
             self.assertFalse(result.executed)
-            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+            self.assertIn(
+                "Write was attempted outside the allowed directory", result.reason
+            )
 
     def test_path_traversal_outside_workspace_blocked(self) -> None:
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
@@ -297,7 +306,9 @@ class MCPGatewayTests(unittest.TestCase):
             workspace_path.mkdir()
             target_traversal = workspace_path / "../outside.txt"
 
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             result = mcp_gateway.dispatch(
                 {
                     "actor": "mcp-client",
@@ -305,15 +316,21 @@ class MCPGatewayTests(unittest.TestCase):
                     "tool": "filesystem",
                     "action": "write_file",
                     "target": str(target_traversal),
-                    "parameters": {"path": str(target_traversal), "content": "traversal\n"},
+                    "parameters": {
+                        "path": str(target_traversal),
+                        "content": "traversal\n",
+                    },
                     "payload_summary": "write traversal file",
                 }
             )
             self.assertFalse(result.executed)
-            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+            self.assertIn(
+                "Write was attempted outside the allowed directory", result.reason
+            )
 
     def test_symlink_escape_outside_workspace_blocked(self) -> None:
         import os
+
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace_path = Path(tmpdir) / "workspace"
@@ -328,7 +345,9 @@ class MCPGatewayTests(unittest.TestCase):
             except (OSError, NotImplementedError):
                 self.skipTest("Symlinks not supported on this platform")
 
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             result = mcp_gateway.dispatch(
                 {
                     "actor": "mcp-client",
@@ -336,12 +355,17 @@ class MCPGatewayTests(unittest.TestCase):
                     "tool": "filesystem",
                     "action": "write_file",
                     "target": str(link_path),
-                    "parameters": {"path": str(link_path), "content": "escape attempt\n"},
+                    "parameters": {
+                        "path": str(link_path),
+                        "content": "escape attempt\n",
+                    },
                     "payload_summary": "write symlink escape file",
                 }
             )
             self.assertFalse(result.executed)
-            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+            self.assertIn(
+                "Write was attempted outside the allowed directory", result.reason
+            )
 
     def test_write_to_git_dir_blocked(self) -> None:
         gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
@@ -349,7 +373,9 @@ class MCPGatewayTests(unittest.TestCase):
             workspace_path = Path(tmpdir)
             git_config = workspace_path / ".git" / "config"
 
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             result = mcp_gateway.dispatch(
                 {
                     "actor": "mcp-client",
@@ -357,7 +383,10 @@ class MCPGatewayTests(unittest.TestCase):
                     "tool": "filesystem",
                     "action": "write_file",
                     "target": str(git_config),
-                    "parameters": {"path": str(git_config), "content": "corrupted git\n"},
+                    "parameters": {
+                        "path": str(git_config),
+                        "content": "corrupted git\n",
+                    },
                     "payload_summary": "write git config",
                 }
             )
@@ -371,7 +400,9 @@ class MCPGatewayTests(unittest.TestCase):
 
             # 1. Block workspace/.agent-sudo/
             workspace_state = workspace_path / ".agent-sudo" / "config.json"
-            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            mcp_gateway = MCPGateway(
+                gateway, write_root=workspace_path, workspace=str(workspace_path)
+            )
             result_workspace_state = mcp_gateway.dispatch(
                 {
                     "actor": "mcp-client",
@@ -384,7 +415,10 @@ class MCPGatewayTests(unittest.TestCase):
                 }
             )
             self.assertFalse(result_workspace_state.executed)
-            self.assertIn("Write is not permitted inside workspace .agent-sudo directory", result_workspace_state.reason)
+            self.assertIn(
+                "Write is not permitted inside workspace .agent-sudo directory",
+                result_workspace_state.reason,
+            )
 
             # 2. Block ~/.agent-sudo/
             home_state = Path("~/.agent-sudo/config.json").expanduser()
@@ -400,7 +434,10 @@ class MCPGatewayTests(unittest.TestCase):
                 }
             )
             self.assertFalse(result_home_state.executed)
-            self.assertIn("Write is not permitted inside ~/.agent-sudo/ directory", result_home_state.reason)
+            self.assertIn(
+                "Write is not permitted inside ~/.agent-sudo/ directory",
+                result_home_state.reason,
+            )
 
 
 if __name__ == "__main__":

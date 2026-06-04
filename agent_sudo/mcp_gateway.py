@@ -159,7 +159,10 @@ class MCPGateway:
                 reason="Action was blocked by policy: write_file. Reason: Write is not permitted inside .git directory.",
             )
 
-        if resolved_target == workspace_agent_sudo or workspace_agent_sudo in resolved_target.parents:
+        if (
+            resolved_target == workspace_agent_sudo
+            or workspace_agent_sudo in resolved_target.parents
+        ):
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
@@ -168,7 +171,10 @@ class MCPGateway:
                 reason="Action was blocked by policy: write_file. Reason: Write is not permitted inside workspace .agent-sudo directory.",
             )
 
-        if resolved_target == home_agent_sudo or home_agent_sudo in resolved_target.parents:
+        if (
+            resolved_target == home_agent_sudo
+            or home_agent_sudo in resolved_target.parents
+        ):
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
@@ -178,11 +184,17 @@ class MCPGateway:
             )
 
         blocked_files = [Path("~/.agent-sudo/config.json").expanduser().resolve()]
-        if getattr(self.gateway, "audit_logger", None) and getattr(self.gateway.audit_logger, "path", None):
+        if getattr(self.gateway, "audit_logger", None) and getattr(
+            self.gateway.audit_logger, "path", None
+        ):
             blocked_files.append(self.gateway.audit_logger.path.resolve())
-        if getattr(self.gateway, "delegation_store", None) and getattr(self.gateway.delegation_store, "path", None):
+        if getattr(self.gateway, "delegation_store", None) and getattr(
+            self.gateway.delegation_store, "path", None
+        ):
             blocked_files.append(self.gateway.delegation_store.path.resolve())
-        if getattr(self.gateway, "pending_approval_store", None) and getattr(self.gateway.pending_approval_store, "path", None):
+        if getattr(self.gateway, "pending_approval_store", None) and getattr(
+            self.gateway.pending_approval_store, "path", None
+        ):
             blocked_files.append(self.gateway.pending_approval_store.path.resolve())
 
         for bf in blocked_files:

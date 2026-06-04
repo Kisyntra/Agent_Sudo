@@ -109,7 +109,9 @@ class AgentSudoMCPServer:
     ):
         self.gateway = gateway
         write_root = Path(workspace) if workspace else Path("/tmp/agent-sudo-demo")
-        self.mcp_gateway = MCPGateway(gateway, write_root=write_root, workspace=workspace)
+        self.mcp_gateway = MCPGateway(
+            gateway, write_root=write_root, workspace=workspace
+        )
         self.interactive_approvals = interactive_approvals
         self.approval_wait_seconds = max(0.0, approval_wait_seconds)
         self.poll_interval_seconds = max(0.0, poll_interval_seconds)

@@ -246,7 +246,9 @@ def is_write_target_allowed(target: str) -> bool:
     # 2. Allow temp directory (e.g. /var/folders/ on macOS) for unit testing
     try:
         tmp_dir = str(Path(tempfile.gettempdir()).resolve()).replace("\\", "/")
-        if resolved_path == tmp_dir or resolved_path.startswith(tmp_dir.rstrip("/") + "/"):
+        if resolved_path == tmp_dir or resolved_path.startswith(
+            tmp_dir.rstrip("/") + "/"
+        ):
             return True
     except Exception:
         pass
@@ -255,11 +257,14 @@ def is_write_target_allowed(target: str) -> bool:
     ws = os.environ.get("AGENT_SUDO_WORKSPACE")
     if not ws:
         from agent_sudo.context import _load_config_workspace
+
         ws = _load_config_workspace()
     if ws:
         try:
             ws_resolved = str(Path(ws).expanduser().resolve()).replace("\\", "/")
-            if resolved_path == ws_resolved or resolved_path.startswith(ws_resolved.rstrip("/") + "/"):
+            if resolved_path == ws_resolved or resolved_path.startswith(
+                ws_resolved.rstrip("/") + "/"
+            ):
                 return True
         except Exception:
             pass
