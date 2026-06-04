@@ -266,7 +266,9 @@ def _format_blocked_write_reason(
         lines.append(f"Reason: {gateway_reason}")
     elif is_path_block:
         if is_demo:
-            lines.append(f"Reason: Write was attempted outside the allowed demo directory ({write_root}).")
+            lines.append(
+                f"Reason: Write was attempted outside the allowed demo directory ({write_root})."
+            )
         else:
             lines.append("Reason: Write was attempted outside the allowed directory.")
 
