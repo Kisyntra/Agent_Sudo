@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
-from typing import Any, BinaryIO, Iterable
+from typing import Any, BinaryIO, Callable, Iterable
 
 from agent_sudo import __version_label__
 from agent_sudo.audit import AuditLogger
@@ -12,13 +13,27 @@ from agent_sudo.delegations import DelegationStore
 from agent_sudo.gateway import PermissionGateway
 from agent_sudo.mcp_gateway import MCPGateway
 from agent_sudo.mcp_validation import tool_call_from_jsonrpc
-from agent_sudo.models import ActionRequest, Decision
+from agent_sudo.models import ActionRequest, ApprovalStatus, Decision
 from agent_sudo.pending_approvals import PENDING_APPROVALS_PATH, PendingApprovalStore
 from agent_sudo.policy import load_default_policy, load_policy
 
 
 SERVER_NAME = "agent-sudo-mcp"
 PROTOCOL_VERSION = "2025-03-26"
+
+# Default block-and-wait window when --interactive-approvals is enabled. Kept
+# conservatively below the pending-approval TTL ceiling (600s) and below the
+# tightest measured client tool-call timeout (Codex, 120s) so the held call
+# resolves in-band on clients that tolerate the wait. See issue #73 (Phase 1A/1B).
+DEFAULT_APPROVAL_WAIT_SECONDS = 60.0
+_APPROVAL_POLL_INTERVAL_SECONDS = 1.0
+
+_APPROVAL_REQUIRED = frozenset(
+    {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL}
+)
+_TERMINAL_STATUSES = frozenset(
+    {ApprovalStatus.DENIED, ApprovalStatus.EXPIRED, ApprovalStatus.USED}
+)
 
 
 TOOLS: list[dict[str, Any]] = [
@@ -81,9 +96,24 @@ TOOLS: list[dict[str, Any]] = [
 
 
 class AgentSudoMCPServer:
-    def __init__(self, gateway: PermissionGateway, *, workspace: str | None = None):
+    def __init__(
+        self,
+        gateway: PermissionGateway,
+        *,
+        workspace: str | None = None,
+        interactive_approvals: bool = False,
+        approval_wait_seconds: float = DEFAULT_APPROVAL_WAIT_SECONDS,
+        poll_interval_seconds: float = _APPROVAL_POLL_INTERVAL_SECONDS,
+        sleep_func: Callable[[float], None] = time.sleep,
+        monotonic_func: Callable[[], float] = time.monotonic,
+    ):
         self.gateway = gateway
         self.mcp_gateway = MCPGateway(gateway, workspace=workspace)
+        self.interactive_approvals = interactive_approvals
+        self.approval_wait_seconds = max(0.0, approval_wait_seconds)
+        self.poll_interval_seconds = max(0.0, poll_interval_seconds)
+        self._sleep = sleep_func
+        self._monotonic = monotonic_func
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
         method = message.get("method")
@@ -111,10 +141,31 @@ class AgentSudoMCPServer:
     def _call_tool(self, message: dict[str, Any]) -> dict[str, Any]:
         tool_call = tool_call_from_jsonrpc(message)
         execution = self.mcp_gateway.dispatch(tool_call)
-        approval_required = execution.gateway_result.decision in {
-            Decision.REQUIRE_APPROVAL,
-            Decision.REQUIRE_STRONG_APPROVAL,
-        }
+
+        # Phase 1B: block-and-wait. When interactive approvals are enabled and
+        # the call was held for approval, keep the tools/call open, poll the
+        # existing pending-approval store, and on approval re-dispatch the same
+        # tool_call so the existing consume path returns ALLOW and the real
+        # result. No delegation, no scope derivation: this only waits on the
+        # one pending approval already created for this exact request.
+        interactive_wait: dict[str, Any] | None = None
+        if (
+            self.interactive_approvals
+            and execution.gateway_result.decision in _APPROVAL_REQUIRED
+            and execution.gateway_result.approval_request_id
+        ):
+            outcome = self._wait_for_decision(
+                execution.gateway_result.approval_request_id
+            )
+            interactive_wait = {
+                "enabled": True,
+                "outcome": outcome,
+                "waited_seconds_budget": self.approval_wait_seconds,
+            }
+            if outcome == "approved":
+                execution = self.mcp_gateway.dispatch(tool_call)
+
+        approval_required = execution.gateway_result.decision in _APPROVAL_REQUIRED
         transcript = {
             "status": "approval_required"
             if approval_required
@@ -139,6 +190,8 @@ class AgentSudoMCPServer:
                 "reason": execution.reason,
             },
         }
+        if interactive_wait is not None:
+            transcript["interactive_wait"] = interactive_wait
         is_error = (
             execution.gateway_result.decision != Decision.ALLOW
             or not execution.executed
@@ -159,6 +212,38 @@ class AgentSudoMCPServer:
             "isError": is_error,
         }
 
+    def _wait_for_decision(self, approval_request_id: str) -> str:
+        """Block until the pending approval resolves or the wait window elapses.
+
+        Returns one of: "approved", "denied", "expired", "used", "gone",
+        "unavailable", "timeout". Polls the existing store; the approval may be
+        granted via any channel (terminal helper, desktop prompt, or another
+        process running `agent-sudo approve`).
+        """
+        store = self.gateway.pending_approval_store
+        if store is None:
+            return "unavailable"
+        deadline = self._monotonic() + self.approval_wait_seconds
+        while True:
+            approval = self._lookup(store, approval_request_id)
+            if approval is None:
+                return "gone"
+            if approval.status == ApprovalStatus.APPROVED:
+                return "approved"
+            if approval.status in _TERMINAL_STATUSES:
+                return approval.status.value
+            remaining = deadline - self._monotonic()
+            if remaining <= 0:
+                return "timeout"
+            self._sleep(min(self.poll_interval_seconds, remaining))
+
+    @staticmethod
+    def _lookup(store: PendingApprovalStore, approval_request_id: str):
+        for approval in store.list():
+            if approval.approval_request_id == approval_request_id:
+                return approval
+        return None
+
 
 def build_server(
     *,
@@ -170,6 +255,8 @@ def build_server(
     workspace: str | None = None,
     notify: bool | None = None,
     open_approval_terminal: bool | None = None,
+    interactive_approvals: bool = False,
+    approval_wait_seconds: float = DEFAULT_APPROVAL_WAIT_SECONDS,
 ) -> AgentSudoMCPServer:
     policy = load_policy(policy_path) if policy_path else load_default_policy()
     audit_logger = AuditLogger(audit_log or Path(".agent-sudo/mcp-audit.jsonl"))
@@ -187,7 +274,12 @@ def build_server(
         delegation_store=delegation_store,
         pending_approval_store=pending_store,
     )
-    return AgentSudoMCPServer(gateway, workspace=workspace)
+    return AgentSudoMCPServer(
+        gateway,
+        workspace=workspace,
+        interactive_approvals=interactive_approvals,
+        approval_wait_seconds=approval_wait_seconds,
+    )
 
 
 def serve(
@@ -257,6 +349,26 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Automatically open Terminal.app for pending approvals",
     )
+    parser.add_argument(
+        "--interactive-approvals",
+        action="store_true",
+        help=(
+            "Hold a blocked tool call open and wait for approval, then resume "
+            "and return the real result in the same call (block-and-wait). "
+            "Default off. Pair with --open-approval-terminal or --notify so the "
+            "approval prompt appears."
+        ),
+    )
+    parser.add_argument(
+        "--approval-wait-seconds",
+        type=float,
+        default=DEFAULT_APPROVAL_WAIT_SECONDS,
+        help=(
+            "Max seconds to hold a call open waiting for approval when "
+            f"--interactive-approvals is set (default {int(DEFAULT_APPROVAL_WAIT_SECONDS)}). "
+            "Keep below the client's tool-call timeout."
+        ),
+    )
     return parser
 
 
@@ -271,6 +383,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         workspace=args.workspace,
         notify=args.notify,
         open_approval_terminal=args.open_approval_terminal,
+        interactive_approvals=args.interactive_approvals,
+        approval_wait_seconds=args.approval_wait_seconds,
     )
     return serve(server=server)
 
