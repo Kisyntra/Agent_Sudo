@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.4
+
+- **`agent-sudo eval` one-shot evaluator.** New `agent-sudo eval` runs the full deny → delegate → allow-once → deny-exhausted → audit-verified ladder in a single command and prints a PASS/FAIL report. It runs entirely in a temporary directory and never reads or writes the user's `~/.agent-sudo` state. Exits `0` only when all five steps pass (CI-safe); `--json` emits a machine-readable report and `--output-dir DIR` writes artifacts to a chosen location. This is the published "fastest path" referenced by the README and the 5-minute evaluator guide, which were previously broken on PyPI because the command did not ship.
+- **Claude Code + Codex CLI setup paths.** `agent-sudo setup` adds a `claude-code` target (alongside `codex`, `claude-desktop`, `hermes`, and `openclaw`), closing the gap where the headline audience had no first-party setup path.
+- **Interactive `setup` selector.** Running `agent-sudo setup` with no target presents an interactive picker; targets are also selectable by number or name. Bare invocations are guided rather than erroring out.
+- **Generated MCP config pins absolute paths and approval flags.** Setup output now pins absolute `--audit-log`, `--delegations-file`, and `--pending-approvals-file` paths and the macOS approval flags, so a configured client's audit, delegation, and pending state land in predictable locations instead of relative defaults.
+- **First-run onboarding friction removed.** A batch of onboarding fixes (demo Scenario 1 now correctly labeled `Sensitive Read (REQUIRE_APPROVAL)`, clearer first-run guidance, and related copy fixes) so the first commands a new user runs behave as documented.
+- **CLI command reference.** Adds a CLI command reference doc and corrects the `audit review` flag documentation.
+- **Compact gated wordmark.** Interactive commands print a compact one-line wordmark.
+- **MCP registry description shortened.** `server.json` description trimmed to satisfy registry length limits.
+- **Compatibility.** No breaking changes, no schema changes, no policy-behavior changes, no new runtime dependencies. New CLI surface (`eval`, `setup claude-code`, the `setup` selector) is additive.
+
 ## v0.5.3
 
 - **README repositioning.** Agent_Sudo is framed as an authorization, delegation, provenance, and verifiable-audit engine for AI agents — MCP is the adapter, not the identity.
