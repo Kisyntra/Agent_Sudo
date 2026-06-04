@@ -52,9 +52,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "write_file",
         "description": (
             "DEMO/REFERENCE executor: classifies and gates the write through "
-            "agent-sudo, then writes only inside /tmp/agent-sudo-demo. It does "
-            "not write to arbitrary paths. To gate real writes, embed the "
-            "agent-sudo authorization engine in your agent (see README)."
+            "agent-sudo, then writes inside the configured workspace (defaults "
+            "to /tmp/agent-sudo-demo if no workspace is configured). It does "
+            "not write to arbitrary paths outside the workspace."
         ),
         "inputSchema": {
             "type": "object",
@@ -108,7 +108,8 @@ class AgentSudoMCPServer:
         monotonic_func: Callable[[], float] = time.monotonic,
     ):
         self.gateway = gateway
-        self.mcp_gateway = MCPGateway(gateway, workspace=workspace)
+        write_root = Path(workspace) if workspace else Path("/tmp/agent-sudo-demo")
+        self.mcp_gateway = MCPGateway(gateway, write_root=write_root, workspace=workspace)
         self.interactive_approvals = interactive_approvals
         self.approval_wait_seconds = max(0.0, approval_wait_seconds)
         self.poll_interval_seconds = max(0.0, poll_interval_seconds)

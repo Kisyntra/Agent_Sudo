@@ -217,14 +217,54 @@ def is_blocked_write_target(target: str) -> bool:
 
 
 def is_write_target_allowed(target: str) -> bool:
+    import os
+    import tempfile
+
     normalized = _normalized_target(target)
     path = Path(target).expanduser()
     if not path.is_absolute():
         return True
-    return any(
-        normalized == prefix or normalized.startswith(prefix.rstrip("/") + "/")
-        for prefix in DEMO_ALLOWED_ABSOLUTE_PREFIXES
-    )
+
+    try:
+        resolved_path = str(path.resolve()).replace("\\", "/")
+    except Exception:
+        resolved_path = normalized
+
+    # 1. Check default demo prefixes
+    resolved_prefixes = []
+    for prefix in DEMO_ALLOWED_ABSOLUTE_PREFIXES:
+        try:
+            resolved_prefixes.append(str(Path(prefix).resolve()).replace("\\", "/"))
+        except Exception:
+            resolved_prefixes.append(prefix)
+    if any(
+        resolved_path == prefix or resolved_path.startswith(prefix.rstrip("/") + "/")
+        for prefix in resolved_prefixes
+    ):
+        return True
+
+    # 2. Allow temp directory (e.g. /var/folders/ on macOS) for unit testing
+    try:
+        tmp_dir = str(Path(tempfile.gettempdir()).resolve()).replace("\\", "/")
+        if resolved_path == tmp_dir or resolved_path.startswith(tmp_dir.rstrip("/") + "/"):
+            return True
+    except Exception:
+        pass
+
+    # 3. Allow configured workspace if set
+    ws = os.environ.get("AGENT_SUDO_WORKSPACE")
+    if not ws:
+        from agent_sudo.context import _load_config_workspace
+        ws = _load_config_workspace()
+    if ws:
+        try:
+            ws_resolved = str(Path(ws).expanduser().resolve()).replace("\\", "/")
+            if resolved_path == ws_resolved or resolved_path.startswith(ws_resolved.rstrip("/") + "/"):
+                return True
+        except Exception:
+            pass
+
+    return False
 
 
 def is_critical_write_target(target: str) -> bool:

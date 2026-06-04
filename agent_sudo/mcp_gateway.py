@@ -144,6 +144,56 @@ class MCPGateway:
                 stderr=str(exc),
                 reason="invalid path",
             )
+
+        # Boundary checks
+        workspace_git = (resolved_root / ".git").resolve()
+        workspace_agent_sudo = (resolved_root / ".agent-sudo").resolve()
+        home_agent_sudo = Path("~/.agent-sudo").expanduser().resolve()
+
+        if resolved_target == workspace_git or workspace_git in resolved_target.parents:
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=False,
+                exit_code=None,
+                reason="Action was blocked by policy: write_file. Reason: Write is not permitted inside .git directory.",
+            )
+
+        if resolved_target == workspace_agent_sudo or workspace_agent_sudo in resolved_target.parents:
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=False,
+                exit_code=None,
+                reason="Action was blocked by policy: write_file. Reason: Write is not permitted inside workspace .agent-sudo directory.",
+            )
+
+        if resolved_target == home_agent_sudo or home_agent_sudo in resolved_target.parents:
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=False,
+                exit_code=None,
+                reason="Action was blocked by policy: write_file. Reason: Write is not permitted inside ~/.agent-sudo/ directory.",
+            )
+
+        blocked_files = [Path("~/.agent-sudo/config.json").expanduser().resolve()]
+        if getattr(self.gateway, "audit_logger", None) and getattr(self.gateway.audit_logger, "path", None):
+            blocked_files.append(self.gateway.audit_logger.path.resolve())
+        if getattr(self.gateway, "delegation_store", None) and getattr(self.gateway.delegation_store, "path", None):
+            blocked_files.append(self.gateway.delegation_store.path.resolve())
+        if getattr(self.gateway, "pending_approval_store", None) and getattr(self.gateway.pending_approval_store, "path", None):
+            blocked_files.append(self.gateway.pending_approval_store.path.resolve())
+
+        for bf in blocked_files:
+            if resolved_target == bf or bf in resolved_target.parents:
+                return ExecutionResult(
+                    request=request,
+                    gateway_result=gateway_result,
+                    executed=False,
+                    exit_code=None,
+                    reason=f"Action was blocked by policy: write_file. Reason: Write is not permitted to protected path: {bf}",
+                )
         if (
             resolved_target != resolved_root
             and resolved_root not in resolved_target.parents

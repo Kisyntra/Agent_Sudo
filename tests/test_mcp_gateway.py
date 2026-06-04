@@ -239,6 +239,169 @@ class MCPGatewayTests(unittest.TestCase):
             result.gateway_result.decision, Decision.REQUIRE_STRONG_APPROVAL
         )
 
+    def test_server_workspace_initialization(self) -> None:
+        from agent_sudo.mcp_server import AgentSudoMCPServer
+        gateway = PermissionGateway(self.policy)
+        server_with_ws = AgentSudoMCPServer(gateway, workspace="/foo/bar")
+        self.assertEqual(server_with_ws.mcp_gateway.write_root, Path("/foo/bar"))
+
+        server_no_ws = AgentSudoMCPServer(gateway)
+        self.assertEqual(server_no_ws.mcp_gateway.write_root, Path("/tmp/agent-sudo-demo"))
+
+    def test_write_file_inside_workspace_succeeds(self) -> None:
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir)
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            target = workspace_path / "test.txt"
+            result = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(target),
+                    "parameters": {"path": str(target), "content": "hello workspace\n"},
+                    "payload_summary": "write test file",
+                }
+            )
+            self.assertTrue(result.executed)
+            self.assertEqual(target.read_text(encoding="utf-8"), "hello workspace\n")
+
+    def test_write_file_outside_workspace_blocked(self) -> None:
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir) / "workspace"
+            workspace_path.mkdir()
+            outside_path = Path(tmpdir) / "outside.txt"
+
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            result = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(outside_path),
+                    "parameters": {"path": str(outside_path), "content": "outside\n"},
+                    "payload_summary": "write outside file",
+                }
+            )
+            self.assertFalse(result.executed)
+            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+
+    def test_path_traversal_outside_workspace_blocked(self) -> None:
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir) / "workspace"
+            workspace_path.mkdir()
+            target_traversal = workspace_path / "../outside.txt"
+
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            result = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(target_traversal),
+                    "parameters": {"path": str(target_traversal), "content": "traversal\n"},
+                    "payload_summary": "write traversal file",
+                }
+            )
+            self.assertFalse(result.executed)
+            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+
+    def test_symlink_escape_outside_workspace_blocked(self) -> None:
+        import os
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir) / "workspace"
+            workspace_path.mkdir()
+            outside_file = Path(tmpdir) / "outside.txt"
+            outside_file.write_text("outside data", encoding="utf-8")
+
+            # create a symlink inside workspace pointing to outside_file
+            link_path = workspace_path / "link_to_outside.txt"
+            try:
+                os.symlink(outside_file, link_path)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symlinks not supported on this platform")
+
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            result = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(link_path),
+                    "parameters": {"path": str(link_path), "content": "escape attempt\n"},
+                    "payload_summary": "write symlink escape file",
+                }
+            )
+            self.assertFalse(result.executed)
+            self.assertIn("Write was attempted outside the allowed directory", result.reason)
+
+    def test_write_to_git_dir_blocked(self) -> None:
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir)
+            git_config = workspace_path / ".git" / "config"
+
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            result = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(git_config),
+                    "parameters": {"path": str(git_config), "content": "corrupted git\n"},
+                    "payload_summary": "write git config",
+                }
+            )
+            self.assertFalse(result.executed)
+            self.assertIn("Write is not permitted inside .git directory", result.reason)
+
+    def test_write_to_agent_sudo_state_dir_blocked(self) -> None:
+        gateway = PermissionGateway(self.policy, approvals=ApproveAllProvider())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir)
+
+            # 1. Block workspace/.agent-sudo/
+            workspace_state = workspace_path / ".agent-sudo" / "config.json"
+            mcp_gateway = MCPGateway(gateway, write_root=workspace_path, workspace=str(workspace_path))
+            result_workspace_state = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(workspace_state),
+                    "parameters": {"path": str(workspace_state), "content": "config\n"},
+                    "payload_summary": "write workspace agent-sudo config",
+                }
+            )
+            self.assertFalse(result_workspace_state.executed)
+            self.assertIn("Write is not permitted inside workspace .agent-sudo directory", result_workspace_state.reason)
+
+            # 2. Block ~/.agent-sudo/
+            home_state = Path("~/.agent-sudo/config.json").expanduser()
+            result_home_state = mcp_gateway.dispatch(
+                {
+                    "actor": "mcp-client",
+                    "source": "user",
+                    "tool": "filesystem",
+                    "action": "write_file",
+                    "target": str(home_state),
+                    "parameters": {"path": str(home_state), "content": "config\n"},
+                    "payload_summary": "write home agent-sudo config",
+                }
+            )
+            self.assertFalse(result_home_state.executed)
+            self.assertIn("Write is not permitted inside ~/.agent-sudo/ directory", result_home_state.reason)
+
 
 if __name__ == "__main__":
     unittest.main()
