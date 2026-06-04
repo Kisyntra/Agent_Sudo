@@ -42,12 +42,20 @@ class MCPGateway:
                 reason="dry-run: gateway evaluated MCP tool call without executing tool",
             )
         if gateway_result.decision != Decision.ALLOW:
+            reason = gateway_result.reason
+            if request.action == "write_file":
+                reason = _format_blocked_write_reason(
+                    target=request.target,
+                    gateway_reason=gateway_result.reason,
+                    write_root=self.write_root,
+                    is_path_block=False,
+                )
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
                 executed=False,
                 exit_code=None,
-                reason=gateway_result.reason,
+                reason=reason,
             )
         return self._execute_demo_tool(request, gateway_result, tool_call)
 
@@ -140,12 +148,18 @@ class MCPGateway:
             resolved_target != resolved_root
             and resolved_root not in resolved_target.parents
         ):
+            reason = _format_blocked_write_reason(
+                target=request.target,
+                gateway_reason=None,
+                write_root=resolved_root,
+                is_path_block=True,
+            )
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
                 executed=False,
                 exit_code=None,
-                reason="write_file demo tool only writes inside /tmp/agent-sudo-demo",
+                reason=reason,
             )
         content = _content_from_tool_call(tool_call)
         try:
@@ -232,3 +246,49 @@ def _demo_shell_allowed(argv: list[str]) -> bool:
     if argv[0] in DEMO_SHELL_COMMANDS:
         return True
     return argv[:3] == ["python3", "-m", "unittest"]
+
+
+def _format_blocked_write_reason(
+    target: str,
+    gateway_reason: str | None,
+    write_root: Path,
+    is_path_block: bool,
+) -> str:
+    # A request is in demo mode if the target path contains 'agent-sudo-demo'
+    is_demo = "agent-sudo-demo" in str(target)
+
+    lines = [
+        "Action was blocked by policy: write_file",
+        f"Target path: {target}",
+    ]
+
+    if gateway_reason:
+        lines.append(f"Reason: {gateway_reason}")
+    elif is_path_block:
+        if is_demo:
+            lines.append(f"Reason: Write was attempted outside the allowed demo directory ({write_root}).")
+        else:
+            lines.append("Reason: Write was attempted outside the allowed directory.")
+
+    if is_path_block:
+        if is_demo:
+            lines.append(
+                "What user can do next: To run the demo, write only inside the allowed demo directory "
+                f"({write_root}). To gate writes to arbitrary workspace paths, integrate the agent-sudo "
+                "authorization engine directly into your agent's native file-writing tools."
+            )
+        else:
+            lines.append(
+                "What user can do next: The default write_file tool in the agent-sudo MCP server is a reference "
+                "executor restricted to its configured root directory. To gate writes to arbitrary workspace paths, "
+                "integrate the agent-sudo authorization engine directly into your agent's native file-writing tools."
+            )
+    else:
+        # Policy restriction failure (e.g. CLI approval / delegation required)
+        lines.append(
+            "What user can do next: Run this action in an interactive environment to approve, or grant a "
+            "delegation token for this action. To gate writes to arbitrary workspace paths, integrate the "
+            "agent-sudo authorization engine directly into your agent's native file-writing tools."
+        )
+
+    return "\n".join(lines)

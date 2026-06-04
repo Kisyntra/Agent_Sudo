@@ -26,7 +26,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
 @unittest.skipUnless(HAS_PYDANTIC_AI, f"pydantic-ai not installed: {_IMPORT_ERROR}")
 class PydanticAIDogfoodTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._dir = tempfile.TemporaryDirectory()
+        self._dir = tempfile.TemporaryDirectory(dir="/tmp")
         self.tmp = Path(self._dir.name)
         self.r = run_demo(self.tmp)
 
