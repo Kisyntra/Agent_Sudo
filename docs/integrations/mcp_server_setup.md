@@ -177,26 +177,24 @@ Replace the paths with absolute values for your machine, then restart Codex CLI.
 agent-sudo setup codex
 ```
 
-Verify routing by running a tool inside a Codex session, then read the **same** absolute audit-log path you configured:
+Verify routing by running a tool inside a Codex session, then read the audit log:
 
 ```bash
-agent-sudo audit list "$HOME/.agent-sudo/mcp-audit.jsonl"   # the call should appear; if not, it bypassed agent-sudo
+agent-sudo audit list   # the call should appear; if not, it bypassed agent-sudo
 ```
 
 ## Inspecting and Verifying the Audit Log
 
-All audit commands take the audit-log path as their first positional argument. **Pass the same absolute path you configured in `--audit-log`** — with no argument they read the *relative* default (`.agent-sudo/mcp-audit.jsonl`), resolved against your current directory, which will not match where the MCP client wrote the log:
+All audit commands accept an optional audit-log path as a positional argument. By default, they read the home-level path `~/.agent-sudo/mcp-audit.jsonl` (falling back to a project-local `.agent-sudo/mcp-audit.jsonl` in the current directory if it exists):
 
 ```bash
-AUDIT="$HOME/.agent-sudo/mcp-audit.jsonl"
-
-agent-sudo audit list "$AUDIT"                 # recent decisions (supports --since/--decision/--actor/…)
-agent-sudo audit review "$AUDIT" --since 24h   # chain check + summary + non-ALLOW records
-agent-sudo audit trace <token_id> "$AUDIT"     # one delegation token's lifecycle
-agent-sudo verify-audit "$AUDIT"               # verify the SHA-256 hash chain
+agent-sudo audit list                 # recent decisions (supports --since/--decision/--actor/…)
+agent-sudo audit review --since 24h   # chain check + summary + non-ALLOW records
+agent-sudo audit trace <token_id>     # one delegation token's lifecycle
+agent-sudo verify-audit               # verify the SHA-256 hash chain
 ```
 
-`agent-sudo verify-routing` is the exception: it already checks both your current directory and `~/.agent-sudo/mcp-audit.jsonl`, so it works without an explicit path.
+To read a specific audit log file, pass the path explicitly (e.g. `agent-sudo audit list /path/to/custom-mcp-audit.jsonl`). `agent-sudo verify-routing` works without an explicit path as it checks both paths automatically.
 
 ## Platform Support
 
