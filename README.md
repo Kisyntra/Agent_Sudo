@@ -64,8 +64,16 @@ Walkthrough and expected output: [`examples/exfil_demo/`](examples/exfil_demo/).
 
 Two commands. The second runs the whole boundary — blocked → delegated → allowed once → denied → audit verified — in one shot:
 
+**Recommended (via pipx):**
 ```bash
 pipx install agent-sudo-mcp
+agent-sudo eval
+```
+
+**Alternative (via virtual environment):**
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install agent-sudo-mcp
 agent-sudo eval
 ```
 
