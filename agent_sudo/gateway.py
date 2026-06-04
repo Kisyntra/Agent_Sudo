@@ -441,6 +441,13 @@ def load_requests(path: Path) -> list[ActionRequest]:
     return [ActionRequest.from_dict(item) for item in items]
 
 
+def _resolve_default_audit_log_path() -> Path:
+    local_path = Path(".agent-sudo/mcp-audit.jsonl")
+    if local_path.exists():
+        return local_path
+    return Path("~/.agent-sudo/mcp-audit.jsonl").expanduser()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agent-sudo")
     parser.add_argument(
@@ -520,7 +527,13 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser = subparsers.add_parser(
         "verify-audit", help="Verify audit JSONL hash chain"
     )
-    verify_parser.add_argument("audit_log", type=Path)
+    verify_parser.add_argument(
+        "audit_log",
+        type=Path,
+        nargs="?",
+        default=None,
+        help="Path to audit JSONL (default: ~/.agent-sudo/mcp-audit.jsonl)",
+    )
 
     audit_parser = subparsers.add_parser(
         "audit", help="Inspect the local audit log in human-readable form"
@@ -533,8 +546,8 @@ def build_parser() -> argparse.ArgumentParser:
         "audit_log",
         type=Path,
         nargs="?",
-        default=Path(".agent-sudo/mcp-audit.jsonl"),
-        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+        default=None,
+        help="Path to audit JSONL (default: ~/.agent-sudo/mcp-audit.jsonl)",
     )
     audit_list.add_argument(
         "--limit",
@@ -590,8 +603,8 @@ def build_parser() -> argparse.ArgumentParser:
         "audit_log",
         type=Path,
         nargs="?",
-        default=Path(".agent-sudo/mcp-audit.jsonl"),
-        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+        default=None,
+        help="Path to audit JSONL (default: ~/.agent-sudo/mcp-audit.jsonl)",
     )
     audit_review.add_argument(
         "--since",
@@ -609,8 +622,8 @@ def build_parser() -> argparse.ArgumentParser:
         "audit_log",
         type=Path,
         nargs="?",
-        default=Path(".agent-sudo/mcp-audit.jsonl"),
-        help="Path to audit JSONL (default: .agent-sudo/mcp-audit.jsonl)",
+        default=None,
+        help="Path to audit JSONL (default: ~/.agent-sudo/mcp-audit.jsonl)",
     )
     audit_trace.add_argument(
         "--delegations-file",
@@ -937,6 +950,8 @@ def run_built_in_demo() -> int:
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
+    if args.command in {"verify-audit", "audit"} and getattr(args, "audit_log", None) is None:
+        args.audit_log = _resolve_default_audit_log_path()
     if args.command == "demo":
         return run_built_in_demo()
     if args.command == "eval":

@@ -151,29 +151,27 @@ and troubleshooting); they are listed under their primary use.
 
 ### `audit list`
 - **Purpose:** show recent decisions as a filterable table (with a provenance origin column).
-- **Example:** `agent-sudo audit list ~/.agent-sudo/mcp-audit.jsonl --since 24h --non-allow`
+- **Example:** `agent-sudo audit list` · `agent-sudo audit list ~/.agent-sudo/mcp-audit.jsonl --since 24h --non-allow`
 - **When to use:** to review what the agent did and how each call was decided.
-- **Common mistakes:** running it with no path — it reads the *relative* default
-  `.agent-sudo/mcp-audit.jsonl`, which usually won't match where the server wrote. Pass
-  the same absolute path you set in `--audit-log`.
+- **Common mistakes:** none. The command defaults to `~/.agent-sudo/mcp-audit.jsonl` (falling back to a project-local `.agent-sudo/mcp-audit.jsonl` if present in the current working directory).
 
 ### `audit review`
 - **Purpose:** verify the chain, summarize recent decision counts, and list non-ALLOW rows
   for a window.
-- **Example:** `agent-sudo audit review ~/.agent-sudo/mcp-audit.jsonl --since 24h`
+- **Example:** `agent-sudo audit review` · `agent-sudo audit review --since 24h`
 - **When to use:** a quick "what needs attention recently" pass.
 - **Common mistakes:** the flag is `--since` (e.g. `30m`, `24h`, `7d`), not `--window`.
 
 ### `audit trace`
 - **Purpose:** trace one delegation token's lifecycle (scope, uses, expiry) across the log.
-- **Example:** `agent-sudo audit trace <token_id> ~/.agent-sudo/mcp-audit.jsonl`
+- **Example:** `agent-sudo audit trace <token_id>` · `agent-sudo audit trace <token_id> ~/.agent-sudo/mcp-audit.jsonl`
 - **When to use:** to investigate how a specific delegation was used or denied.
 - **Common mistakes:** expecting exact causal counts — store-state and log-observed
   quantities are reported separately and not claimed as definitive.
 
 ### `verify-audit`
 - **Purpose:** verify the SHA-256 hash chain of an audit log (tamper detection).
-- **Example:** `agent-sudo verify-audit ~/.agent-sudo/mcp-audit.jsonl`
+- **Example:** `agent-sudo verify-audit` · `agent-sudo verify-audit ~/.agent-sudo/mcp-audit.jsonl`
 - **When to use:** to prove the log hasn't been edited.
 - **Common mistakes:** confusing it with `verify-routing` (below) — different question.
 
@@ -184,8 +182,8 @@ and troubleshooting); they are listed under their primary use.
 - **Example:** `agent-sudo verify-routing`
 - **When to use:** to sanity-check that your client is actually routed through the engine.
 - **Common mistakes:** reading it as a guarantee — it reports observed signals and
-  explicitly **cannot** certify complete protection. (It checks both the current dir and
-  `~/.agent-sudo/mcp-audit.jsonl`, unlike the `audit *` commands.)
+  explicitly **cannot** certify complete protection. (It defaults to checking both the
+  current directory and `~/.agent-sudo/mcp-audit.jsonl`.)
 
 ---
 
