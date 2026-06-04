@@ -18,7 +18,12 @@ from agent_sudo.delegations import (
     default_delegations_path,
 )
 from agent_sudo.gateway import PermissionGateway, main
-from agent_sudo.models import ActionRequest, ApprovalResult, Decision
+from agent_sudo.models import (
+    ActionRequest,
+    ApprovalResult,
+    Classification,
+    Decision,
+)
 from agent_sudo.policy import load_default_policy
 
 
@@ -101,45 +106,55 @@ class DelegationTests(unittest.TestCase):
         self.assertIn("token revoked", result.reason)
         self.assertIn(token.token_id, result.reason)
 
-    def test_path_mismatch_denied(self) -> None:
+    def test_path_mismatch_does_not_block_approval(self) -> None:
+        # A token scoped to a different path is unrelated to this request: it must
+        # not convert an approval-required action into a hard DENY (issue #77).
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            token = store.create(
+            store.create(
                 actor="codex",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
                 max_uses=5,
                 reason="readme only",
             )
-            result = PermissionGateway(self.policy, delegation_store=store).evaluate(
-                AgentActionRequest.file_edit("docs/other.md", actor="codex")
-            )
+            result = PermissionGateway(
+                self.policy,
+                approvals=NoTtyApprovalProvider(),
+                delegation_store=store,
+            ).evaluate(AgentActionRequest.file_edit("docs/other.md", actor="codex"))
 
-        self.assertEqual(result.decision, Decision.DENY)
-        self.assertIn("path mismatch", result.reason)
-        self.assertIn("expected path scope in ['README.md']", result.reason)
-        self.assertIn("actual target 'docs/other.md'", result.reason)
-        self.assertIn(token.token_id, result.reason)
+        self.assertNotEqual(result.decision, Decision.DENY)
+        self.assertIn(
+            result.decision,
+            {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL},
+        )
+        self.assertNotEqual(result.approval_method, "DELEGATION")
 
-    def test_actor_mismatch_denied(self) -> None:
+    def test_actor_mismatch_does_not_block_approval(self) -> None:
+        # A token for a different actor is unrelated: it must not deny this actor's
+        # request, only fail to grant it (issue #77).
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            token = store.create(
+            store.create(
                 actor="hermes",
                 allowed_actions=["edit_file"],
                 allowed_paths=["README.md"],
                 max_uses=5,
                 reason="hermes only",
             )
-            result = PermissionGateway(self.policy, delegation_store=store).evaluate(
-                AgentActionRequest.file_edit("README.md", actor="codex")
-            )
+            result = PermissionGateway(
+                self.policy,
+                approvals=NoTtyApprovalProvider(),
+                delegation_store=store,
+            ).evaluate(AgentActionRequest.file_edit("README.md", actor="codex"))
 
-        self.assertEqual(result.decision, Decision.DENY)
-        self.assertIn("actor mismatch", result.reason)
-        self.assertIn("expected actor 'hermes'", result.reason)
-        self.assertIn("actual actor 'codex'", result.reason)
-        self.assertIn(token.token_id, result.reason)
+        self.assertNotEqual(result.decision, Decision.DENY)
+        self.assertIn(
+            result.decision,
+            {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL},
+        )
+        self.assertNotEqual(result.approval_method, "DELEGATION")
 
     def test_max_uses_enforced(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -164,25 +179,30 @@ class DelegationTests(unittest.TestCase):
         self.assertIn("token exhausted", second.reason)
         self.assertIn(token.token_id, second.reason)
 
-    def test_action_mismatch_explains_action_mismatch(self) -> None:
+    def test_action_mismatch_does_not_block_approval(self) -> None:
+        # A token granting a different action is unrelated to this request: it must
+        # not deny, only fail to grant (issue #77).
         with tempfile.TemporaryDirectory() as tmpdir:
             store = self._store(tmpdir)
-            token = store.create(
+            store.create(
                 actor="hermes",
                 allowed_actions=["read_file"],
                 allowed_paths=["README.md"],
                 max_uses=5,
                 reason="read only",
             )
-            result = PermissionGateway(self.policy, delegation_store=store).evaluate(
-                AgentActionRequest.file_edit("README.md", actor="hermes")
-            )
+            result = PermissionGateway(
+                self.policy,
+                approvals=NoTtyApprovalProvider(),
+                delegation_store=store,
+            ).evaluate(AgentActionRequest.file_edit("README.md", actor="hermes"))
 
-        self.assertEqual(result.decision, Decision.DENY)
-        self.assertIn("action mismatch", result.reason)
-        self.assertIn("expected action in ['read_file']", result.reason)
-        self.assertIn("actual action 'edit_file'", result.reason)
-        self.assertIn(token.token_id, result.reason)
+        self.assertNotEqual(result.decision, Decision.DENY)
+        self.assertIn(
+            result.decision,
+            {Decision.REQUIRE_APPROVAL, Decision.REQUIRE_STRONG_APPROVAL},
+        )
+        self.assertNotEqual(result.approval_method, "DELEGATION")
 
     def test_critical_flag_missing_explains_critical_flag_issue(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -432,6 +452,146 @@ class DelegationStorePathResolutionTests(unittest.TestCase):
             self.assertNotIn(
                 "warning: using default delegation store", stderr.getvalue()
             )
+
+
+class DelegationApprovalReachabilityTests(unittest.TestCase):
+    """Issue #77: unrelated/expired/mismatched tokens must not turn an
+    approval-required action into a hard DENY. authorize() returns:
+      True  → an applicable, usable token grants the action
+      False → an explicit denial, or a relevant grant that is unusable
+      None  → no token applies; fall through to the normal approval path
+    """
+
+    def _store(self, tmpdir: str) -> DelegationStore:
+        return DelegationStore(Path(tmpdir) / "delegations.json")
+
+    def _authorize(self, store: DelegationStore, request: ActionRequest):
+        return store.authorize(
+            request, classification=Classification.SENSITIVE, consume=False
+        )
+
+    def test_unrelated_expired_token_does_not_block_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="hermes",
+                allowed_actions=["read_file"],
+                allowed_paths=["/other/scope"],
+                ttl_seconds=-1,  # expired
+                max_uses=5,
+                reason="stale unrelated",
+            )
+            result, reason, method = self._authorize(
+                store,
+                AgentActionRequest.file_read("/my/file.txt", actor="codex"),
+            )
+        self.assertIsNone(result)
+        self.assertEqual(method, "none")
+        self.assertEqual(reason, "no delegation matched")
+
+    def test_mismatched_token_does_not_block_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="codex",
+                allowed_actions=["read_file"],
+                allowed_paths=["/my/file.txt"],
+                max_uses=5,
+                reason="read only, active",
+            )
+            # Same actor + path, different action → not relevant → approval path.
+            result, _reason, method = self._authorize(
+                store,
+                AgentActionRequest.file_edit("/my/file.txt", actor="codex"),
+            )
+        self.assertIsNone(result)
+        self.assertEqual(method, "none")
+
+    def test_explicit_denied_action_still_denies(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="codex",
+                allowed_actions=[],
+                denied_actions=["run_shell_command"],
+                allowed_paths=["*"],
+                max_uses=5,
+                reason="explicit deny",
+            )
+            result, reason, method = self._authorize(
+                store,
+                AgentActionRequest.shell_command("pwd", actor="codex"),
+            )
+        self.assertIs(result, False)
+        self.assertEqual(method, "DELEGATION")
+        self.assertIn("explicitly denies", reason)
+
+    def test_valid_matching_delegation_still_allows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="codex",
+                allowed_actions=["read_file"],
+                allowed_paths=["/my/file.txt"],
+                max_uses=5,
+                reason="valid",
+            )
+            result, _reason, method = self._authorize(
+                store,
+                AgentActionRequest.file_read("/my/file.txt", actor="codex"),
+            )
+        self.assertIs(result, True)
+        self.assertEqual(method, "DELEGATION")
+
+    def test_exhausted_matching_token_still_denies(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="codex",
+                allowed_actions=["read_file"],
+                allowed_paths=["/my/file.txt"],
+                max_uses=1,
+                reason="one use",
+            )
+            request = AgentActionRequest.file_read("/my/file.txt", actor="codex")
+            # Consume the single use, then it is a relevant-but-exhausted grant.
+            first = store.authorize(
+                request, classification=Classification.SENSITIVE, consume=True
+            )
+            second = store.authorize(
+                request, classification=Classification.SENSITIVE, consume=True
+            )
+        self.assertIs(first[0], True)
+        self.assertIs(second[0], False)
+        self.assertIn("token exhausted", second[1])
+
+    def test_only_stale_unrelated_tokens_defer_to_approval(self) -> None:
+        # The Antigravity dogfood scenario: several stale, unrelated tokens in the
+        # store and a request none of them apply to → approval stays reachable.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._store(tmpdir)
+            store.create(
+                actor="hermes",
+                allowed_actions=["run_shell_command"],
+                allowed_paths=["ls"],
+                ttl_seconds=-1,
+                max_uses=1,
+                reason="stale 1",
+            )
+            store.create(
+                actor="old-agent",
+                allowed_actions=["write_file"],
+                allowed_paths=["/tmp/x"],
+                max_uses=0,  # exhausted
+                reason="stale 2",
+            )
+            result, reason, method = self._authorize(
+                store,
+                AgentActionRequest.shell_command("pwd", actor="codex"),
+            )
+        self.assertIsNone(result)
+        self.assertEqual(method, "none")
+        self.assertEqual(reason, "no delegation matched")
 
 
 if __name__ == "__main__":
