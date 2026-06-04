@@ -950,7 +950,10 @@ def run_built_in_demo() -> int:
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
-    if args.command in {"verify-audit", "audit"} and getattr(args, "audit_log", None) is None:
+    if (
+        args.command in {"verify-audit", "audit"}
+        and getattr(args, "audit_log", None) is None
+    ):
         args.audit_log = _resolve_default_audit_log_path()
     if args.command == "demo":
         return run_built_in_demo()

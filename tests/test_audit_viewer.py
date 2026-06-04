@@ -449,29 +449,36 @@ class CliAuditListFilterTests(unittest.TestCase):
 class AuditDefaultPathResolutionTests(unittest.TestCase):
     def test_resolve_default_audit_log_path_local_exists(self) -> None:
         from unittest.mock import patch
+
         with patch.object(Path, "exists", autospec=True) as mock_exists:
+
             def side_effect(self_obj):
                 if str(self_obj) == ".agent-sudo/mcp-audit.jsonl":
                     return True
                 return False
+
             mock_exists.side_effect = side_effect
 
             from agent_sudo.gateway import _resolve_default_audit_log_path
+
             resolved = _resolve_default_audit_log_path()
             self.assertEqual(resolved, Path(".agent-sudo/mcp-audit.jsonl"))
 
     def test_resolve_default_audit_log_path_local_missing(self) -> None:
         from unittest.mock import patch
+
         with patch.object(Path, "exists", autospec=True) as mock_exists:
             mock_exists.return_value = False
 
             from agent_sudo.gateway import _resolve_default_audit_log_path
+
             resolved = _resolve_default_audit_log_path()
             expected = Path("~/.agent-sudo/mcp-audit.jsonl").expanduser()
             self.assertEqual(resolved, expected)
 
     def test_cli_defaults_to_resolved_path(self) -> None:
         from unittest.mock import patch
+
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_log = Path(tmpdir) / "resolved-audit.jsonl"
             _write_log(temp_log)
@@ -480,7 +487,10 @@ class AuditDefaultPathResolutionTests(unittest.TestCase):
             delegs_file = temp_log.parent / "delegations.json"
             delegs_file.write_text(json.dumps([]))
 
-            with patch("agent_sudo.gateway._resolve_default_audit_log_path", return_value=temp_log):
+            with patch(
+                "agent_sudo.gateway._resolve_default_audit_log_path",
+                return_value=temp_log,
+            ):
                 # 1. Bare audit list
                 buf_list = io.StringIO()
                 with redirect_stdout(buf_list):
@@ -511,6 +521,7 @@ class AuditDefaultPathResolutionTests(unittest.TestCase):
 
     def test_cli_explicit_override_still_works(self) -> None:
         from unittest.mock import patch
+
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_log = Path(tmpdir) / "resolved-audit.jsonl"
             _write_log(temp_log)
@@ -518,14 +529,16 @@ class AuditDefaultPathResolutionTests(unittest.TestCase):
             explicit_log = Path(tmpdir) / "explicit-audit.jsonl"
             _write_log(explicit_log)
 
-            with patch("agent_sudo.gateway._resolve_default_audit_log_path", return_value=temp_log):
+            with patch(
+                "agent_sudo.gateway._resolve_default_audit_log_path",
+                return_value=temp_log,
+            ):
                 # Explicit verify-audit uses explicit_log, not temp_log
                 buf_verify = io.StringIO()
                 with redirect_stdout(buf_verify):
                     code = main(["verify-audit", str(explicit_log)])
                 self.assertEqual(code, 0)
                 self.assertIn("audit log verified", buf_verify.getvalue())
-
 
 
 if __name__ == "__main__":
