@@ -326,6 +326,11 @@ class RuntimeContextTests(unittest.TestCase):
                         str(workspace_path),
                         "--config",
                         str(config_path),
+                        # Isolate the workspace_changed audit event to this
+                        # tempdir; otherwise it lands in the repo-local default
+                        # .agent-sudo/mcp-audit.jsonl (cf. #84 test isolation).
+                        "--audit-log",
+                        str(tmp_path / "audit.jsonl"),
                     ]
                 )
 
@@ -362,6 +367,11 @@ class RuntimeContextTests(unittest.TestCase):
                         str(workspace_path),
                         "--config",
                         str(config_path),
+                        # Isolate the workspace_changed audit event to this
+                        # tempdir; otherwise it lands in the repo-local default
+                        # .agent-sudo/mcp-audit.jsonl (cf. #84 test isolation).
+                        "--audit-log",
+                        str(tmp_path / "audit.jsonl"),
                     ]
                 )
 
