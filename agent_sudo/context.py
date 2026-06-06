@@ -58,6 +58,8 @@ def _load_config_workspace(config_path: Path | None = None) -> str | None:
 def save_config_workspace(
     workspace: Path | str,
     config_path: Path | None = None,
+    *,
+    audit_log_path: Path | str | None = None,
 ) -> str:
     config_path = config_path or CONFIG_PATH
     resolved_workspace = Path(workspace).expanduser().resolve()
@@ -70,13 +72,35 @@ def save_config_workspace(
         if not isinstance(loaded, dict):
             raise ValueError(f"config file must contain a JSON object: {config_path}")
         data = loaded
-    data["workspace"] = str(resolved_workspace)
+
+    old_workspace = data.get("workspace")
+    new_workspace = str(resolved_workspace)
+    data["workspace"] = new_workspace
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
         json.dumps(data, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    return str(resolved_workspace)
+
+    # Changing the workspace moves Agent_Sudo's enforcement boundary. Record it
+    # in the tamper-evident audit log so a boundary change can't silently explain
+    # a later DENY -> ALLOW flip. A no-op (same resolved workspace) is not a
+    # change and is not recorded. Authorization semantics are unaffected.
+    if audit_log_path is not None and old_workspace != new_workspace:
+        from agent_sudo.audit import AuditLogger
+
+        AuditLogger(Path(audit_log_path)).record_event(
+            "workspace_changed",
+            {
+                "old_workspace": old_workspace,
+                "new_workspace": new_workspace,
+                "actor": "cli",
+                "provenance": {"source": "agent-sudo-cli", "origin_type": "local"},
+                "config_path": str(config_path),
+            },
+        )
+
+    return new_workspace
 
 
 def get_config_workspace(config_path: Path | None = None) -> str | None:

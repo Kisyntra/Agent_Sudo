@@ -835,6 +835,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     workspace_set.add_argument("path", help="Workspace directory to persist")
     workspace_set.add_argument("--config", type=Path, help=argparse.SUPPRESS)
+    workspace_set.add_argument(
+        "--audit-log",
+        type=Path,
+        default=None,
+        help=(
+            "Audit JSONL path for the workspace_changed event "
+            "(default: the standard local/home audit log)"
+        ),
+    )
     workspace_show = workspace_subparsers.add_parser(
         "show", help="Show the persisted workspace"
     )
@@ -1212,8 +1221,13 @@ def main(argv: Iterable[str] | None = None) -> int:
         from agent_sudo.context import get_config_workspace, save_config_workspace
 
         if args.workspace_command == "set":
+            audit_log_path = args.audit_log or _resolve_default_audit_log_path()
             try:
-                workspace = save_config_workspace(args.path, config_path=args.config)
+                workspace = save_config_workspace(
+                    args.path,
+                    config_path=args.config,
+                    audit_log_path=audit_log_path,
+                )
             except ValueError as exc:
                 print(f"workspace set failed: {exc}", file=sys.stderr)
                 return 1

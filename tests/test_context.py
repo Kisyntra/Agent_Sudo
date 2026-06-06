@@ -12,7 +12,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from agent_sudo.context import detect_runtime_context
+from agent_sudo.audit import read_audit_entries
+from agent_sudo.context import detect_runtime_context, save_config_workspace
 from agent_sudo.gateway import main
 from agent_sudo.mcp_gateway import MCPGateway
 from agent_sudo.gateway import PermissionGateway
@@ -500,3 +501,119 @@ class RuntimeContextTests(unittest.TestCase):
             }
         )
         self.assertFalse(result.executed)
+
+
+class WorkspaceChangeAuditTests(unittest.TestCase):
+    """`agent-sudo workspace set` moves the enforcement boundary; the change
+    must be recorded in the tamper-evident audit log (see Antigravity dogfood:
+    host-native `workspace set` flipped DENY -> ALLOW without an audit trail)."""
+
+    def _workspace_changed_events(self, audit_path: Path) -> list[dict]:
+        return [
+            e
+            for e in read_audit_entries(audit_path)
+            if e.get("event_type") == "workspace_changed"
+        ]
+
+    def test_workspace_set_emits_audit_event_with_old_and_new(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            audit_path = tmp_path / "audit.jsonl"
+            ws_a = tmp_path / "ws_a"
+            ws_b = tmp_path / "ws_b"
+            ws_a.mkdir()
+            ws_b.mkdir()
+
+            # First set: no prior workspace -> change from None.
+            save_config_workspace(
+                ws_a, config_path=config_path, audit_log_path=audit_path
+            )
+            # Second set: real change ws_a -> ws_b.
+            save_config_workspace(
+                ws_b, config_path=config_path, audit_log_path=audit_path
+            )
+
+            events = self._workspace_changed_events(audit_path)
+            self.assertEqual(len(events), 2)
+
+            first, second = events
+            self.assertEqual(first["event_type"], "workspace_changed")
+            self.assertIsNone(first["old_workspace"])
+            self.assertEqual(first["new_workspace"], str(ws_a))
+
+            self.assertEqual(second["old_workspace"], str(ws_a))
+            self.assertEqual(second["new_workspace"], str(ws_b))
+            # Provenance / actor recorded for a local CLI mutation, plus timestamp.
+            self.assertEqual(second["actor"], "cli")
+            self.assertEqual(second["provenance"]["source"], "agent-sudo-cli")
+            self.assertTrue(second["timestamp"])
+
+    def test_noop_workspace_set_emits_no_event(self) -> None:
+        # No-op = setting the same resolved workspace again. Nothing moved, so
+        # nothing is recorded, but the command still succeeds and persists.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            audit_path = tmp_path / "audit.jsonl"
+            ws = tmp_path / "ws"
+            ws.mkdir()
+
+            save_config_workspace(
+                ws, config_path=config_path, audit_log_path=audit_path
+            )
+            self.assertEqual(len(self._workspace_changed_events(audit_path)), 1)
+
+            returned = save_config_workspace(
+                ws, config_path=config_path, audit_log_path=audit_path
+            )
+            # Still exactly one event: the second identical set is a no-op.
+            self.assertEqual(len(self._workspace_changed_events(audit_path)), 1)
+            self.assertEqual(returned, str(ws))
+
+    def test_existing_behavior_preserved_without_audit_path(self) -> None:
+        # Existing callers that pass no audit_log_path are unchanged: the config
+        # is written, the resolved path returned, and no audit log is created.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            ws = tmp_path / "ws"
+            ws.mkdir()
+
+            returned = save_config_workspace(ws, config_path=config_path)
+            self.assertEqual(returned, str(ws))
+            saved = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["workspace"], str(ws))
+
+    def test_cli_workspace_set_emits_event(self) -> None:
+        # End-to-end through the CLI, proving the command is wired to audit.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir).resolve()
+            config_path = tmp_path / "config.json"
+            audit_path = tmp_path / "audit.jsonl"
+            ws = tmp_path / "ws"
+            ws.mkdir()
+
+            stdout = io.StringIO()
+            with mock.patch("sys.stdout", stdout):
+                exit_code = main(
+                    [
+                        "workspace",
+                        "set",
+                        str(ws),
+                        "--config",
+                        str(config_path),
+                        "--audit-log",
+                        str(audit_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("workspace set to", stdout.getvalue())
+            events = self._workspace_changed_events(audit_path)
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["new_workspace"], str(ws))
+
+
+if __name__ == "__main__":
+    unittest.main()

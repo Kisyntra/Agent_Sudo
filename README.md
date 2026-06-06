@@ -216,7 +216,7 @@ This is a deliberate scope choice, not a defect: Agent_Sudo governs *intent and 
 - **Tools that bypass the engine** — a client's native tools or other MCP servers that don't route through Agent_Sudo are neither gated nor audited.
 - **Prompt injection as a content-security problem** — Agent_Sudo does **not** reliably detect injected instructions in prose. The built-in phrase detector is a **best-effort tripwire** that flags a few literal strings; the real protection is provenance-based escalation, not text matching.
 - **OS-level isolation** — it is not a sandbox; pair it with Docker/Firecracker for filesystem/process containment.
-- **A compromised local environment** — anyone with your local shell can approve pending actions or edit config directly.
+- **A compromised local environment** — anyone (or any agent) with an **ungoverned local shell** can approve pending actions or edit Agent_Sudo's own control-plane files directly. An agent that can run host-native commands can change the workspace (`agent-sudo workspace set`), delegations, or config to *move* the enforcement boundary instead of routing through it. Disable or route the agent's native shell for the boundary to hold. Workspace changes are now recorded as `workspace_changed` events in the audit log, so a boundary change is visible to `agent-sudo verify-audit` even when it was made outside the engine.
 
 See the [Security & Threat Model](docs/architecture/security_model.md) for the full analysis.
 
