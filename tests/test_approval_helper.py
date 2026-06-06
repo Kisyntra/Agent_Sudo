@@ -130,6 +130,38 @@ class ApprovalHelperTests(unittest.TestCase):
         self.assertIn("Request #1 denied.", out_stream.getvalue())
         mock_deny.assert_called_once()
 
+    def test_auto_opened_prompt_uses_expires_in_wording(self) -> None:
+        # The auto-opened terminal renders per-request details; the expiry line
+        # must read "Expires in ~Ns — approve before then." (issue #88).
+        self.config_file.write_text("{}", encoding="utf-8")
+        store = PendingApprovalStore(self.pending_file)
+        store.create(
+            action_request=self._sample_action_request(),
+            classification=Classification.SENSITIVE,
+            decision=Decision.REQUIRE_APPROVAL,
+            required_approval_method="CLI_CONFIRM",
+            reason="sensitive action",
+        )
+
+        out_stream = io.StringIO()
+        mock_input = MagicMock(return_value="n")
+        with (
+            patch("sys.stdout", out_stream),
+            patch(
+                "agent_sudo.pending_approvals.PendingApprovalStore.deny", MagicMock()
+            ),
+        ):
+            run_approval_helper(
+                pending_approvals_path=self.pending_file,
+                config_path=self.config_file,
+                input_func=mock_input,
+                auto_opened=True,
+            )
+
+        output = out_stream.getvalue()
+        self.assertIn("Expires in ~", output)
+        self.assertIn("approve before then", output)
+
     @patch("sys.platform", "darwin")
     @patch("subprocess.run")
     def test_open_terminal_enabled_triggers_macos_opener(self, mock_run) -> None:

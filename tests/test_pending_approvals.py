@@ -827,5 +827,47 @@ class PendingApprovalWorkflowTests(unittest.TestCase):
             )
 
 
+class ApprovalExpiryGuardTests(unittest.TestCase):
+    def test_approve_after_expiry_is_rejected(self) -> None:
+        # No-weakening guard for #88: an already-expired ticket can never be
+        # approved, regardless of wait/TTL clamping or who calls approve.
+        import uuid
+        from agent_sudo.models import ApprovalRequest
+        from agent_sudo.pending_approvals import _format_time
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = PendingApprovalStore(Path(tmpdir) / "pending.json")
+            now = datetime.now(timezone.utc)
+            app = ApprovalRequest(
+                approval_request_id=str(uuid.uuid4()),
+                action_request=ActionRequest(
+                    actor="mcp-client",
+                    source="user",
+                    tool="shell",
+                    action="run_shell_command",
+                    target="pwd",
+                    payload_summary="run",
+                ),
+                classification=Classification.SENSITIVE,
+                decision=Decision.REQUIRE_APPROVAL,
+                required_approval_method="CLI_CONFIRM",
+                created_at=_format_time(now - timedelta(seconds=200)),
+                expires_at=_format_time(now - timedelta(seconds=10)),
+                status=ApprovalStatus.PENDING,
+                reason="sensitive action",
+            )
+            store.save([app])
+
+            _approval, result = store.approve(
+                app.approval_request_id,
+                approval_provider=ApprovalProvider(),
+            )
+            self.assertFalse(result.approved)
+            self.assertIn("expired", result.reason.lower())
+            self.assertEqual(
+                store.list(update_expired=False)[0].status, ApprovalStatus.EXPIRED
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

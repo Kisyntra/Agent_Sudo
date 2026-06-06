@@ -114,6 +114,20 @@ class AgentSudoMCPServer:
         )
         self.interactive_approvals = interactive_approvals
         self.approval_wait_seconds = max(0.0, approval_wait_seconds)
+        # A ticket becomes EXPIRED at its TTL and the block-and-wait loop returns
+        # the moment it does, so waiting longer than the TTL is impossible. Clamp
+        # (and warn) instead of silently capping, so the operator knows to raise
+        # --approval-ttl-seconds. The TTL itself is never extended here.
+        store = getattr(gateway, "pending_approval_store", None)
+        ttl = getattr(store, "ttl_seconds", None)
+        if ttl is not None and self.approval_wait_seconds > ttl:
+            print(
+                f"--approval-wait-seconds {int(self.approval_wait_seconds)} exceeds "
+                f"pending TTL {int(ttl)}s; will wait at most {int(ttl)}s. "
+                "Raise --approval-ttl-seconds to wait longer.",
+                file=sys.stderr,
+            )
+            self.approval_wait_seconds = float(ttl)
         self.poll_interval_seconds = max(0.0, poll_interval_seconds)
         self._sleep = sleep_func
         self._monotonic = monotonic_func
