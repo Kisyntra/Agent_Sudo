@@ -115,7 +115,7 @@ def run_approval_helper(
                         print(f"  Action:    {app.action_request.action}")
                         print(f"  Actor:     {app.action_request.actor}")
                         print(f"  Target:    {safe_target}")
-                        print(f"  Expires:   {rem}s")
+                        print(f"  Expires in ~{rem}s — approve before then.")
                         print()
                 else:
                     print("\nActive pending approvals:")

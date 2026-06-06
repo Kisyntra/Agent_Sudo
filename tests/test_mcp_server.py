@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
@@ -7,11 +8,52 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_sudo import __version_label__
+from agent_sudo.mcp_server import build_server
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class ApprovalWaitClampTests(unittest.TestCase):
+    """`--approval-wait-seconds` cannot outlast the pending TTL (the wait loop
+    returns when the ticket EXPIRES). Clamp + warn instead of silently capping;
+    never extend the TTL (issue #88)."""
+
+    def _build(self, *, wait, ttl, tmp):
+        return build_server(
+            audit_log=Path(tmp) / "audit.jsonl",
+            pending_approvals_file=Path(tmp) / "pending.json",
+            approval_ttl_seconds=ttl,
+            approval_wait_seconds=wait,
+        )
+
+    def test_wait_greater_than_ttl_clamps_and_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            err = io.StringIO()
+            with patch("sys.stderr", err):
+                server = self._build(wait=300, ttl=120, tmp=tmp)
+            self.assertEqual(server.approval_wait_seconds, 120.0)
+            self.assertIn("exceeds pending TTL 120s", err.getvalue())
+            self.assertIn("Raise --approval-ttl-seconds", err.getvalue())
+
+    def test_wait_less_than_ttl_unchanged_no_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            err = io.StringIO()
+            with patch("sys.stderr", err):
+                server = self._build(wait=60, ttl=120, tmp=tmp)
+            self.assertEqual(server.approval_wait_seconds, 60.0)
+            self.assertEqual(err.getvalue(), "")
+
+    def test_wait_equal_ttl_unchanged_no_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            err = io.StringIO()
+            with patch("sys.stderr", err):
+                server = self._build(wait=120, ttl=120, tmp=tmp)
+            self.assertEqual(server.approval_wait_seconds, 120.0)
+            self.assertEqual(err.getvalue(), "")
 
 
 class MCPServerSubprocessTests(unittest.TestCase):
