@@ -30,6 +30,7 @@ This document outlines the security boundaries, threat mitigation strategies, an
 ### What Agent_Sudo Does NOT Protect Against:
 - **Direct Tool Access (Bypasses)**: If the agent has access to alternate tools that do not route their operations through the `Agent_Sudo` gateway (e.g., a native tool with shell execution capability that doesn't use `Agent_Sudo`), `Agent_Sudo` cannot block or audit those actions.
 - **Compromised CLI Environment**: If the local shell session or terminal is fully compromised, an attacker can directly approve pending actions or tamper with the local configuration files.
+- **Control-plane mutation via ungoverned host tools**: An agent with a host-native shell (one that does not route through `Agent_Sudo`) can run `agent-sudo workspace set`, or edit config/delegation files, to *move* the enforcement boundary rather than cross it. `Agent_Sudo` cannot prevent this — the mitigation is to disable or route the agent's native shell. To make it detectable, workspace changes are recorded as `workspace_changed` audit events (old/new workspace, timestamp, CLI/local provenance), so a boundary change is visible to `agent-sudo verify-audit` even when made outside the gateway.
 - **Passive Data Leaks (outside protected paths)**: Safe read paths (e.g., reading a standard document) are allowed automatically. If a document contains a API key that isn't in a protected config path, `Agent_Sudo` won't prevent the agent from reading and potentially exfiltrating it via normal allowed tools.
 
 ### Default Trust Posture (Fail Closed)
