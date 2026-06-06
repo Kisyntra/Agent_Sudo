@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -16,6 +17,8 @@ from agent_sudo.delegations import (
     DELEGATIONS_PATH_ENV,
     DelegationStore,
     default_delegations_path,
+    delegation_status,
+    is_broad_delegation,
 )
 from agent_sudo.gateway import PermissionGateway, main
 from agent_sudo.models import (
@@ -23,6 +26,7 @@ from agent_sudo.models import (
     ApprovalResult,
     Classification,
     Decision,
+    DelegationToken,
 )
 from agent_sudo.policy import load_default_policy
 
@@ -592,6 +596,80 @@ class DelegationApprovalReachabilityTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(method, "none")
         self.assertEqual(reason, "no delegation matched")
+
+
+class DelegationObservabilityTests(unittest.TestCase):
+    """Display-only helpers behind `delegate list` / `doctor`. These describe a
+    token; they do not affect authorization."""
+
+    FIXED_NOW = datetime(2026, 6, 6, 3, 0, 0, tzinfo=timezone.utc)
+
+    def _token(self, **overrides) -> DelegationToken:
+        data = {
+            "token_id": "t",
+            "actor": "mcp-client",
+            "allowed_actions": ["write_file"],
+            "allowed_paths": ["/ws/a.txt"],
+            "denied_actions": [],
+            "expires_at": "2026-06-06T05:00:00Z",  # future relative to FIXED_NOW
+            "max_uses": 5,
+            "uses": 0,
+            "revoked": False,
+            "critical": False,
+            "created_at": "2026-06-06T01:00:00Z",
+        }
+        data.update(overrides)
+        return DelegationToken.from_dict(data)
+
+    def test_status_active(self) -> None:
+        token = self._token()
+        self.assertEqual(delegation_status(token, self.FIXED_NOW), "active")
+
+    def test_status_revoked(self) -> None:
+        token = self._token(revoked=True)
+        self.assertEqual(delegation_status(token, self.FIXED_NOW), "revoked")
+
+    def test_status_expired(self) -> None:
+        token = self._token(expires_at="2026-06-06T02:00:00Z")  # past
+        self.assertEqual(delegation_status(token, self.FIXED_NOW), "expired")
+
+    def test_status_exhausted(self) -> None:
+        token = self._token(max_uses=3, uses=3)
+        self.assertEqual(delegation_status(token, self.FIXED_NOW), "exhausted")
+
+    def test_status_combination_revoked_and_expired(self) -> None:
+        token = self._token(revoked=True, expires_at="2026-06-06T02:00:00Z")
+        self.assertEqual(delegation_status(token, self.FIXED_NOW), "revoked, expired")
+
+    def test_broad_wildcard_path(self) -> None:
+        self.assertTrue(is_broad_delegation(self._token(allowed_paths=["*"])))
+
+    def test_broad_empty_path(self) -> None:
+        self.assertTrue(is_broad_delegation(self._token(allowed_paths=[])))
+
+    def test_narrow_path_not_broad(self) -> None:
+        self.assertFalse(is_broad_delegation(self._token(allowed_paths=["/ws/a.txt"])))
+
+    def test_delegate_list_surfaces_status_and_broad(self) -> None:
+        # End-to-end through the CLI: enriched fields appear in the output and
+        # the stored token shape is unchanged on disk.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store_path = Path(tmpdir) / "delegations.json"
+            store = DelegationStore(store_path)
+            store.save([self._token(token_id="broad", allowed_paths=["*"])])
+
+            out = StringIO()
+            with redirect_stdout(out):
+                code = main(["delegate", "list", "--delegations-file", str(store_path)])
+            self.assertEqual(code, 0)
+            rows = json.loads(out.getvalue())
+            self.assertEqual(len(rows), 1)
+            self.assertIn("status", rows[0])
+            self.assertEqual(rows[0]["broad"], True)
+            # Persisted file must not gain the derived fields.
+            on_disk = json.loads(store_path.read_text(encoding="utf-8"))
+            self.assertNotIn("status", on_disk[0])
+            self.assertNotIn("broad", on_disk[0])
 
 
 if __name__ == "__main__":

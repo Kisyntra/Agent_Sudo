@@ -319,6 +319,31 @@ def _path_matches(target: str, allowed_paths: list[str]) -> bool:
     return False
 
 
+def delegation_status(token: DelegationToken, now: datetime | None = None) -> str:
+    """Derived, human-readable status for display/diagnostics only.
+
+    Returns ``"active"`` or a comma-joined combination of ``revoked`` /
+    ``expired`` / ``exhausted``. This is observability output; it does NOT affect
+    authorization (``_evaluate`` remains the single source of truth).
+    """
+    now = now or datetime.now(timezone.utc)
+    flags = []
+    if token.revoked:
+        flags.append("revoked")
+    if _parse_datetime(token.expires_at) <= now:
+        flags.append("expired")
+    if token.uses >= token.max_uses:
+        flags.append("exhausted")
+    return ", ".join(flags) if flags else "active"
+
+
+def is_broad_delegation(token: DelegationToken) -> bool:
+    """True when the token's path scope is unbounded — a wildcard ``"*"`` or an
+    empty path list. Observability flag only; does NOT affect authorization."""
+    paths = token.allowed_paths
+    return (not paths) or ("*" in paths)
+
+
 def _parse_datetime(value: str) -> datetime:
     normalized = value.replace("Z", "+00:00")
     return datetime.fromisoformat(normalized)

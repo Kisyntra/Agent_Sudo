@@ -7,7 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from agent_sudo.approvals import CONFIG_PATH
-from agent_sudo.delegations import default_delegations_path
+from agent_sudo.delegations import (
+    DelegationStore,
+    default_delegations_path,
+    is_broad_delegation,
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,7 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
             "audit log writable", root / ".agent-sudo" / "doctor-audit.jsonl"
         ),
         _writable_file_check("delegation store writable", default_delegations_path()),
+        _broad_delegations_check(),
     ]
 
 
@@ -95,6 +100,33 @@ def _approval_config_check() -> DoctorCheck:
         else "not initialized: run agent-sudo init-approval"
     )
     return DoctorCheck("approval config exists", exists, detail)
+
+
+def _broad_delegations_check() -> DoctorCheck:
+    # Observability warning only (not in the required set, so it never fails the
+    # exit code). A broad (path="*") token allows or blocks ALL matching actions
+    # while active, and — once stale — can blanket-deny them; surface it so it is
+    # not silently masking or breaking approvals.
+    path = default_delegations_path()
+    try:
+        tokens = DelegationStore(path).list() if path.exists() else []
+    except (OSError, ValueError) as exc:
+        return DoctorCheck(
+            "delegation scope", False, f"could not read delegation store: {exc}"
+        )
+    broad = [token for token in tokens if is_broad_delegation(token)]
+    if not broad:
+        return DoctorCheck(
+            "delegation scope", True, "no broad (path=*) delegations present"
+        )
+    ids = ", ".join(token.token_id for token in broad)
+    return DoctorCheck(
+        "delegation scope",
+        False,
+        f"{len(broad)} broad (path=*) delegation(s) present: {ids}; "
+        "these allow or block all matching actions — review with "
+        "`agent-sudo delegate list`",
+    )
 
 
 def _writable_file_check(name: str, path: Path) -> DoctorCheck:
