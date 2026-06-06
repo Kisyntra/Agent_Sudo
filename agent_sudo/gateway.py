@@ -24,6 +24,8 @@ from agent_sudo.delegations import (
     DelegationStore,
     DELEGATIONS_PATH_ENV,
     default_delegations_path,
+    delegation_status,
+    is_broad_delegation,
 )
 from agent_sudo.doctor import doctor_exit_code, format_doctor_checks, run_doctor
 from agent_sudo.models import (
@@ -1189,13 +1191,16 @@ def main(argv: Iterable[str] | None = None) -> int:
                 )
             return 0
         if args.delegate_command == "list":
-            print(
-                json.dumps(
-                    [token.to_dict() for token in store.list()],
-                    indent=2,
-                    sort_keys=True,
-                )
-            )
+            # Enrich the displayed output with derived, observability-only fields
+            # (status + broad). These are not persisted and do not affect
+            # authorization; the stored token shape is unchanged.
+            enriched = []
+            for token in store.list():
+                row = token.to_dict()
+                row["status"] = delegation_status(token)
+                row["broad"] = is_broad_delegation(token)
+                enriched.append(row)
+            print(json.dumps(enriched, indent=2, sort_keys=True))
             return 0
         if args.delegate_command == "revoke":
             token = store.revoke(args.token_id)

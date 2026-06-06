@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import tempfile
 import unittest
 import unittest.mock
@@ -114,6 +115,49 @@ class DoctorTests(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn("approval system not initialized", err.getvalue())
                 self.assertIn("agent-sudo init-approval", err.getvalue())
+
+
+class DoctorBroadDelegationTests(unittest.TestCase):
+    def _broad_token(self) -> dict:
+        return {
+            "token_id": "broad-1",
+            "actor": "mcp-client",
+            "allowed_actions": ["write_file"],
+            "allowed_paths": ["*"],
+            "denied_actions": [],
+            "expires_at": "2026-06-06T05:00:00Z",
+            "max_uses": 10,
+            "uses": 0,
+            "revoked": False,
+            "critical": False,
+            "created_at": "2026-06-06T01:00:00Z",
+        }
+
+    def _run_with_store(self, tokens: list) -> list[DoctorCheck]:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store_path = Path(tmpdir) / "delegations.json"
+            store_path.write_text(json.dumps(tokens), encoding="utf-8")
+            with unittest.mock.patch(
+                "agent_sudo.doctor.default_delegations_path",
+                return_value=store_path,
+            ):
+                return run_doctor()
+
+    def test_warns_when_broad_delegation_present(self) -> None:
+        checks = self._run_with_store([self._broad_token()])
+        scope = next(c for c in checks if c.name == "delegation scope")
+        self.assertFalse(scope.ok)
+        self.assertIn("broad", scope.detail)
+        self.assertIn("broad-1", scope.detail)
+        # WARN only — must not flip the doctor exit code to failure.
+        self.assertEqual(doctor_exit_code(checks), 0)
+
+    def test_ok_when_no_broad_delegation(self) -> None:
+        narrow = self._broad_token()
+        narrow["allowed_paths"] = ["/ws/a.txt"]
+        checks = self._run_with_store([narrow])
+        scope = next(c for c in checks if c.name == "delegation scope")
+        self.assertTrue(scope.ok)
 
 
 if __name__ == "__main__":
