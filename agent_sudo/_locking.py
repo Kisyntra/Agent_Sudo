@@ -23,17 +23,21 @@ from __future__ import annotations
 
 import errno
 import os
+import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-try:  # pragma: no cover - import guard
-    import fcntl
-except ImportError as exc:  # pragma: no cover - non-POSIX platforms
-    raise ImportError(
-        "agent_sudo file locking requires POSIX fcntl (macOS/Linux)"
-    ) from exc
+if sys.platform == "win32":
+    import msvcrt
+else:
+    try:  # pragma: no cover - import guard
+        import fcntl
+    except ImportError as exc:  # pragma: no cover - non-POSIX platforms
+        raise ImportError(
+            "agent_sudo file locking requires POSIX fcntl (macOS/Linux) or Windows msvcrt"
+        ) from exc
 
 
 DEFAULT_LOCK_TIMEOUT = 5.0
@@ -59,11 +63,19 @@ def file_lock(lock_path: Path, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterato
         deadline = time.monotonic() + max(0.0, timeout)
         while True:
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if sys.platform == "win32":
+                    os.lseek(fd, 0, os.SEEK_SET)
+                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
             except OSError as exc:
-                if exc.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EACCES):
-                    raise
+                if sys.platform == "win32":
+                    if exc.errno not in (errno.EACCES, errno.EDEADLK, 13, 33):
+                        raise
+                else:
+                    if exc.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EACCES):
+                        raise
                 if time.monotonic() >= deadline:
                     raise LockTimeout(
                         f"could not acquire lock {lock_path} within {timeout}s"
@@ -72,7 +84,11 @@ def file_lock(lock_path: Path, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterato
         yield
     finally:
         try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            if sys.platform == "win32":
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
 

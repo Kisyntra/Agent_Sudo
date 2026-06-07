@@ -267,16 +267,27 @@ class MCPGateway:
                 exit_code=None,
                 reason="shell command is outside the MCP demo allowlist",
             )
-        completed = subprocess.run(argv, capture_output=True, text=True, check=False)
-        return ExecutionResult(
-            request=request,
-            gateway_result=gateway_result,
-            executed=True,
-            exit_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-            reason="executed",
-        )
+        try:
+            completed = subprocess.run(argv, capture_output=True, text=True, check=False)
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=True,
+                exit_code=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+                reason="executed",
+            )
+        except OSError as exc:
+            return ExecutionResult(
+                request=request,
+                gateway_result=gateway_result,
+                executed=True,
+                exit_code=1,
+                stdout="",
+                stderr=str(exc),
+                reason="executed (host failed to run command)",
+            )
 
 
 def dispatch_mcp_tool_call(
