@@ -213,8 +213,9 @@ trio: **`doctor`** for local install health, **`context`** for workspace resolut
 ## Integration / dev (single-tool-call evaluation)
 
 These commands evaluate a **single tool-call JSON file** through the policy engine. They
-are for embedding/testing the engine, not day-to-day operation. Example inputs live in
-[`examples/`](../examples/).
+are for embedding/testing the engine, not day-to-day operation. The argument is a path to
+a JSON file you create (there is no inline-string form). Run `agent-sudo <command> --help`
+to see the expected schema with a copy-pasteable example.
 
 | Command | Input | Behavior |
 | :--- | :--- | :--- |
@@ -225,7 +226,16 @@ are for embedding/testing the engine, not day-to-day operation. Example inputs l
 | `hermes-check` | Hermes native tool-call JSON | normalize → classify, dry-run |
 | `codex-check` | Codex native tool-call JSON | normalize → classify, dry-run |
 
-- **Example:** `agent-sudo generic-check examples/generic_tool_call.json`
+- **Example** (self-contained — works from any directory, no repo checkout):
+
+  ```bash
+  cat > /tmp/agent-sudo-tool-call.json <<'EOF'
+  {"actor": "agent-a", "agent_type": "generic", "source": "user",
+   "source_trust": "USER_DIRECT", "tool": "unknown_tool", "action": "inspect",
+   "target": "/home/user/project", "payload_summary": "Inspect example project"}
+  EOF
+  agent-sudo generic-check /tmp/agent-sudo-tool-call.json
+  ```
 - **When to use:** wiring the engine into a runtime/adapter and verifying classification.
 - **Common mistakes:** expecting these to honor delegations — the `*-check` variants are
   dry-run classifiers and do not consult a delegation store; live enforcement happens in
@@ -242,7 +252,7 @@ are for embedding/testing the engine, not day-to-day operation. Example inputs l
 
 ### Poorly documented (before this reference)
 - `check`, `hermes-check`, `codex-check` had little user-facing documentation and an
-  undocumented input schema (mitigated by the `examples/` files and the table above).
+  undocumented input schema (mitigated by the `--help` schema examples and the table above).
 - `context` vs `workspace show` distinction was not stated anywhere.
 
 ### Overlapping / redundant commands
