@@ -43,6 +43,24 @@ else:
 DEFAULT_LOCK_TIMEOUT = 5.0
 _POLL_INTERVAL = 0.01
 
+# errno values that mean "lock is currently held, retry": EWOULDBLOCK/EAGAIN come
+# from POSIX ``fcntl.flock``; EACCES/EDEADLK are what ``msvcrt.locking`` raises on
+# Windows when a non-blocking lock conflicts.
+_LOCK_BUSY_ERRNOS = frozenset(
+    {errno.EWOULDBLOCK, errno.EAGAIN, errno.EACCES, errno.EDEADLK}
+)
+# Windows surfaces the same condition as a winerror rather than an errno:
+# ERROR_SHARING_VIOLATION (32) and ERROR_LOCK_VIOLATION (33).
+_WIN_LOCK_BUSY_WINERRORS = frozenset({32, 33})
+
+
+def _is_lock_busy(exc: OSError) -> bool:
+    """True if ``exc`` means the lock is held and we should keep retrying."""
+    return (
+        exc.errno in _LOCK_BUSY_ERRNOS
+        or getattr(exc, "winerror", None) in _WIN_LOCK_BUSY_WINERRORS
+    )
+
 
 class LockTimeout(Exception):
     """Raised when the advisory lock cannot be acquired within the deadline."""
@@ -70,12 +88,8 @@ def file_lock(lock_path: Path, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterato
                     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
             except OSError as exc:
-                if sys.platform == "win32":
-                    if exc.errno not in (errno.EACCES, errno.EDEADLK, 13, 33):
-                        raise
-                else:
-                    if exc.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EACCES):
-                        raise
+                if not _is_lock_busy(exc):
+                    raise
                 if time.monotonic() >= deadline:
                     raise LockTimeout(
                         f"could not acquire lock {lock_path} within {timeout}s"

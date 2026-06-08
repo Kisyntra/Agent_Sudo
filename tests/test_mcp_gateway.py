@@ -69,6 +69,42 @@ class MCPGatewayTests(unittest.TestCase):
         self.assertEqual(result.gateway_result.decision, Decision.ALLOW)
         self.assertEqual(result.gateway_result.approval_method, "DELEGATION")
 
+    def test_shell_spawn_failure_reports_not_executed(self) -> None:
+        # PR #90 review fix: when the host fails to *spawn* the process
+        # (subprocess.run raises OSError), nothing executed — the result must
+        # report executed=False with no exit code, not executed=True.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = DelegationStore(Path(tmpdir) / "delegations.json")
+            store.create(
+                actor="mcp-client",
+                allowed_actions=["run_shell_command"],
+                allowed_paths=["pwd"],
+                max_uses=1,
+                reason="spawn-failure test",
+                critical=True,
+            )
+            gateway = PermissionGateway(self.policy, delegation_store=store)
+            with mock.patch(
+                "agent_sudo.mcp_gateway.subprocess.run",
+                side_effect=OSError("exec format error"),
+            ):
+                result = dispatch_mcp_tool_call(
+                    {
+                        "actor": "mcp-client",
+                        "source": "user",
+                        "tool": "shell",
+                        "action": "run_shell_command",
+                        "target": "pwd",
+                        "payload_summary": "show current directory",
+                    },
+                    gateway,
+                )
+
+        self.assertFalse(result.executed)
+        self.assertIsNone(result.exit_code)
+        self.assertIn("host failed to run command", result.reason)
+        self.assertIn("exec format error", result.stderr)
+
     def test_write_inside_demo_path_executes_with_approval(self) -> None:
         target = Path("/tmp/agent-sudo-demo/unit-test-notes.txt")
         if target.exists():

@@ -284,11 +284,11 @@ class MCPGateway:
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
-                executed=True,
-                exit_code=1,
+                executed=False,
+                exit_code=None,
                 stdout="",
                 stderr=str(exc),
-                reason="executed (host failed to run command)",
+                reason="host failed to run command",
             )
 
 
