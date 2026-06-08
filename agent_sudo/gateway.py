@@ -1008,7 +1008,10 @@ def run_built_in_demo() -> int:
     print(f"\nInspect the audit log yourself: agent-sudo audit list {audit_path}")
 
     print("=" * 60)
-    print("For more integrations and examples, check out the examples/ directory.")
+    print(
+        "Next: run the full deny -> delegate -> allow-once -> deny -> verified "
+        "ladder with one command: agent-sudo eval"
+    )
     print("=" * 60)
     return 0
 
