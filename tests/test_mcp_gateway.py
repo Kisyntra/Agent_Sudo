@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.delegations import DelegationStore
@@ -23,6 +25,21 @@ class ApproveAllProvider(ApprovalProvider):
 class MCPGatewayTests(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load_default_policy()
+        # Hermetic isolation: these tests must not depend on the developer's
+        # ambient ~/.agent-sudo/config.json workspace (or AGENT_SUDO_WORKSPACE).
+        # When a configured workspace points at the repo root, a target inside
+        # it routes down the path-restriction branch instead of the policy
+        # BLOCKED branch the assertions expect (issue #84). Clear both so
+        # behavior matches a clean CI runner regardless of local state.
+        workspace_patcher = mock.patch(
+            "agent_sudo.context._load_config_workspace", return_value=None
+        )
+        workspace_patcher.start()
+        self.addCleanup(workspace_patcher.stop)
+        env_patcher = mock.patch.dict(os.environ, {}, clear=False)
+        env_patcher.start()
+        self.addCleanup(env_patcher.stop)
+        os.environ.pop("AGENT_SUDO_WORKSPACE", None)
 
     def test_safe_delegated_shell_executes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

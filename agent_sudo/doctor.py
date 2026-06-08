@@ -25,14 +25,19 @@ def run_doctor(*, repo_root: Path | None = None) -> list[DoctorCheck]:
     # doctor reports user readiness only. Repository/contributor hygiene
     # (e.g. the personal-data scanner) is a CI concern run via
     # scripts/check_no_personal_data.py, not surfaced to evaluators here.
-    root = repo_root or Path.cwd()
+    #
+    # All probes target the single home state root (~/.agent-sudo, where the
+    # approval config and delegation store live) so doctor reports one
+    # consistent location and never litters a .agent-sudo/ directory into the
+    # current working directory. ``repo_root`` is accepted for backward
+    # compatibility but no longer changes where state is probed.
+    del repo_root
+    state_root = default_delegations_path().parent
     return [
         _python_version_check(),
         _default_policy_check(),
         _approval_config_check(),
-        _writable_file_check(
-            "audit log writable", root / ".agent-sudo" / "doctor-audit.jsonl"
-        ),
+        _writable_file_check("audit log writable", state_root / "doctor-audit.jsonl"),
         _writable_file_check("delegation store writable", default_delegations_path()),
         _broad_delegations_check(),
     ]

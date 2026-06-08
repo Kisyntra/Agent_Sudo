@@ -52,6 +52,37 @@ class DoctorTests(unittest.TestCase):
 
             self.assertNotIn("no personal data in repo", names)
 
+    def test_doctor_does_not_create_agent_sudo_in_cwd(self) -> None:
+        # #71: doctor is a read-only diagnostic and must not leave a
+        # .agent-sudo/ directory behind in the current working directory.
+        prev = Path.cwd()
+        with tempfile.TemporaryDirectory() as work_dir:
+            import os
+
+            os.chdir(work_dir)
+            try:
+                run_doctor()
+                self.assertFalse((Path(work_dir) / ".agent-sudo").exists())
+            finally:
+                os.chdir(prev)
+
+    def test_doctor_reports_single_consistent_state_root(self) -> None:
+        # #71: the audit-log and delegation-store probes must report the same
+        # state root, and the writability probe must not leave a doctor-audit
+        # file behind.
+        with tempfile.TemporaryDirectory() as state_dir:
+            store_path = Path(state_dir) / "delegations.json"
+            with unittest.mock.patch(
+                "agent_sudo.doctor.default_delegations_path",
+                return_value=store_path,
+            ):
+                checks = run_doctor()
+            audit = next(c for c in checks if c.name == "audit log writable")
+            deleg = next(c for c in checks if c.name == "delegation store writable")
+            self.assertTrue(audit.ok)
+            self.assertEqual(Path(audit.detail).parent, Path(deleg.detail).parent)
+            self.assertFalse((store_path.parent / "doctor-audit.jsonl").exists())
+
     def test_doctor_exit_code_fails_required_check(self) -> None:
         checks = [DoctorCheck("Python version OK", False, "too old")]
 

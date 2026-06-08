@@ -435,8 +435,59 @@ def _external_content_requires_delegation(
     )
 
 
+class RequestInputError(Exception):
+    """A request / tool-call input file is missing or not valid JSON.
+
+    Raised by the input loaders so the CLI can print a friendly one-line error
+    and a payload example instead of dumping a raw traceback (and the user's
+    path) for the common mistake of passing an inline string or a bad path.
+    """
+
+
+_REQUEST_EXAMPLE = (
+    '{"actor": "agent", "source": "user", "tool": "shell", '
+    '"action": "run_shell_command", "target": "ls", '
+    '"payload_summary": "list files"}'
+)
+_TOOL_CALL_EXAMPLE = '{"name": "run_shell_command", "arguments": {"command": "ls"}}'
+_REQUEST_FILE_HELP = (
+    "Path to a JSON file containing the request (an object, or a list of "
+    f"objects). Not an inline string. Example contents: {_REQUEST_EXAMPLE}"
+)
+_TOOL_CALL_FILE_HELP = (
+    "Path to a JSON file containing the native tool call. Not an inline "
+    f"string. Example contents: {_TOOL_CALL_EXAMPLE}"
+)
+
+
+def _read_json_input(path: Path, *, kind: str, example: str) -> object:
+    """Read and parse a JSON input file, raising :class:`RequestInputError`.
+
+    ``kind`` names the input in messages (e.g. ``"request"``); ``example`` is a
+    minimal valid payload shown to the user when the file is missing or invalid.
+    """
+    path = Path(path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise RequestInputError(
+            f"{kind} file not found: {path}\n"
+            f"This argument is a path to a JSON file, not an inline {kind}.\n"
+            f"Example {kind} file contents:\n  {example}"
+        ) from exc
+    except OSError as exc:
+        raise RequestInputError(f"could not read {kind} file {path}: {exc}") from exc
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RequestInputError(
+            f"{kind} file is not valid JSON: {path} ({exc})\n"
+            f"Example {kind} file contents:\n  {example}"
+        ) from exc
+
+
 def load_requests(path: Path) -> list[ActionRequest]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw = _read_json_input(path, kind="request", example=_REQUEST_EXAMPLE)
     items = raw if isinstance(raw, list) else [raw]
     if not isinstance(items, list):
         raise ValueError("request file must contain a JSON object or list")
@@ -460,13 +511,13 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser = subparsers.add_parser(
         "check", help="Classify requests and show policy decisions"
     )
-    check_parser.add_argument("request_file", type=Path)
+    check_parser.add_argument("request_file", type=Path, help=_REQUEST_FILE_HELP)
     check_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
     run_parser = subparsers.add_parser(
         "run", help="Evaluate requests with approvals and audit logging"
     )
-    run_parser.add_argument("request_file", type=Path)
+    run_parser.add_argument("request_file", type=Path, help=_REQUEST_FILE_HELP)
     run_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     run_parser.add_argument(
         "--dry-run", action="store_true", help="Skip approval prompts"
@@ -491,25 +542,29 @@ def build_parser() -> argparse.ArgumentParser:
     hermes_parser = subparsers.add_parser(
         "hermes-check", help="Normalize and check an agent native tool call"
     )
-    hermes_parser.add_argument("tool_call_file", type=Path)
+    hermes_parser.add_argument("tool_call_file", type=Path, help=_TOOL_CALL_FILE_HELP)
     hermes_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
     codex_parser = subparsers.add_parser(
         "codex-check", help="Normalize and check a Codex native tool call"
     )
-    codex_parser.add_argument("tool_call_file", type=Path)
+    codex_parser.add_argument("tool_call_file", type=Path, help=_TOOL_CALL_FILE_HELP)
     codex_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
     generic_check_parser = subparsers.add_parser(
         "generic-check", help="Normalize and check a universal tool call"
     )
-    generic_check_parser.add_argument("tool_call_file", type=Path)
+    generic_check_parser.add_argument(
+        "tool_call_file", type=Path, help=_TOOL_CALL_FILE_HELP
+    )
     generic_check_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
 
     generic_run_parser = subparsers.add_parser(
         "generic-run", help="Evaluate a universal tool call"
     )
-    generic_run_parser.add_argument("tool_call_file", type=Path)
+    generic_run_parser.add_argument(
+        "tool_call_file", type=Path, help=_TOOL_CALL_FILE_HELP
+    )
     generic_run_parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     generic_run_parser.add_argument("--dry-run", action="store_true")
     generic_run_parser.add_argument(
@@ -1261,7 +1316,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "hermes-check":
         from agent_sudo.adapters.hermes import from_hermes_tool_call
 
-        request = from_hermes_tool_call(load_tool_call(args.tool_call_file))
+        request = from_hermes_tool_call(_cli_load_tool_call(args.tool_call_file))
         result = PermissionGateway(policy).evaluate(request, dry_run=True)
         _print_result(result)
         return 0
@@ -1269,7 +1324,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "codex-check":
         from agent_sudo.adapters.codex import from_codex_tool_call
 
-        request = from_codex_tool_call(load_tool_call(args.tool_call_file))
+        request = from_codex_tool_call(_cli_load_tool_call(args.tool_call_file))
         result = PermissionGateway(policy).evaluate(request, dry_run=True)
         _print_result(result)
         return 0
@@ -1277,7 +1332,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "generic-check":
         from agent_sudo.adapters.generic import from_generic_tool_call
 
-        request = from_generic_tool_call(load_tool_call(args.tool_call_file))
+        request = from_generic_tool_call(_cli_load_tool_call(args.tool_call_file))
         result = PermissionGateway(policy).evaluate(request, dry_run=True)
         _print_result(result)
         return 0
@@ -1286,7 +1341,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         from agent_sudo.adapters.generic import from_generic_tool_call
         from agent_sudo.executors import SafeToolExecutor, ShellCommandExecutor
 
-        request = from_generic_tool_call(load_tool_call(args.tool_call_file))
+        request = from_generic_tool_call(_cli_load_tool_call(args.tool_call_file))
         audit_logger = None if args.dry_run else AuditLogger(args.audit_log)
         pending_store = (
             None
@@ -1310,7 +1365,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             else 2
         )
 
-    requests = load_requests(args.request_file)
+    requests = _cli_load_requests(args.request_file)
 
     if args.command == "check":
         gateway = PermissionGateway(policy)
@@ -1375,10 +1430,28 @@ def _print_execution_result(result: object) -> None:
 
 
 def load_tool_call(path: Path) -> dict[str, object]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw = _read_json_input(path, kind="tool call", example=_TOOL_CALL_EXAMPLE)
     if not isinstance(raw, dict):
         raise ValueError("tool call file must contain a JSON object")
     return raw
+
+
+def _cli_load_requests(path: Path) -> list[ActionRequest]:
+    """CLI wrapper: report a friendly error and exit 2 on bad input."""
+    try:
+        return load_requests(path)
+    except RequestInputError as exc:
+        print(f"agent-sudo: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+
+def _cli_load_tool_call(path: Path) -> dict[str, object]:
+    """CLI wrapper: report a friendly error and exit 2 on bad input."""
+    try:
+        return load_tool_call(path)
+    except RequestInputError as exc:
+        print(f"agent-sudo: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def _exit_code_for(
