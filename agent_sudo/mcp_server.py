@@ -338,17 +338,52 @@ def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog=SERVER_NAME)
+    parser = argparse.ArgumentParser(
+        prog=SERVER_NAME,
+        description=(
+            "Agent_Sudo MCP server (stdio). Launched by your MCP client, not "
+            "run by hand. To try the engine first, run: agent-sudo eval"
+        ),
+        epilog=(
+            "Quickstart: pipx install agent-sudo-mcp && agent-sudo eval. "
+            "Generate a client config with: agent-sudo setup. "
+            "Use absolute paths for --audit-log / --delegations-file / "
+            "--pending-approvals-file: the client may launch this server from "
+            "any directory."
+        ),
+    )
     parser.add_argument(
         "--version", action="version", version=f"{SERVER_NAME} {__version_label__}"
     )
     parser.add_argument("--policy", type=Path, help="Path to policy YAML")
     parser.add_argument(
-        "--audit-log", type=Path, default=Path(".agent-sudo/mcp-audit.jsonl")
+        "--audit-log",
+        type=Path,
+        default=Path(".agent-sudo/mcp-audit.jsonl"),
+        help=(
+            "Path to the JSONL audit log to append decisions to "
+            "(default: .agent-sudo/mcp-audit.jsonl, relative to the launch "
+            "directory). Use an absolute path so the log is findable."
+        ),
     )
-    parser.add_argument("--delegations-file", type=Path)
     parser.add_argument(
-        "--pending-approvals-file", type=Path, default=PENDING_APPROVALS_PATH
+        "--delegations-file",
+        type=Path,
+        help=(
+            "Path to the delegation-token store. Required to honor "
+            "`agent-sudo delegate create` tokens; without it the server runs "
+            "with no delegation store and tokens are silently ignored."
+        ),
+    )
+    parser.add_argument(
+        "--pending-approvals-file",
+        type=Path,
+        default=PENDING_APPROVALS_PATH,
+        help=(
+            "Path to the pending-approvals store that `agent-sudo pending` / "
+            "`agent-sudo approve` read and write "
+            f"(default: {PENDING_APPROVALS_PATH})."
+        ),
     )
     parser.add_argument(
         "--approval-ttl-seconds",
