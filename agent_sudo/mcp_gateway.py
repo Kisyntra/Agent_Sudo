@@ -268,7 +268,9 @@ class MCPGateway:
                 reason="shell command is outside the MCP demo allowlist",
             )
         try:
-            completed = subprocess.run(argv, capture_output=True, text=True, check=False)
+            completed = subprocess.run(
+                argv, capture_output=True, text=True, check=False
+            )
             return ExecutionResult(
                 request=request,
                 gateway_result=gateway_result,
