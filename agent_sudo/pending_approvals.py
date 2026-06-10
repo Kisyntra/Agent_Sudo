@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import uuid
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
+from agent_sudo._locking import (
+    DEFAULT_LOCK_TIMEOUT,
+    file_lock,
+    fsync_dir,
+)
 from agent_sudo.approvals import ApprovalProvider
 from agent_sudo.audit import AuditLogger
 from agent_sudo.models import (
@@ -37,8 +43,10 @@ class PendingApprovalStore:
         now_func: Callable[[], datetime] | None = None,
         notify: bool | None = None,
         open_approval_terminal: bool | None = None,
+        lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
     ):
         self.path = path
+        self.lock_timeout = lock_timeout
         self.audit_logger = audit_logger
         self.ttl_seconds = resolve_approval_ttl_seconds(ttl_seconds)
         self.now_func = now_func or (lambda: datetime.now(timezone.utc))
@@ -52,6 +60,10 @@ class PendingApprovalStore:
             if open_approval_terminal is not None
             else (os.environ.get("AGENT_SUDO_OPEN_APPROVAL_TERMINAL") == "1")
         )
+
+    @property
+    def _lock_path(self) -> Path:
+        return Path(str(self.path) + ".lock")
 
     def create(
         self,
@@ -74,9 +86,10 @@ class PendingApprovalStore:
             status=ApprovalStatus.PENDING,
             reason=reason,
         )
-        approvals = self.list(update_expired=False)
-        approvals.append(approval)
-        self.save(approvals)
+        with file_lock(self._lock_path, self.lock_timeout):
+            approvals = self._read()
+            approvals.append(approval)
+            self.save(approvals)
         self._record_state("approval_created", approval)
 
         if self.notify:
@@ -105,26 +118,81 @@ class PendingApprovalStore:
 
         return approval
 
-    def list(self, *, update_expired: bool = True) -> list[ApprovalRequest]:
+    def _read(self) -> list[ApprovalRequest]:
+        """Pure read of the store file. No expiry side effects, no lock."""
         if not self.path.exists():
             return []
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
             raise ValueError("pending approvals file must contain a JSON list")
-        approvals = [ApprovalRequest.from_dict(item) for item in raw]
-        return self._expire_stale(approvals) if update_expired else approvals
+        return [ApprovalRequest.from_dict(item) for item in raw]
+
+    @staticmethod
+    def _find(
+        approvals: list[ApprovalRequest], approval_request_id: str
+    ) -> ApprovalRequest | None:
+        for approval in approvals:
+            if approval.approval_request_id == approval_request_id:
+                return approval
+        return None
+
+    @staticmethod
+    def _transition(
+        approvals: list[ApprovalRequest],
+        target: ApprovalRequest,
+        status: ApprovalStatus,
+        reason: str,
+    ) -> tuple[ApprovalRequest, list[ApprovalRequest]]:
+        new = replace(target, status=status, reason=reason)
+        updated = [
+            new if a.approval_request_id == target.approval_request_id else a
+            for a in approvals
+        ]
+        return new, updated
+
+    def list(self, *, update_expired: bool = True) -> list[ApprovalRequest]:
+        # update_expired persists EXPIRED transitions via _expire_stale, which is
+        # a write. Serialize it under the same file lock the mutators use so this
+        # read path can never clobber a concurrent consume/deny/create (#99
+        # follow-up: the previously unlocked expire-on-read could resurrect a
+        # just-consumed approval). The locked mutators must NOT call this method
+        # (they already hold the lock) — they expire in-place via
+        # `self._expire_stale(self._read())`.
+        if not update_expired:
+            return self._read()
+        with file_lock(self._lock_path, self.lock_timeout):
+            return self._expire_stale(self._read())
 
     def save(self, approvals: list[ApprovalRequest]) -> None:
+        # Atomic publish: write a temp file in the same directory, fsync it, then
+        # os.replace over the target so a concurrent reader/crash never observes a
+        # partial file. Byte-identical output to the previous write_text path.
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _chmod_best_effort(self.path.parent, 0o700)
-        self.path.write_text(
+        data = (
             json.dumps(
                 [approval.to_dict() for approval in approvals], indent=2, sort_keys=True
             )
-            + "\n",
-            encoding="utf-8",
+            + "\n"
         )
-        _chmod_best_effort(self.path, 0o600)
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(self.path.parent), prefix=".pending-approvals-", suffix=".tmp"
+        )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, self.path)
+            _chmod_best_effort(self.path, 0o600)
+            fsync_dir(self.path.parent)
+        except BaseException:
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+            raise
 
     def find_matching(self, request: ActionRequest) -> ApprovalRequest | None:
         fingerprint = _request_fingerprint(request)
@@ -149,98 +217,147 @@ class PendingApprovalStore:
         *,
         approval_provider: ApprovalProvider,
     ) -> tuple[ApprovalRequest | None, ApprovalResult]:
-        approvals = self.list()
-        updated: list[ApprovalRequest] = []
-        target: ApprovalRequest | None = None
-        result = ApprovalResult(False, "APPROVAL_STORE", "approval request not found")
-        for approval in approvals:
-            if approval.approval_request_id != approval_request_id:
-                updated.append(approval)
-                continue
-            target = approval
-            if approval.status != ApprovalStatus.PENDING:
-                result = ApprovalResult(
+        # The passphrase prompt (approve_critical) must NOT run while the file
+        # lock is held — that would serialize every other store operation on
+        # human input. So: resolve everything non-interactive under the lock
+        # (phase 1), prompt with the lock released (phase 2), then re-acquire
+        # and re-verify the approval is still PENDING before applying (phase 3).
+        # The re-verify is what makes this safe: an approval consumed, denied, or
+        # expired during the prompt is never clobbered back to APPROVED (#99).
+        not_found = ApprovalResult(
+            False, "APPROVAL_STORE", "approval request not found"
+        )
+
+        def _expire(
+            approvals: list[ApprovalRequest], target: ApprovalRequest
+        ) -> tuple[ApprovalRequest, ApprovalResult]:
+            expired, updated = self._transition(
+                approvals, target, ApprovalStatus.EXPIRED, "approval request expired"
+            )
+            self.save(updated)
+            self._record_state("approval_expired", expired)
+            return expired, ApprovalResult(
+                False, "APPROVAL_STORE", "approval request expired"
+            )
+
+        # Phase 1 (locked): every outcome that needs no human input.
+        pending_action: ActionRequest | None = None
+        with file_lock(self._lock_path, self.lock_timeout):
+            approvals = self._read()
+            target = self._find(approvals, approval_request_id)
+            if target is None:
+                return None, not_found
+            if target.status != ApprovalStatus.PENDING:
+                return target, ApprovalResult(
                     False,
                     "APPROVAL_STORE",
-                    f"approval request is {approval.status.value}",
+                    f"approval request is {target.status.value}",
                 )
-                updated.append(approval)
-                continue
-            if self._is_expired(approval):
-                expired = replace(
-                    approval,
-                    status=ApprovalStatus.EXPIRED,
-                    reason="approval request expired",
+            if self._is_expired(target):
+                return _expire(approvals, target)
+            if target.decision != Decision.REQUIRE_STRONG_APPROVAL:
+                approved, updated = self._transition(
+                    approvals,
+                    target,
+                    ApprovalStatus.APPROVED,
+                    "approval request approved",
                 )
-                result = ApprovalResult(
-                    False, "APPROVAL_STORE", "approval request expired"
-                )
-                updated.append(expired)
-                target = expired
-                self._record_state("approval_expired", expired)
-                continue
-            if approval.decision == Decision.REQUIRE_STRONG_APPROVAL:
-                result = approval_provider.approve_critical(approval.action_request)
-                if not result.approved or result.pending:
-                    updated.append(approval)
-                    self._record_attempt("approval_approve_failed", approval, result)
-                    continue
-            else:
-                result = ApprovalResult(
+                self.save(updated)
+                self._record_state("approval_approved", approved)
+                return approved, ApprovalResult(
                     True, "CLI_CONFIRM", "approval request approved"
                 )
-            approved = replace(
-                approval, status=ApprovalStatus.APPROVED, reason=result.reason
+            pending_action = target.action_request
+
+        # Phase 2 (lock released): interactive passphrase prompt.
+        result = approval_provider.approve_critical(pending_action)
+        if not result.approved or result.pending:
+            with file_lock(self._lock_path, self.lock_timeout):
+                target = self._find(self._read(), approval_request_id)
+            if target is not None:
+                self._record_attempt("approval_approve_failed", target, result)
+            return target, result
+
+        # Phase 3 (locked): re-verify still PENDING, then apply. Never clobber an
+        # approval that was consumed/denied/expired while the prompt was open.
+        with file_lock(self._lock_path, self.lock_timeout):
+            approvals = self._read()
+            target = self._find(approvals, approval_request_id)
+            if target is None:
+                return None, not_found
+            if target.status != ApprovalStatus.PENDING:
+                return target, ApprovalResult(
+                    False,
+                    "APPROVAL_STORE",
+                    f"approval request is {target.status.value}",
+                )
+            if self._is_expired(target):
+                return _expire(approvals, target)
+            approved, updated = self._transition(
+                approvals, target, ApprovalStatus.APPROVED, result.reason
             )
-            updated.append(approved)
-            target = approved
-            self._record_state("approval_approved", approved)
-        self.save(updated)
-        return target, result
+            self.save(updated)
+        self._record_state("approval_approved", approved)
+        return approved, result
 
     def deny(
         self, approval_request_id: str, *, reason: str = "approval request denied"
     ) -> ApprovalRequest | None:
-        approvals = self.list()
-        updated: list[ApprovalRequest] = []
         denied: ApprovalRequest | None = None
-        for approval in approvals:
-            if approval.approval_request_id == approval_request_id:
-                approval = replace(
-                    approval, status=ApprovalStatus.DENIED, reason=reason
-                )
-                denied = approval
-                self._record_state("approval_denied", approval)
-            updated.append(approval)
-        self.save(updated)
+        # deny() has no interactive step, so the whole read-modify-write runs
+        # under the lock (unlike approve(), which prompts for a passphrase).
+        with file_lock(self._lock_path, self.lock_timeout):
+            approvals = self._expire_stale(self._read())
+            updated: list[ApprovalRequest] = []
+            for approval in approvals:
+                if approval.approval_request_id == approval_request_id:
+                    approval = replace(
+                        approval, status=ApprovalStatus.DENIED, reason=reason
+                    )
+                    denied = approval
+                updated.append(approval)
+            self.save(updated)
+        if denied is not None:
+            self._record_state("approval_denied", denied)
         return denied
 
     def consume_matching(self, request: ActionRequest) -> ApprovalRequest | None:
-        approvals = self.list()
-        updated: list[ApprovalRequest] = []
-        consumed: ApprovalRequest | None = None
+        # The entire read -> match -> mark-USED -> write must be atomic, or two
+        # concurrent consumers each see the same APPROVED row and both succeed,
+        # consuming a one-use approval more than once (issue #99). Mirrors the
+        # delegation store's lock discipline.
         fingerprint = _request_fingerprint(request)
-        for approval in approvals:
-            if consumed is None and approval.status == ApprovalStatus.APPROVED:
-                if _request_fingerprint(approval.action_request) == fingerprint:
-                    if self._is_expired(approval):
-                        approval = replace(
-                            approval,
-                            status=ApprovalStatus.EXPIRED,
-                            reason="approval request expired",
-                        )
-                        self._record_state("approval_expired", approval)
-                    else:
-                        approval = replace(
-                            approval,
-                            status=ApprovalStatus.USED,
-                            reason="approval request used",
-                        )
-                        consumed = approval
-                        self._record_state("approval_used", approval)
-            updated.append(approval)
+        consumed: ApprovalRequest | None = None
+        expired_records: list[ApprovalRequest] = []
+        with file_lock(self._lock_path, self.lock_timeout):
+            approvals = self._expire_stale(self._read())
+            updated: list[ApprovalRequest] = []
+            for approval in approvals:
+                if consumed is None and approval.status == ApprovalStatus.APPROVED:
+                    if _request_fingerprint(approval.action_request) == fingerprint:
+                        if self._is_expired(approval):
+                            approval = replace(
+                                approval,
+                                status=ApprovalStatus.EXPIRED,
+                                reason="approval request expired",
+                            )
+                            expired_records.append(approval)
+                        else:
+                            approval = replace(
+                                approval,
+                                status=ApprovalStatus.USED,
+                                reason="approval request used",
+                            )
+                            consumed = approval
+                updated.append(approval)
+            if consumed is not None:
+                self.save(updated)
+        # Audit writes happen outside the pending lock; the audit logger takes its
+        # own lock, and keeping them out shortens the critical section.
+        for record in expired_records:
+            self._record_state("approval_expired", record)
         if consumed is not None:
-            self.save(updated)
+            self._record_state("approval_used", consumed)
         return consumed
 
     def _expire_stale(self, approvals: list[ApprovalRequest]) -> list[ApprovalRequest]:
