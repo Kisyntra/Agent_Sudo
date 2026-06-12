@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.6
+
+Security-correctness patch: external-content taint can no longer weaken approval strength. Also picks up a pending-approval store concurrency fix that landed after v0.5.5.
+
+- **Taint monotonicity (#103, #104).** The classifier's `EXTERNAL_CONTENT` provenance branch returned SENSITIVE for any non-BLOCKED action, downgrading CRITICAL-policy actions (`send_email`, `money_transfer`, `external_post`, `credential_access`, `run_shell_command`, `delete_file`, `legal_or_employment_message`) from strong approval to normal approval. External content may raise risk but must never lower it: SAFE still escalates to SENSITIVE; SENSITIVE, CRITICAL, and BLOCKED keep their tier. Adds regression tests for all seven critical actions and a property test asserting the tainted classification is never lower than the untainted one for every default-policy action across both taint channels (provenance origin and source trust).
+- **Pending approval store concurrency (#100).** Mutations of the pending-approval store are serialized, preventing concurrent approval flows from corrupting or losing pending entries. Adds concurrency regression tests.
+- **Compatibility.** No breaking changes, no schema changes, no new runtime dependencies. Visible behavior change (intended, strictly tightening): actions whose policy tier is CRITICAL now require strong/passphrase approval when tagged with `EXTERNAL_CONTENT` provenance, and their audit records carry classification `CRITICAL` instead of `SENSITIVE` — relevant to anyone alerting on classification counts. Nothing previously blocked is allowed and nothing previously allowed is blocked.
+
 ## v0.5.5
 
 First-run and pip-only-user fixes surfaced by a fresh-install audit, plus a re-landed review fix. No engine behavior, schema, policy, or dependency changes.
