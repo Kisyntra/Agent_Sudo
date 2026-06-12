@@ -133,8 +133,7 @@ class TaintMonotonicityTests(unittest.TestCase):
                     self.assertGreaterEqual(
                         TIER_ORDER[tainted],
                         TIER_ORDER[untainted],
-                        f"{action}: taint lowered {untainted.value} "
-                        f"to {tainted.value}",
+                        f"{action}: taint lowered {untainted.value} to {tainted.value}",
                     )
 
 
