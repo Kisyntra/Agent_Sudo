@@ -722,6 +722,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init_parser.add_argument("--force", action="store_true")
     subparsers.add_parser("doctor", help="Check local agent-sudo readiness")
+    inventory_parser = subparsers.add_parser(
+        "inventory",
+        help=(
+            "Read-only report of Agent_Sudo installs, MCP client configs, "
+            "and version drift"
+        ),
+    )
+    inventory_parser.add_argument(
+        "--json", action="store_true", help="Emit the report as JSON"
+    )
     verify_routing_parser = subparsers.add_parser(
         "verify-routing",
         help="Report observed evidence of whether actions flow through Agent_Sudo",
@@ -1124,6 +1134,20 @@ def main(argv: Iterable[str] | None = None) -> int:
         checks = run_doctor()
         print(format_doctor_checks(checks))
         return doctor_exit_code(checks)
+    if args.command == "inventory":
+        import json as json_module
+
+        from agent_sudo.inventory import build_inventory, format_inventory
+
+        report = build_inventory()
+        if args.json:
+            print(json_module.dumps(report.to_dict(), indent=2))
+        else:
+            from agent_sudo import branding
+
+            branding.print_wordmark()
+            print(format_inventory(report))
+        return 0
     if args.command == "verify-routing":
         from agent_sudo.routing_check import (
             format_routing_report,

@@ -76,6 +76,21 @@ and troubleshooting); they are listed under their primary use.
 - **Common mistakes:** expecting it to validate your MCP client config — it checks the
   local Agent_Sudo install, not the client wiring (use `verify-routing` for that).
 
+### `inventory`
+- **Purpose:** read-only report of every Agent_Sudo install it can find (PATH,
+  pipx, pyenv, venvs referenced by client configs), the MCP client configs that
+  point at them (Claude Desktop, Claude Code, Codex, Gemini, Antigravity,
+  Hermes), and how they relate: version drift, duplicate installs, stale
+  copies, PATH shadowing, editable installs, configs pointing at missing
+  binaries.
+- **Example:** `agent-sudo inventory` (human report) or `agent-sudo inventory --json`
+- **When to use:** when a client seems to run an old version, when you have
+  installed Agent_Sudo more than one way, or before upgrading.
+- **Common mistakes:** expecting it to fix anything — it never modifies,
+  deletes, or uninstalls; every line ends in a recommendation you apply
+  yourself. It also reads metadata instead of executing the binaries it finds,
+  so a corrupted install shows as `UNKNOWN` rather than being run.
+
 ### `init-approval`
 - **Purpose:** create (or reset) the local passphrase used to approve **critical**
   actions.
