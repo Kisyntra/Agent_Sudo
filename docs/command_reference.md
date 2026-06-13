@@ -76,6 +76,22 @@ and troubleshooting); they are listed under their primary use.
 - **Common mistakes:** expecting it to validate your MCP client config — it checks the
   local Agent_Sudo install, not the client wiring (use `verify-routing` for that).
 
+### `--version`
+- **Purpose:** print the running version **and which copy is running it** —
+  install type (editable / pinned wheel / source checkout), the source path,
+  and the Python executable. A bare version number can't tell you whether the
+  code you're editing is the code that's enforcing; this can.
+- **Example:**
+  ```
+  agent-sudo --version
+  agent-sudo v0.5.6
+    install:  editable  (source: /Volumes/Storage/Agent_Sudo)
+    python:   ~/.pyenv/versions/3.11.14/bin/python  (3.11.14)
+  ```
+- **When to use:** first check when a client seems to run stale code. The first
+  line stays a bare `agent-sudo vX.Y.Z` so scripts can still parse it.
+- **See also:** `inventory` for the full multi-install picture across the machine.
+
 ### `inventory`
 - **Purpose:** read-only report of every Agent_Sudo install it can find (PATH,
   pipx, pyenv, venvs referenced by client configs), the MCP client configs that
