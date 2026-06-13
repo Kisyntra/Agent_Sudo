@@ -123,7 +123,9 @@ def build_topology(
     # 1. CLI surfaces: installs resolvable on PATH, nearest first.
     cli_surfaces = [
         CLISurface(
-            executable=Path(install.executable).name if install.executable else "agent-sudo",
+            executable=Path(install.executable).name
+            if install.executable
+            else "agent-sudo",
             install_root=install.root,
             version=install.version,
             editable_source=install.editable_source,
@@ -183,7 +185,11 @@ def _detect_unrouted(
             if path:
                 found.append(path)
         for raw in tool.get("paths", []):
-            expanded = Path(raw.replace("~", str(home), 1)) if raw.startswith("~") else Path(raw)
+            expanded = (
+                Path(raw.replace("~", str(home), 1))
+                if raw.startswith("~")
+                else Path(raw)
+            )
             if expanded.exists():
                 found.append(str(expanded))
         if found:

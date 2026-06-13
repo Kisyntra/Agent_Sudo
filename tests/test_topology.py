@@ -102,7 +102,9 @@ class TopologyStructureTests(unittest.TestCase):
     def test_cli_surfaces_nearest_first_and_shim_flagged(self):
         topo = build_topology(report=_report(), unrouted_tools=[])
         # nearest on PATH first (rank 0), shim (rank 6) after
-        self.assertEqual(topo.cli_surfaces[0].install_root, "/home/.pyenv/versions/3.11.14")
+        self.assertEqual(
+            topo.cli_surfaces[0].install_root, "/home/.pyenv/versions/3.11.14"
+        )
         self.assertFalse(topo.cli_surfaces[0].is_shim)
         self.assertEqual(topo.cli_surfaces[0].version, "0.5.6")
         self.assertTrue(topo.cli_surfaces[1].is_shim)
@@ -113,7 +115,9 @@ class TopologyStructureTests(unittest.TestCase):
     def test_mcp_clients_carry_audit_and_editable_source(self):
         topo = build_topology(report=_report(), unrouted_tools=[])
         by = {c.client: c for c in topo.mcp_clients}
-        self.assertEqual(by["claude-desktop"].audit_log, "/home/.agent-sudo/mcp-audit.jsonl")
+        self.assertEqual(
+            by["claude-desktop"].audit_log, "/home/.agent-sudo/mcp-audit.jsonl"
+        )
         self.assertEqual(by["claude-desktop"].editable_source, "/repo/Agent_Sudo")
         self.assertEqual(by["gemini"].editable_source, "/home/Developer/Agent_Sudo")
 
@@ -139,7 +143,9 @@ class NotRoutedTests(unittest.TestCase):
         self.assertTrue(topo.not_routed[0].found)
 
     def test_absent_tool_not_reported(self):
-        tools = [{"name": "ghosttool", "binaries": [], "paths": ["/nope/does/not/exist"]}]
+        tools = [
+            {"name": "ghosttool", "binaries": [], "paths": ["/nope/does/not/exist"]}
+        ]
         topo = build_topology(report=_report(), unrouted_tools=tools)
         self.assertEqual(topo.not_routed, [])
 
@@ -159,7 +165,9 @@ class FormatTopologyTests(unittest.TestCase):
             present = Path(tmp) / "smithery"
             present.mkdir()
             tools = [{"name": "smithery", "binaries": [], "paths": [str(present)]}]
-            text = format_topology(build_topology(report=_report(), unrouted_tools=tools))
+            text = format_topology(
+                build_topology(report=_report(), unrouted_tools=tools)
+            )
         for header in (
             "1. CLI surfaces",
             "2. MCP clients",
