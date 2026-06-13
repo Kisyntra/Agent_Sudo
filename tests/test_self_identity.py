@@ -85,6 +85,45 @@ class ResolveInstallTests(unittest.TestCase):
         self.assertEqual(source, "/home/dev/Agent_Sudo")
 
 
+class _FakeDist:
+    def __init__(self, name, direct_url):
+        self.metadata = {"Name": name}
+        self._direct_url = direct_url
+
+    def read_text(self, filename):
+        if filename == "direct_url.json":
+            return self._direct_url
+        return None
+
+
+class ReadDirectUrlShadowingTests(unittest.TestCase):
+    """A stale egg-info that shadows the real dist must not hide editable state.
+
+    Regression for `python -m agent_sudo.gateway --version` run from the repo
+    root, where a stray `agent_sudo_mcp.egg-info` (no direct_url.json) sorted
+    ahead of the real editable dist-info and made it look like a source
+    checkout.
+    """
+
+    def test_skips_shadowing_dist_without_direct_url(self):
+        editable = json.dumps(
+            {"dir_info": {"editable": True}, "url": "file:///Volumes/Storage/Agent_Sudo"}
+        )
+        dists = [
+            _FakeDist("agent-sudo-mcp", None),  # stale egg-info, sorted first
+            _FakeDist("some-other-pkg", "irrelevant"),
+            _FakeDist("agent_sudo_mcp", editable),  # real editable dist-info
+        ]
+        with mock.patch("importlib.metadata.distributions", return_value=dists):
+            text = self_identity._read_direct_url()
+        self.assertEqual(text, editable)
+
+    def test_returns_none_when_no_match_has_direct_url(self):
+        dists = [_FakeDist("agent-sudo-mcp", None), _FakeDist("other", "x")]
+        with mock.patch("importlib.metadata.distributions", return_value=dists):
+            self.assertIsNone(self_identity._read_direct_url())
+
+
 class DetectOriginTests(unittest.TestCase):
     def test_console_script(self):
         self.assertEqual(
@@ -138,6 +177,17 @@ class FormatVersionBlockTests(unittest.TestCase):
     def test_first_line_is_bare_version_for_scripts(self):
         block = format_version_block(self._identity(), version_label="v0.5.6")
         self.assertEqual(block.splitlines()[0], "agent-sudo v0.5.6")
+
+    def test_origin_is_not_in_human_block(self):
+        # origin is an invocation-mechanism detail; it belongs in to_dict() for
+        # downstream consumers, not in the user-facing --version output.
+        block = format_version_block(
+            self._identity(origin="embedded"), version_label="v0.5.6"
+        )
+        self.assertNotIn("origin", block)
+        self.assertNotIn("embedded", block)
+        # but it remains available structurally
+        self.assertEqual(self._identity(origin="embedded").to_dict()["origin"], "embedded")
 
     def test_editable_shows_source(self):
         block = format_version_block(self._identity(), version_label="v0.5.6")

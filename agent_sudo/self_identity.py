@@ -72,13 +72,37 @@ class SelfIdentity:
 
 
 def _read_direct_url() -> str | None:
-    """Return the running distribution's ``direct_url.json`` text, if any."""
+    """Return the running distribution's ``direct_url.json`` text, if any.
+
+    Name-based ``metadata.distribution(...)`` is unreliable: when a stale
+    ``*.egg-info``/``*.dist-info`` shadows the real install on ``sys.path``
+    (e.g. ``python -m agent_sudo.gateway`` from the repo root, where CWD is on
+    the path), the lookup can return the stale entry, which has no
+    ``direct_url.json`` — making an editable install look like a bare source
+    checkout. So enumerate every distribution matching the name and return the
+    first ``direct_url.json`` actually present.
+    """
     try:
         from importlib import metadata
 
-        return metadata.distribution(DIST_NAME).read_text("direct_url.json")
+        dists = list(metadata.distributions())
     except Exception:
         return None
+    canonical = DIST_NAME.replace("_", "-").lower()
+    for dist in dists:
+        try:
+            name = str(dist.metadata["Name"] or "").replace("_", "-").lower()
+        except Exception:
+            continue
+        if name != canonical:
+            continue
+        try:
+            text = dist.read_text("direct_url.json")
+        except Exception:
+            text = None
+        if text:
+            return text
+    return None
 
 
 def _resolve_install(package_path: Path) -> tuple[str, str]:
@@ -157,10 +181,13 @@ def format_version_block(identity: SelfIdentity, *, version_label: str) -> str:
     else:
         install_line = f"unknown  ({tilde(identity.package_path)})"
 
+    # The human block answers one question: which copy is guarding you. It
+    # deliberately omits `origin` (console-script / python -m / embedded) —
+    # that's an invocation-mechanism detail useful to downstream consumers
+    # (see to_dict()), not to a user reading `--version`.
     lines = [
         f"agent-sudo {version_label}",
         f"  install:  {install_line}",
         f"  python:   {tilde(identity.python_executable)}  ({identity.python_version})",
-        f"  origin:   {identity.origin}",
     ]
     return "\n".join(lines)

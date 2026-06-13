@@ -87,7 +87,6 @@ and troubleshooting); they are listed under their primary use.
   agent-sudo v0.5.6
     install:  editable  (source: /Volumes/Storage/Agent_Sudo)
     python:   ~/.pyenv/versions/3.11.14/bin/python  (3.11.14)
-    origin:   console-script
   ```
 - **When to use:** first check when a client seems to run stale code. The first
   line stays a bare `agent-sudo vX.Y.Z` so scripts can still parse it.
