@@ -37,6 +37,14 @@ class AuditLogger:
         self._write_entry(entry)
 
     def _write_entry(self, entry: dict[str, Any]) -> None:
+        # Stamp which copy of Agent_Sudo wrote this entry (issue #109). Done at
+        # the single write choke point so every record — decisions and approval
+        # lifecycle events alike — names its producer. Additive: it is hashed
+        # with the rest of the entry and ignored by older readers.
+        if "run_context" not in entry:
+            from agent_sudo.run_context import current as current_run_context
+
+            entry["run_context"] = current_run_context()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         # Read last hash -> link -> append must be one atomic step, otherwise two
         # concurrent appends read the same previous_hash and fork the chain. The

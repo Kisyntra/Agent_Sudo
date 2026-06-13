@@ -75,6 +75,11 @@ class PendingApprovalStore:
         reason: str,
     ) -> ApprovalRequest:
         now = self._now()
+        # Stamp which copy of Agent_Sudo requested this approval (issue #109) so
+        # the prompt, notification, and audit trail all name the same process —
+        # captured here, in the requesting process, then persisted on the record.
+        from agent_sudo.run_context import current as current_run_context
+
         approval = ApprovalRequest(
             approval_request_id=str(uuid.uuid4()),
             action_request=action_request,
@@ -85,6 +90,7 @@ class PendingApprovalStore:
             expires_at=_format_time(now + timedelta(seconds=self.ttl_seconds)),
             status=ApprovalStatus.PENDING,
             reason=reason,
+            run_context=current_run_context(),
         )
         with file_lock(self._lock_path, self.lock_timeout):
             approvals = self._read()
