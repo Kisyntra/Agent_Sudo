@@ -292,5 +292,81 @@ class DoctorBroadDelegationTests(unittest.TestCase):
         self.assertTrue(scope.ok)
 
 
+class DuplicateInstallCheckTests(unittest.TestCase):
+    """doctor surfaces multiple active installs (issue #111), WARN-only."""
+
+    def _identity(self) -> SelfIdentity:
+        return SelfIdentity(
+            version="0.5.6",
+            install_type="editable",
+            source_path="/repo/Agent_Sudo",
+            package_path="/repo/Agent_Sudo/agent_sudo",
+            python_executable="/py/bin/python",
+            python_prefix="/py",
+            python_version="3.11.14",
+            origin="console-script",
+        )
+
+    def _report(self, installs) -> InventoryReport:
+        records = [
+            InstallRecord(
+                root=root, executable="", version=version, statuses=list(statuses)
+            )
+            for root, version, statuses in installs
+        ]
+        newest = max((r.version for r in records), default="")
+        return InventoryReport(
+            installs=records, configs=[], warnings=[], newest_version=newest
+        )
+
+    def _check(self, installs) -> DoctorCheck:
+        checks = run_doctor(
+            identity=self._identity(), inventory_report=self._report(installs)
+        )
+        return next(c for c in checks if c.name == "single active install")
+
+    def test_no_duplicates_is_ok(self) -> None:
+        check = self._check([("/repo/Agent_Sudo", "0.5.6", ["ACTIVE", "EDITABLE"])])
+        self.assertTrue(check.ok)
+
+    def test_duplicate_active_installs_warn(self) -> None:
+        installs = [
+            ("/venv/a", "0.5.6", ["ACTIVE", "DUPLICATE INSTALL"]),
+            ("/venv/b", "0.5.6", ["ACTIVE", "DUPLICATE INSTALL"]),
+        ]
+        check = self._check(installs)
+        self.assertFalse(check.ok)
+        self.assertEqual(
+            check.detail,
+            "Multiple active Agent_Sudo installs detected. Run `agent-sudo inventory` "
+            "to inspect and choose one canonical install.",
+        )
+        # WARN-only: must not fail the exit code.
+        checks = run_doctor(
+            identity=self._identity(), inventory_report=self._report(installs)
+        )
+        self.assertEqual(doctor_exit_code(checks), 0)
+
+    def test_pyenv_shim_plus_resolved_install_not_double_counted(self) -> None:
+        # A shim resolves to its version install; counting both would be a false
+        # duplicate. The PYENV-SHIM record is excluded, leaving one real install.
+        installs = [
+            ("/home/.pyenv/shims", "", ["ACTIVE", "PYENV-SHIM"]),
+            ("/home/.pyenv/versions/3.11.14", "0.5.6", ["ACTIVE", "EDITABLE"]),
+        ]
+        check = self._check(installs)
+        self.assertTrue(check.ok)
+
+    def test_same_version_editables_at_different_roots_warn(self) -> None:
+        # Two editable installs, same version, different source roots — still a
+        # duplicate because the roots differ.
+        installs = [
+            ("/repo/A", "0.5.6", ["ACTIVE", "EDITABLE", "DUPLICATE INSTALL"]),
+            ("/repo/B", "0.5.6", ["ACTIVE", "EDITABLE", "DUPLICATE INSTALL"]),
+        ]
+        check = self._check(installs)
+        self.assertFalse(check.ok)
+
+
 if __name__ == "__main__":
     unittest.main()
