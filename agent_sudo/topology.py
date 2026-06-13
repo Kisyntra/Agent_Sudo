@@ -20,7 +20,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agent_sudo.inventory import InventoryReport, build_inventory
+from agent_sudo.inventory import InstallRecord, InventoryReport, build_inventory
 
 # Known MCP tooling that does NOT route through Agent_Sudo. Kept deliberately
 # small and concrete (no generic framework). Each entry: a display name, the
@@ -41,7 +41,8 @@ class CLISurface:
     install_root: str
     version: str
     editable_source: str
-    is_shim: bool
+    is_shim: bool  # True only when nothing but a shim is on PATH (no resolved target)
+    via_shim: bool = False  # the resolved install is reached through a pyenv shim
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -50,6 +51,7 @@ class CLISurface:
             "version": self.version,
             "editable_source": self.editable_source,
             "is_shim": self.is_shim,
+            "via_shim": self.via_shim,
         }
 
 
@@ -120,22 +122,46 @@ def build_topology(
         i.root: i.editable_source for i in report.installs if i.editable_source
     }
 
-    # 1. CLI surfaces: installs resolvable on PATH, nearest first.
-    cli_surfaces = [
-        CLISurface(
+    # 1. CLI surfaces: installs resolvable on PATH, nearest first. A pyenv shim
+    # only *resolves to* a version install, so collapse it: when a real install
+    # is on PATH, drop the standalone shim entry and mark the pyenv-version
+    # install it resolves to as via_shim — avoiding a misleading second CLI row.
+    # Only when nothing but a shim is on PATH do we show the shim itself.
+    path_installs = sorted(
+        (i for i in report.installs if i.path_rank is not None),
+        key=lambda i: i.path_rank if i.path_rank is not None else 0,
+    )
+    shim_present = any("PYENV-SHIM" in i.statuses for i in path_installs)
+    real_installs = [i for i in path_installs if "PYENV-SHIM" not in i.statuses]
+
+    def _surface(install: InstallRecord, *, is_shim: bool, via_shim: bool) -> CLISurface:
+        return CLISurface(
             executable=Path(install.executable).name
             if install.executable
             else "agent-sudo",
             install_root=install.root,
             version=install.version,
             editable_source=install.editable_source,
-            is_shim="PYENV-SHIM" in install.statuses,
+            is_shim=is_shim,
+            via_shim=via_shim,
         )
-        for install in sorted(
-            (i for i in report.installs if i.path_rank is not None),
-            key=lambda i: i.path_rank if i.path_rank is not None else 0,
-        )
-    ]
+
+    if real_installs:
+        cli_surfaces = [
+            _surface(
+                install,
+                is_shim=False,
+                via_shim=shim_present and "/.pyenv/versions/" in install.root,
+            )
+            for install in real_installs
+        ]
+    else:
+        # Only a shim resolves on PATH (no version install on PATH to collapse into).
+        cli_surfaces = [
+            _surface(install, is_shim=True, via_shim=False)
+            for install in path_installs
+            if "PYENV-SHIM" in install.statuses
+        ]
 
     # 2. MCP clients routed through Agent_Sudo (from client configs).
     mcp_clients = [
@@ -227,9 +253,10 @@ def format_topology(report: TopologyReport) -> str:
             )
         else:
             version = surface.version or "unknown"
+            shim_note = "   [resolved via pyenv shim]" if surface.via_shim else ""
             lines.append(
                 f"   {surface.executable}  →  {tilde(surface.install_root)}   "
-                f"v{version}{editable_note(surface.editable_source)}"
+                f"v{version}{editable_note(surface.editable_source)}{shim_note}"
             )
     lines.append("")
 

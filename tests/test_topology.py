@@ -99,18 +99,45 @@ class AuditLogExtractionTests(unittest.TestCase):
 
 
 class TopologyStructureTests(unittest.TestCase):
-    def test_cli_surfaces_nearest_first_and_shim_flagged(self):
+    def test_shim_collapses_into_resolved_install(self):
         topo = build_topology(report=_report(), unrouted_tools=[])
-        # nearest on PATH first (rank 0), shim (rank 6) after
+        # The shim is NOT a separate CLI row; it collapses into the resolved
+        # pyenv-version install, which is marked via_shim.
+        self.assertEqual(len(topo.cli_surfaces), 1)
+        surface = topo.cli_surfaces[0]
+        self.assertEqual(surface.install_root, "/home/.pyenv/versions/3.11.14")
+        self.assertFalse(surface.is_shim)
+        self.assertTrue(surface.via_shim)
+        self.assertEqual(surface.version, "0.5.6")
+        # no standalone shim entry, no misleading duplicate
+        self.assertFalse(any(s.is_shim for s in topo.cli_surfaces))
         self.assertEqual(
-            topo.cli_surfaces[0].install_root, "/home/.pyenv/versions/3.11.14"
+            len({s.install_root for s in topo.cli_surfaces}), len(topo.cli_surfaces)
         )
-        self.assertFalse(topo.cli_surfaces[0].is_shim)
-        self.assertEqual(topo.cli_surfaces[0].version, "0.5.6")
-        self.assertTrue(topo.cli_surfaces[1].is_shim)
         # the non-PATH install (Developer .venv) is not a CLI surface
         roots = {s.install_root for s in topo.cli_surfaces}
         self.assertNotIn("/home/Developer/Agent_Sudo/.venv", roots)
+
+    def test_shim_only_on_path_is_shown_as_shim(self):
+        # When nothing but a shim resolves on PATH, show the shim itself (there
+        # is no resolved version install to collapse into).
+        report = InventoryReport(
+            installs=[
+                InstallRecord(
+                    root="/home/.pyenv/shims",
+                    executable="/home/.pyenv/shims/agent-sudo",
+                    version="",
+                    path_rank=0,
+                    statuses=["ACTIVE", "PYENV-SHIM"],
+                )
+            ],
+            configs=[],
+            warnings=[],
+            newest_version="",
+        )
+        topo = build_topology(report=report, unrouted_tools=[])
+        self.assertEqual(len(topo.cli_surfaces), 1)
+        self.assertTrue(topo.cli_surfaces[0].is_shim)
 
     def test_mcp_clients_carry_audit_and_editable_source(self):
         topo = build_topology(report=_report(), unrouted_tools=[])
