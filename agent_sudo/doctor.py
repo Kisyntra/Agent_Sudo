@@ -69,7 +69,32 @@ def _install_health_checks(
     return [
         _staleness_check(identity, inventory_report),
         _runtime_source_check(identity),
+        _duplicate_installs_check(inventory_report),
     ]
+
+
+def _duplicate_installs_check(report: InventoryReport) -> DoctorCheck:
+    name = "single active install"
+    # Reuse inventory's classification (#101): an install is ACTIVE when a client
+    # config references it or it resolves on PATH. A pyenv shim is ACTIVE too but
+    # only *resolves to* a version install — counting both would double-count one
+    # install, so PYENV-SHIM records are excluded. Distinct roots means a shim and
+    # its target collapse to one, while two real installs (even same-version
+    # editables at different source roots) stay distinct.
+    roots = {
+        install.root
+        for install in report.installs
+        if "ACTIVE" in install.statuses and "PYENV-SHIM" not in install.statuses
+    }
+    if len(roots) <= 1:
+        detail = "one active install" if roots else "no active install detected"
+        return DoctorCheck(name, True, detail)
+    return DoctorCheck(
+        name,
+        False,
+        "Multiple active Agent_Sudo installs detected. Run `agent-sudo inventory` "
+        "to inspect and choose one canonical install.",
+    )
 
 
 def _staleness_check(identity: SelfIdentity, report: InventoryReport) -> DoctorCheck:

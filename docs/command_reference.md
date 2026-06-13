@@ -74,6 +74,9 @@ and troubleshooting); they are listed under their primary use.
   stale** (an older copy is resolving ahead of a newer one on the machine) or
   when an **editable install has drifted** from its registered source — so a
   shell silently running an out-of-date copy is caught here, not in production.
+  It also WARNs when **multiple active installs** are detected (more than one
+  Agent_Sudo resolving on PATH or referenced by client configs), pointing you
+  to `agent-sudo inventory` to pick one canonical install.
 - **Example:** `agent-sudo doctor`
 - **When to use:** right after install, or when something isn't working.
 - **Common mistakes:** expecting it to validate your MCP client config — it checks the
