@@ -19,7 +19,7 @@ command does without reading source. Two executables ship with the package:
 | **Onboarding** | `setup`, `demo`, `doctor`, `init-approval`, `workspace`, `context` |
 | **Operational** (live use) | `agent-sudo-mcp`, `pending`, `approve`, `deny`, `approval-helper`, `delegate` |
 | **Audit / investigation** | `audit list`, `audit review`, `audit trace`, `verify-audit`, `verify-routing` |
-| **Troubleshooting** | `doctor`, `context`, `verify-routing` |
+| **Troubleshooting** | `doctor`, `context`, `verify-routing`, `inventory`, `topology` |
 | **Administrative** | `init-approval`, `workspace set`, `delegate revoke`, `upgrade-local` |
 | **Integration / dev** | `check`, `run`, `generic-check`, `generic-run`, `hermes-check`, `codex-check` |
 
@@ -115,6 +115,23 @@ and troubleshooting); they are listed under their primary use.
   deletes, or uninstalls; every line ends in a recommendation you apply
   yourself. It also reads metadata instead of executing the binaries it finds,
   so a corrupted install shows as `UNKNOWN` rather than being run.
+
+### `topology`
+- **Purpose:** answer "what Agent_Sudo instances are guarding me right now, and
+  what is **not** routed through Agent_Sudo?" Four sections: **CLI surfaces**
+  (the `agent-sudo` your shell resolves), **MCP clients** (Claude Desktop,
+  Gemini, Antigravity… with config path, command, version, and the audit log
+  each writes to), **audit destinations** (which clients share which log), and
+  **not routed** (MCP tooling present on the machine but not wired through
+  Agent_Sudo — Smithery is the motivating example).
+- **Example:** `agent-sudo topology` (human view) or `agent-sudo topology --json`
+- **When to use:** when you can't tell which copy a terminal vs an IDE is using,
+  or whether a separate MCP tool is bypassing the gateway.
+- **Common mistakes:** treating "not routed" as an error — it is informational;
+  a tool running outside Agent_Sudo is fine if that is intentional. Like
+  `inventory`, it is **read-only**: no auto-fix, no cleanup. It is a regrouping
+  of `inventory` data plus a presence check — run `inventory` for install-level
+  drift/duplicate detail.
 
 ### `init-approval`
 - **Purpose:** create (or reset) the local passphrase used to approve **critical**
