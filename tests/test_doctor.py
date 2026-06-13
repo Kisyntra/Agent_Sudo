@@ -15,6 +15,8 @@ from agent_sudo.doctor import (
     run_doctor,
 )
 from agent_sudo.gateway import main
+from agent_sudo.inventory import InstallRecord, InventoryReport
+from agent_sudo.self_identity import SelfIdentity
 
 
 class DoctorTests(unittest.TestCase):
@@ -87,6 +89,103 @@ class DoctorTests(unittest.TestCase):
         checks = [DoctorCheck("Python version OK", False, "too old")]
 
         self.assertEqual(doctor_exit_code(checks), 1)
+
+    def test_install_health_checks_present_by_default(self) -> None:
+        names = {check.name for check in run_doctor()}
+        self.assertIn("install up to date", names)
+        self.assertIn("runtime matches install source", names)
+
+
+class InstallHealthCheckTests(unittest.TestCase):
+    """Stale-install and editable-drift detection (issue #110), WARN-only."""
+
+    def _identity(self, **over) -> SelfIdentity:
+        base = dict(
+            version="0.5.6",
+            install_type="editable",
+            source_path="/repo/Agent_Sudo",
+            package_path="/repo/Agent_Sudo/agent_sudo",
+            python_executable="/py/bin/python",
+            python_prefix="/py",
+            python_version="3.11.14",
+            origin="console-script",
+        )
+        base.update(over)
+        return SelfIdentity(**base)
+
+    def _report(self, *, newest: str, installs) -> InventoryReport:
+        records = [
+            InstallRecord(root=root, executable="", version=version)
+            for root, version in installs
+        ]
+        return InventoryReport(
+            installs=records, configs=[], warnings=[], newest_version=newest
+        )
+
+    def _by_name(self, checks):
+        return {check.name: check for check in checks}
+
+    def test_stale_pinned_install_warns(self) -> None:
+        identity = self._identity(
+            install_type="pinned-wheel",
+            version="0.5.5",
+            source_path="/venv/site-packages/agent_sudo",
+            package_path="/venv/site-packages/agent_sudo",
+        )
+        report = self._report(
+            newest="0.5.6",
+            installs=[
+                ("/venv", "0.5.5"),
+                ("/Users/dev/Developer/Agent_Sudo", "0.5.6"),
+            ],
+        )
+        checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
+        stale = checks["install up to date"]
+        self.assertFalse(stale.ok)
+        self.assertIn("0.5.5", stale.detail)
+        self.assertIn("0.5.6", stale.detail)
+        self.assertIn("Developer/Agent_Sudo", stale.detail)
+        # a pinned install has no editable source to drift, so this stays OK
+        self.assertTrue(checks["runtime matches install source"].ok)
+        # WARN-only: a stale install must not fail the doctor exit code
+        self.assertEqual(
+            doctor_exit_code(run_doctor(identity=identity, inventory_report=report)), 0
+        )
+
+    def test_editable_source_mismatch_warns(self) -> None:
+        identity = self._identity(
+            install_type="editable",
+            version="0.5.6",
+            source_path="/old/checkout/Agent_Sudo",
+            package_path="/elsewhere/Agent_Sudo/agent_sudo",
+        )
+        report = self._report(newest="0.5.6", installs=[("/old/checkout/Agent_Sudo", "0.5.6")])
+        checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
+        drift = checks["runtime matches install source"]
+        self.assertFalse(drift.ok)
+        self.assertIn("/old/checkout/Agent_Sudo", drift.detail)
+        self.assertIn("/elsewhere/Agent_Sudo", drift.detail)
+        # version is newest, so staleness stays OK
+        self.assertTrue(checks["install up to date"].ok)
+        self.assertEqual(
+            doctor_exit_code(run_doctor(identity=identity, inventory_report=report)), 0
+        )
+
+    def test_clean_current_install_is_ok(self) -> None:
+        identity = self._identity()  # editable 0.5.6, package under source
+        report = self._report(newest="0.5.6", installs=[("/repo/Agent_Sudo", "0.5.6")])
+        checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
+        self.assertTrue(checks["install up to date"].ok)
+        self.assertTrue(checks["runtime matches install source"].ok)
+        self.assertEqual(
+            doctor_exit_code(run_doctor(identity=identity, inventory_report=report)), 0
+        )
+
+    def test_unknown_versions_do_not_warn(self) -> None:
+        identity = self._identity(version="unknown")
+        report = self._report(newest="", installs=[])
+        checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
+        self.assertTrue(checks["install up to date"].ok)
 
     def test_doctor_format_contains_status(self) -> None:
         text = format_doctor_checks(
