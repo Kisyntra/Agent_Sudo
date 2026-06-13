@@ -72,9 +72,7 @@ def _install_health_checks(
     ]
 
 
-def _staleness_check(
-    identity: SelfIdentity, report: InventoryReport
-) -> DoctorCheck:
+def _staleness_check(identity: SelfIdentity, report: InventoryReport) -> DoctorCheck:
     name = "install up to date"
     running = identity.version
     newest = report.newest_version

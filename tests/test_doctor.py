@@ -159,7 +159,9 @@ class InstallHealthCheckTests(unittest.TestCase):
             source_path="/old/checkout/Agent_Sudo",
             package_path="/elsewhere/Agent_Sudo/agent_sudo",
         )
-        report = self._report(newest="0.5.6", installs=[("/old/checkout/Agent_Sudo", "0.5.6")])
+        report = self._report(
+            newest="0.5.6", installs=[("/old/checkout/Agent_Sudo", "0.5.6")]
+        )
         checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
         drift = checks["runtime matches install source"]
         self.assertFalse(drift.ok)
