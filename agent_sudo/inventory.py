@@ -338,14 +338,16 @@ def _version_from_init(init: Path) -> str:
 
 
 def _editable_source(direct_url: Path) -> str:
+    # Shares the PEP 610 direct_url.json parsing with self_identity so the
+    # editable-detection logic lives in exactly one place.
+    from agent_sudo.self_identity import parse_direct_url
+
     try:
-        data = json.loads(direct_url.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        text = direct_url.read_text(encoding="utf-8")
+    except OSError:
         return ""
-    if isinstance(data, dict) and data.get("dir_info", {}).get("editable"):
-        url = str(data.get("url", ""))
-        return url.removeprefix("file://")
-    return ""
+    editable, source = parse_direct_url(text)
+    return source if editable else ""
 
 
 # ---------------------------------------------------------------------------

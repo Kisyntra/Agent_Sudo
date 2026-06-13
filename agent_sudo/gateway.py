@@ -501,11 +501,28 @@ def _resolve_default_audit_log_path() -> Path:
     return Path("~/.agent-sudo/mcp-audit.jsonl").expanduser()
 
 
+class _VersionAction(argparse.Action):
+    """Print version + provenance (which copy of agent-sudo is running)."""
+
+    def __init__(self, option_strings, dest, **kwargs):
+        kwargs.setdefault("nargs", 0)
+        kwargs.setdefault("help", "show version and which install is running")
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        from agent_sudo.self_identity import (
+            describe_running_install,
+            format_version_block,
+        )
+
+        identity = describe_running_install()
+        print(format_version_block(identity, version_label=__version_label__))
+        parser.exit()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agent-sudo")
-    parser.add_argument(
-        "--version", action="version", version=f"agent-sudo {__version_label__}"
-    )
+    parser.add_argument("--version", action=_VersionAction)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     check_parser = subparsers.add_parser(
