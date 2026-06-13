@@ -21,7 +21,10 @@ from agent_sudo.self_identity import (
 class ParseDirectUrlTests(unittest.TestCase):
     def test_editable_local_install(self):
         text = json.dumps(
-            {"dir_info": {"editable": True}, "url": "file:///Volumes/Storage/Agent_Sudo"}
+            {
+                "dir_info": {"editable": True},
+                "url": "file:///Volumes/Storage/Agent_Sudo",
+            }
         )
         editable, source = parse_direct_url(text)
         self.assertTrue(editable)
@@ -54,7 +57,9 @@ class ResolveInstallTests(unittest.TestCase):
             {"dir_info": {"editable": True}, "url": "file:///src/Agent_Sudo"}
         )
         with mock.patch.object(self_identity, "_read_direct_url", return_value=text):
-            install_type, source = self_identity._resolve_install(Path("/src/Agent_Sudo/agent_sudo"))
+            install_type, source = self_identity._resolve_install(
+                Path("/src/Agent_Sudo/agent_sudo")
+            )
         self.assertEqual(install_type, "editable")
         self.assertEqual(source, "/src/Agent_Sudo")
 
@@ -82,7 +87,9 @@ class ResolveInstallTests(unittest.TestCase):
 
 class DetectOriginTests(unittest.TestCase):
     def test_console_script(self):
-        self.assertEqual(self_identity._detect_origin("/x/bin/agent-sudo"), "console-script")
+        self.assertEqual(
+            self_identity._detect_origin("/x/bin/agent-sudo"), "console-script"
+        )
         self.assertEqual(
             self_identity._detect_origin("/x/bin/agent-sudo-mcp"), "console-script"
         )
