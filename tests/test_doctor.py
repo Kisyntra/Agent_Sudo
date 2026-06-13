@@ -309,7 +309,9 @@ class DuplicateInstallCheckTests(unittest.TestCase):
 
     def _report(self, installs) -> InventoryReport:
         records = [
-            InstallRecord(root=root, executable="", version=version, statuses=list(statuses))
+            InstallRecord(
+                root=root, executable="", version=version, statuses=list(statuses)
+            )
             for root, version, statuses in installs
         ]
         newest = max((r.version for r in records), default="")
