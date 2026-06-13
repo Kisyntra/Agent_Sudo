@@ -68,7 +68,9 @@ Delegation allows users to issue temporary, scoped tokens for specific agents:
 
 ## 4. Audit Log Guarantees
 
-Every decision, execution result, and approval attempt is logged to a local JSONL file. 
+Every decision, execution result, and approval attempt is logged to a local JSONL file.
+
+Each entry also carries a `run_context` block identifying the Agent_Sudo process that produced it — `version`, `install_type` (editable/pinned-wheel/source-checkout), `client` (the connected MCP client, e.g. claude-desktop/antigravity, or `cli`), `workspace`, and `pid`. The same block is attached to each pending-approval record and shown on the approval prompt and desktop notification, so the copy of Agent_Sudo that requested an approval is the copy named in the prompt and the audit trail. The field is additive (covered by the hash, ignored by older readers).
 
 To prevent an agent from deleting or editing logs to cover its tracks, `Agent_Sudo` implements a **SHA-256 hash chain**:
 - Each log entry contains an `entry_hash` and a `previous_hash`.
