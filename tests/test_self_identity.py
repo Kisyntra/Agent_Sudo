@@ -107,7 +107,10 @@ class ReadDirectUrlShadowingTests(unittest.TestCase):
 
     def test_skips_shadowing_dist_without_direct_url(self):
         editable = json.dumps(
-            {"dir_info": {"editable": True}, "url": "file:///Volumes/Storage/Agent_Sudo"}
+            {
+                "dir_info": {"editable": True},
+                "url": "file:///Volumes/Storage/Agent_Sudo",
+            }
         )
         dists = [
             _FakeDist("agent-sudo-mcp", None),  # stale egg-info, sorted first
@@ -187,7 +190,9 @@ class FormatVersionBlockTests(unittest.TestCase):
         self.assertNotIn("origin", block)
         self.assertNotIn("embedded", block)
         # but it remains available structurally
-        self.assertEqual(self._identity(origin="embedded").to_dict()["origin"], "embedded")
+        self.assertEqual(
+            self._identity(origin="embedded").to_dict()["origin"], "embedded"
+        )
 
     def test_editable_shows_source(self):
         block = format_version_block(self._identity(), version_label="v0.5.6")
