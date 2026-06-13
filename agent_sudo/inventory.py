@@ -59,6 +59,7 @@ class ConfigRecord:
     command_exists: bool
     install_root: str  # resolved install root ("" when unresolvable)
     version: str  # version of the resolved install
+    audit_log: str = ""  # --audit-log path this client writes to ("" if unset)
     statuses: list[str] = field(default_factory=list)
     recommendation: str = ""
 
@@ -71,6 +72,7 @@ class ConfigRecord:
             "command_exists": self.command_exists,
             "install_root": self.install_root,
             "version": self.version,
+            "audit_log": self.audit_log,
             "statuses": self.statuses,
             "recommendation": self.recommendation,
         }
@@ -422,9 +424,20 @@ def _discover_client_configs(
                     command_exists=command_path.is_file(),
                     install_root="",
                     version="",
+                    audit_log=_audit_log_from_args(args),
                 )
             )
     return records
+
+
+def _audit_log_from_args(args: list[str]) -> str:
+    """Return the --audit-log path from an MCP server's args, or ""."""
+    for i, arg in enumerate(args):
+        if arg == "--audit-log" and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--audit-log="):
+            return arg.split("=", 1)[1]
+    return ""
 
 
 def _mcp_entries_from_json(path: Path) -> list[tuple[str, str, list[str]]]:

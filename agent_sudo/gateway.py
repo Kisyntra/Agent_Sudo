@@ -749,6 +749,16 @@ def build_parser() -> argparse.ArgumentParser:
     inventory_parser.add_argument(
         "--json", action="store_true", help="Emit the report as JSON"
     )
+    topology_parser = subparsers.add_parser(
+        "topology",
+        help=(
+            "Read-only view of which Agent_Sudo instances guard you (CLI, MCP "
+            "clients, audit logs) and what is not routed through Agent_Sudo"
+        ),
+    )
+    topology_parser.add_argument(
+        "--json", action="store_true", help="Emit the topology as JSON"
+    )
     verify_routing_parser = subparsers.add_parser(
         "verify-routing",
         help="Report observed evidence of whether actions flow through Agent_Sudo",
@@ -1164,6 +1174,20 @@ def main(argv: Iterable[str] | None = None) -> int:
 
             branding.print_wordmark()
             print(format_inventory(report))
+        return 0
+    if args.command == "topology":
+        import json as json_module
+
+        from agent_sudo.topology import build_topology, format_topology
+
+        topology = build_topology()
+        if args.json:
+            print(json_module.dumps(topology.to_dict(), indent=2))
+        else:
+            from agent_sudo import branding
+
+            branding.print_wordmark()
+            print(format_topology(topology))
         return 0
     if args.command == "verify-routing":
         from agent_sudo.routing_check import (
