@@ -134,7 +134,9 @@ def build_topology(
     shim_present = any("PYENV-SHIM" in i.statuses for i in path_installs)
     real_installs = [i for i in path_installs if "PYENV-SHIM" not in i.statuses]
 
-    def _surface(install: InstallRecord, *, is_shim: bool, via_shim: bool) -> CLISurface:
+    def _surface(
+        install: InstallRecord, *, is_shim: bool, via_shim: bool
+    ) -> CLISurface:
         return CLISurface(
             executable=Path(install.executable).name
             if install.executable
