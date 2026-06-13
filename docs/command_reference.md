@@ -70,11 +70,17 @@ and troubleshooting); they are listed under their primary use.
 
 ### `doctor`
 - **Purpose:** report local readiness (Python version, policy, writable audit/
-  delegation stores, approval config).
+  delegation stores, approval config). Also WARNs when the **running install is
+  stale** (an older copy is resolving ahead of a newer one on the machine) or
+  when an **editable install has drifted** from its registered source — so a
+  shell silently running an out-of-date copy is caught here, not in production.
 - **Example:** `agent-sudo doctor`
 - **When to use:** right after install, or when something isn't working.
 - **Common mistakes:** expecting it to validate your MCP client config — it checks the
   local Agent_Sudo install, not the client wiring (use `verify-routing` for that).
+- **Note:** the staleness/drift checks are **WARN-only** — they never fail the
+  exit code or change anything; run `agent-sudo inventory` for the full
+  install map and `--version` to see which copy is running.
 
 ### `--version`
 - **Purpose:** print the running version **and which copy is running it** —
