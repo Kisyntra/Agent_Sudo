@@ -136,7 +136,7 @@ class InstallHealthCheckTests(unittest.TestCase):
             newest="0.5.6",
             installs=[
                 ("/venv", "0.5.5"),
-                ("/Users/dev/Developer/Agent_Sudo", "0.5.6"),
+                ("/Users/username/Developer/Agent_Sudo", "0.5.6"),
             ],
         )
         checks = self._by_name(run_doctor(identity=identity, inventory_report=report))
