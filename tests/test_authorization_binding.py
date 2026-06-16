@@ -291,9 +291,7 @@ class AuditBindingTests(unittest.TestCase):
     def _run_replay_scenario(self, tmpdir: str) -> Path:
         audit_path = Path(tmpdir) / "audit.jsonl"
         audit = AuditLogger(audit_path)
-        store = PendingApprovalStore(
-            Path(tmpdir) / "pending.json", audit_logger=audit
-        )
+        store = PendingApprovalStore(Path(tmpdir) / "pending.json", audit_logger=audit)
         gateway = PermissionGateway(
             self.policy,
             approvals=_NoTty(),
