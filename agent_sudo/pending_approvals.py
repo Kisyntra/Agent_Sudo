@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -363,7 +364,13 @@ class PendingApprovalStore:
         for record in expired_records:
             self._record_state("approval_expired", record)
         if consumed is not None:
-            self._record_state("approval_used", consumed)
+            # Bind the consumption to the exact request fingerprint so the audit
+            # log alone proves which request consumed this approval.
+            self._record_state(
+                "approval_used",
+                consumed,
+                extra={"request_fingerprint": request_fingerprint_hash(request)},
+            )
         return consumed
 
     def _expire_stale(self, approvals: list[ApprovalRequest]) -> list[ApprovalRequest]:
@@ -386,11 +393,18 @@ class PendingApprovalStore:
             self.save(updated)
         return updated
 
-    def _record_state(self, event_type: str, approval: ApprovalRequest) -> None:
+    def _record_state(
+        self,
+        event_type: str,
+        approval: ApprovalRequest,
+        *,
+        extra: dict[str, object] | None = None,
+    ) -> None:
         if self.audit_logger is not None:
-            self.audit_logger.record_event(
-                event_type, {"approval_request": approval.to_dict()}
-            )
+            payload: dict[str, object] = {"approval_request": approval.to_dict()}
+            if extra:
+                payload.update(extra)
+            self.audit_logger.record_event(event_type, payload)
 
     def _record_attempt(
         self, event_type: str, approval: ApprovalRequest, result: ApprovalResult
@@ -519,7 +533,20 @@ def request_fingerprint(request: ActionRequest) -> str:
 
 
 def _request_fingerprint(request: ActionRequest) -> str:
-    data = request.to_dict()
+    return _fingerprint_string_from_dict(request.to_dict())
+
+
+def _fingerprint_string_from_dict(data: dict) -> str:
+    """Canonical fingerprint string for a serialized request dict.
+
+    The per-call ``request_id`` / ``parent_request_id`` are zeroed so the
+    fingerprint identifies the *request shape* (actor, source, tool, action,
+    target, payload_summary, trust, session) rather than a single invocation.
+    Two calls that differ only in those ids share a fingerprint; everything else
+    (actor, session_id, target, ...) is part of it, which is what binds an
+    approval to one actor + session.
+    """
+    data = dict(data)
     provenance = data.get("provenance")
     if isinstance(provenance, dict):
         provenance = dict(provenance)
@@ -527,6 +554,30 @@ def _request_fingerprint(request: ActionRequest) -> str:
         provenance["parent_request_id"] = ""
         data["provenance"] = provenance
     return json.dumps(data, sort_keys=True, separators=(",", ":"))
+
+
+def request_fingerprint_hash(request: ActionRequest) -> str:
+    """Stable SHA-256 of the canonical request fingerprint.
+
+    Unlike :func:`request_fingerprint` (a JSON string used for in-process
+    matching), this is a fixed-width hash suitable for stamping into audit
+    records so a decision can be bound to — and re-verified against — the exact
+    request that produced it, from the log alone.
+    """
+    return fingerprint_hash_from_dict(request.to_dict())
+
+
+def fingerprint_hash_from_dict(data: dict) -> str:
+    """Fingerprint hash computed directly from a serialized request dict.
+
+    Used by the audit verifier to recompute the binding from a stored
+    ``action_request`` without reconstructing an :class:`ActionRequest` (which
+    would re-run trust reconciliation), so the check is a pure function of the
+    bytes on disk.
+    """
+    return hashlib.sha256(
+        _fingerprint_string_from_dict(data).encode("utf-8")
+    ).hexdigest()
 
 
 def _format_time(value: datetime) -> str:
